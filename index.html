@@ -6849,6 +6849,15 @@ async function _getTokenDownloadSource(id){
   return imgForId(id);
 }
 
+function _getCurrentModalImageSourceForDownload(id){
+  id = Number(id);
+  const modal = document.getElementById('modal');
+  if(!modal || modal.style.display === 'none' || Number(window._modalCurrentId) !== id) return null;
+  const img = document.querySelector('#mImg img');
+  const src = img?.currentSrc || img?.src || '';
+  return src ? String(src).trim() : null;
+}
+
 async function downloadTokenPng(id, withBg = true){
   const btn      = document.getElementById(withBg ? 'mDownloadBgBtn' : 'mDownloadNoBgBtn');
   const label    = withBg ? 'With BG' : 'No BG';
@@ -6975,14 +6984,34 @@ async function downloadTokenPng(id, withBg = true){
 
     if(withBg){
       // With BG strategy:
+      const displayedSrc = _getCurrentModalImageSourceForDownload(id);
+      if(displayedSrc){
+        try{
+          canvas = await drawUrlImageSafely(displayedSrc, false);
+        }catch(displayErr){
+          console.warn('Displayed image download render failed, trying source fallbacks:', displayErr);
+        }
+      }
+
+      if(!canvas && typeof _getFreshImg === 'function'){
+        const freshSrc = _getFreshImg(id);
+        if(freshSrc){
+          try{
+            canvas = await drawUrlImageSafely(freshSrc, false);
+          }catch(freshErr){
+            console.warn('Fresh image download render failed, trying source fallbacks:', freshErr);
+          }
+        }
+      }
+
       // For SVG tokens: render raw SVG via owned blob URL (character already
       //   base64-inline, nothing external, canvas never tainted).
       // For PNG tokens: load a fresh <img> with crossOrigin='anonymous' set
       //   BEFORE src is assigned — this is the only reliable way to get a
       //   CORS-clean image for canvas export regardless of browser cache.
 
-      const rawSvg = await _getRawSvgForDownload(id);
-      if(rawSvg){
+      const rawSvg = canvas ? null : await _getRawSvgForDownload(id);
+      if(!canvas && rawSvg){
         try{
           canvas = await _drawFullSvgSafely(rawSvg, false, document.baseURI, SIZE);
         }catch(svgErr){
