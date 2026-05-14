@@ -6690,6 +6690,29 @@ function _svgWithoutBackgroundGroup(svgText){
   return new XMLSerializer().serializeToString(svg);
 }
 
+function _svgBackgroundOnly(svgText){
+  const doc = new DOMParser().parseFromString(String(svgText || ''), 'image/svg+xml');
+  const svg = doc.documentElement;
+  if(!svg || String(svg.nodeName).toLowerCase() === 'parsererror') return null;
+  const bgNodes = [...doc.querySelectorAll('g#Background, [id="Background"]')];
+  if(!bgNodes.length) return null;
+
+  const outDoc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
+  const outSvg = outDoc.documentElement;
+  for(const attr of svg.attributes) outSvg.setAttribute(attr.name, attr.value);
+  if(!outSvg.getAttribute('xmlns')) outSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  if(!outSvg.getAttribute('xmlns:xlink')) outSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+
+  [...svg.children].forEach(child => {
+    const name = child.localName?.toLowerCase();
+    if(name === 'defs' || name === 'style' || name === 'title' || name === 'desc'){
+      outSvg.appendChild(outDoc.importNode(child, true));
+    }
+  });
+  bgNodes.forEach(bg => outSvg.appendChild(outDoc.importNode(bg, true)));
+  return new XMLSerializer().serializeToString(outSvg);
+}
+
 async function _drawFullSvgSafely(svgText, alpha, baseUrl, size = 4096){
   // Render the real SVG, not just the character layer. This is what preserves
   // owner-selected OCAS metadata backgrounds while still avoiding tainted canvas:
@@ -6706,6 +6729,7 @@ async function _drawFullSvgSafely(svgText, alpha, baseUrl, size = 4096){
 
   const load = (src) => new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Safe SVG image failed to load.'));
     img.src = src;
@@ -6722,6 +6746,46 @@ async function _drawFullSvgSafely(svgText, alpha, baseUrl, size = 4096){
   }finally{
     URL.revokeObjectURL(objUrl);
   }
+}
+
+async function _drawSvgBackgroundAndEmbeddedArt(svgText, alpha, baseUrl, size = 4096){
+  const embedded = _extractEmbeddedRasterFromSvg(svgText);
+  if(!embedded) throw new Error('No embedded character image found in this token SVG.');
+  const bgSvg = _svgBackgroundOnly(svgText);
+  if(!bgSvg) throw new Error('No SVG Background group found for With BG export.');
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d', { alpha });
+  ctx.imageSmoothingEnabled = false;
+
+  const load = (src) => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Download image layer failed to load.'));
+    img.src = src;
+  });
+
+  const safeBgSvg = await _inlineExternalSvgImages(bgSvg, baseUrl);
+  if(/<(?:image|img)\b[^>]*(?:href|xlink:href|src)=["'](?!data:|blob:)[^"']+["']/i.test(safeBgSvg)){
+    throw new Error('SVG Background still contains external image references after inlining.');
+  }
+
+  const bgUrl = URL.createObjectURL(new Blob([safeBgSvg], { type:'image/svg+xml;charset=utf-8' }));
+  try{
+    const bgImg = await load(bgUrl);
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(bgImg, 0, 0, size, size);
+  }finally{
+    URL.revokeObjectURL(bgUrl);
+  }
+
+  const artImg = await load(embedded);
+  ctx.drawImage(artImg, 0, 0, size, size);
+  try{ ctx.getImageData(0, 0, 1, 1); }catch(e){ throw new Error('Canvas was tainted after SVG background/art render.'); }
+  return canvas;
 }
 
 async function _fetchLiveImageUrlForDownload(id){
@@ -6879,6 +6943,7 @@ async function downloadTokenPng(id, withBg = true){
 
   const canvasToDownload = (canvas) => new Promise((resolve, reject) => {
     try{
+      canvas.getContext('2d').getImageData(0, 0, 1, 1);
       canvas.toBlob((blob) => {
         if(!blob) return reject(new Error('Canvas export returned no data.'));
         const url = URL.createObjectURL(blob);
@@ -6905,6 +6970,7 @@ async function downloadTokenPng(id, withBg = true){
 
   const loadImage = (src) => new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Image failed to load.'));
     img.src = src;
@@ -6999,7 +7065,7 @@ async function downloadTokenPng(id, withBg = true){
       const rawSvg = await _getRawSvgForDownload(id);
       if(rawSvg){
         try{
-          canvas = await _drawFullSvgSafely(rawSvg, false, document.baseURI, SIZE);
+          canvas = await _drawSvgBackgroundAndEmbeddedArt(rawSvg, false, document.baseURI, SIZE);
         }catch(svgErr){
           console.warn('Safe full SVG download render failed, trying current image fallback:', svgErr);
         }
@@ -7058,7 +7124,7 @@ async function downloadTokenPng(id, withBg = true){
 
       if(!canvas) throw new Error('Could not load token image for download.');
     }else{
-      // Transparent/no-background: render the original SVG with only g#Background removed.
+      // Transparent/no-background: draw only the embedded token art.
       let rawSvg = await _getRawSvgForDownload(id);
 
       // Fallback to the older working path: check the current download source/map again.
@@ -7069,7 +7135,15 @@ async function downloadTokenPng(id, withBg = true){
 
       if(!rawSvg) throw new Error('No raw SVG found for this token. Try refreshing the page, then open the token and use No BG again.');
 
-      canvas = await _drawFullSvgSafely(_svgWithoutBackgroundGroup(rawSvg), true, document.baseURI, SIZE);
+      const embedded = _extractEmbeddedRasterFromSvg(_svgWithoutBackgroundGroup(rawSvg));
+      if(!embedded) throw new Error('No embedded character image found in this token SVG.');
+
+      const made = makeCanvas(true);
+      canvas = made.canvas;
+      const ctx = made.ctx;
+      ctx.clearRect(0, 0, SIZE, SIZE);
+      const img = await loadImage(embedded);
+      ctx.drawImage(img, 0, 0, SIZE, SIZE);
     }
 
     await canvasToDownload(canvas);

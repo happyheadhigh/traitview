@@ -85,8 +85,16 @@ function injectStyles(){
 }
 #modal.${MODAL_CLASS_PREFIX}active #mImg .tv-enhanced-shimmer{
   z-index:6;
-  background:linear-gradient(112deg,transparent 18%,rgba(255,215,128,.08) 40%,rgba(255,255,255,.26) 49%,rgba(255,215,128,.10) 58%,transparent 70%);
-  transform:translateX(-135%);
+  inset:-22%;
+  background:
+    linear-gradient(112deg,
+      transparent 18%,
+      rgba(255,205,92,.00) 34%,
+      rgba(255,205,92,.22) 43%,
+      rgba(255,255,255,.46) 50%,
+      rgba(255,220,120,.20) 57%,
+      transparent 72%);
+  transform:translateX(-150%) rotate(0.001deg);
   opacity:0;
 }
 #modal.${MODAL_CLASS_PREFIX}active #mImg > img,
@@ -118,16 +126,16 @@ function injectStyles(){
   z-index:1;
 }
 #modal.${MODAL_CLASS_PREFIX}trait-metal #mImg::before{
-  animation-duration:5.4s;
-  background:linear-gradient(112deg,transparent 16%,rgba(255,215,128,.14) 38%,rgba(255,255,255,.32) 49%,rgba(255,215,128,.12) 58%,transparent 70%);
+  animation-duration:4.8s;
+  background:linear-gradient(112deg,transparent 16%,rgba(255,215,128,.18) 38%,rgba(255,255,255,.38) 49%,rgba(255,215,128,.16) 58%,transparent 70%);
 }
 #modal.${MODAL_CLASS_PREFIX}trait-metal #mImg .tv-enhanced-shimmer{
-  opacity:.9;
-  animation:tvEnhancedSweep 5.4s ease-in-out infinite;
+  opacity:1;
+  animation:tvEnhancedJewelrySweep 4.8s ease-in-out infinite;
 }
 #modal.${MODAL_CLASS_PREFIX}trait-metal #mImg > img,
 #modal.${MODAL_CLASS_PREFIX}trait-metal #mImg > .svg-wrap{
-  filter:drop-shadow(0 0 16px rgba(255,215,128,.26)) drop-shadow(0 0 24px rgba(255,255,255,.14)) saturate(1.08);
+  filter:drop-shadow(0 0 18px rgba(255,215,128,.34)) drop-shadow(0 0 28px rgba(255,255,255,.16)) saturate(1.10);
 }
 #modal.${MODAL_CLASS_PREFIX}trait-haze .box::before{
   opacity:.88;
@@ -189,6 +197,10 @@ function injectStyles(){
   0%,64%{transform:translateX(-135%)}
   82%,100%{transform:translateX(135%)}
 }
+@keyframes tvEnhancedJewelrySweep{
+  0%,58%{transform:translateX(-150%) rotate(0.001deg)}
+  84%,100%{transform:translateX(150%) rotate(0.001deg)}
+}
 @keyframes tvEnhancedToxicPulse{
   0%,100%{filter:saturate(1);box-shadow:inset 0 0 48px rgba(160,255,80,.08),0 0 44px rgba(121,255,42,.24),0 0 90px rgba(51,255,70,.12)}
   50%{filter:saturate(1.08);box-shadow:inset 0 0 56px rgba(160,255,80,.12),0 0 58px rgba(121,255,42,.38),0 0 118px rgba(51,255,70,.18)}
@@ -213,7 +225,7 @@ function normalize(value){
 function classesForTraits(traits){
   const entries = Object.entries(traits || {}).map(([k,v]) => [normalize(k), normalize(v)]);
   const classes = [];
-  if(entries.some(([k,v]) => k.includes('jewell') || v.includes('gold') || v.includes('diamond') || v.includes('chain') || v.includes('grill') || v.includes('choker') || v.includes('earring') || v.includes('bracelet'))){
+  if(entries.some(([k,v]) => k.includes('jewell') || k.includes('jewel') || v.includes('gold') || v.includes('golden') || v.includes('diamond') || v.includes('chain') || v.includes('grill') || v.includes('teeth') || v.includes('choker') || v.includes('earring') || v.includes('bracelet'))){
     classes.push(`${MODAL_CLASS_PREFIX}trait-metal`);
   }
   if(entries.some(([k,v]) => k === 'type' && /zombie|alien|skeleton|radioactive|demonic/.test(v))){
