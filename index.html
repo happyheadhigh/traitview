@@ -1210,12 +1210,10 @@ a{color:var(--accent)!important}
 }
 .modal-tab-panel { display: none; }
 .modal-tab-panel.active { display: block; }
-.render-mode-toggle{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.03)}
-.render-mode-toggle button{border:0;background:transparent;color:var(--sub);font:inherit;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;cursor:pointer}
-.render-mode-toggle button.active{background:rgba(255,255,255,.10);color:var(--text);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.render-tools-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.03);color:var(--sub);font-size:11px;font-weight:700}
+.render-tools-pill span{color:var(--text)}
 @media (max-width:900px){
-  .render-mode-toggle{width:100%;justify-content:space-between}
-  .render-mode-toggle button{flex:1}
+  .render-tools-pill{width:100%;justify-content:center}
 }
 
 /* ── Wallet View panel ───────────────────────────────────────────── */
@@ -2881,9 +2879,8 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
             <span style="color:var(--sub);font-size:10px">Owned by</span>
             <span class="owner-addr" id="mOwnerAddr">…</span>
           </span>
-          <span class="render-mode-toggle" role="group" aria-label="Render mode">
-            <button type="button" id="renderModeOriginal" class="active" onclick="setRenderMode('original')">Original</button>
-            <button type="button" id="renderModeEnhanced" onclick="setRenderMode('enhanced')">Enhanced</button>
+          <span class="render-tools-pill" aria-label="Render tools">
+            Render Tools <span>PNG</span>
           </span>
         </div>
       </div>
@@ -2950,59 +2947,6 @@ const LIVE_CONTRACT = '0x078be86f3104a32313a47815792230a3808642cc';
 
 const FAVORITES_KEY = 'traitview_favorites_ocas';
 const FAVORITES_VIEW_KEY = 'traitview_favorites_only';
-const RENDER_MODE_KEY = 'traitview_render_mode';
-let ENHANCED_RENDER_MODULE_PROMISE = null;
-let ENHANCED_RENDER_MODULE = null;
-
-function getRenderMode(){
-  try{ return localStorage.getItem(RENDER_MODE_KEY) === 'enhanced' ? 'enhanced' : 'original'; }
-  catch(e){ return 'original'; }
-}
-
-function syncRenderModeButtons(){
-  const mode = getRenderMode();
-  document.getElementById('renderModeOriginal')?.classList.toggle('active', mode === 'original');
-  document.getElementById('renderModeEnhanced')?.classList.toggle('active', mode === 'enhanced');
-}
-
-async function loadEnhancedRenderModule(){
-  if(ENHANCED_RENDER_MODULE) return ENHANCED_RENDER_MODULE;
-  if(!ENHANCED_RENDER_MODULE_PROMISE){
-    ENHANCED_RENDER_MODULE_PROMISE = import('./enhanced-render.js').then(mod => {
-      ENHANCED_RENDER_MODULE = mod;
-      return mod;
-    });
-  }
-  return ENHANCED_RENDER_MODULE_PROMISE;
-}
-
-async function applyRenderModeToModal(id, row){
-  syncRenderModeButtons();
-  const modal = document.getElementById('modal');
-  if(getRenderMode() !== 'enhanced'){
-    if(ENHANCED_RENDER_MODULE?.clearEnhancedRender) ENHANCED_RENDER_MODULE.clearEnhancedRender(modal);
-    return;
-  }
-  const mod = await loadEnhancedRenderModule();
-  mod.applyEnhancedRender({
-    modal,
-    id:+id,
-    row,
-    rank: typeof RARITY_OBS_RANK !== 'undefined' ? RARITY_OBS_RANK.get(+id) : null
-  });
-}
-
-async function setRenderMode(mode){
-  const next = mode === 'enhanced' ? 'enhanced' : 'original';
-  try{ localStorage.setItem(RENDER_MODE_KEY, next); }catch(e){}
-  syncRenderModeButtons();
-  const id = +window._modalCurrentId;
-  if(id){
-    const row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || null;
-    await applyRenderModeToModal(id, row);
-  }
-}
-window.setRenderMode = setRenderMode;
 
 function getFavorites(){
   try{
@@ -4159,7 +4103,6 @@ async function openModal(id){
   document.querySelectorAll('.modal-tab-panel').forEach(p=>p.classList.toggle('active', p.id==='tab-traits'));
 
   m.style.display = 'flex';
-  applyRenderModeToModal(id, row).catch(()=>{});
 }
 
 function buildRarityBreakdown(id, row){
