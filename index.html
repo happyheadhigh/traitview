@@ -6680,6 +6680,16 @@ async function _inlineExternalSvgImages(svgText, baseUrl){
   return new XMLSerializer().serializeToString(svg);
 }
 
+function _svgWithoutBackgroundGroup(svgText){
+  const doc = new DOMParser().parseFromString(String(svgText || ''), 'image/svg+xml');
+  const svg = doc.documentElement;
+  if(!svg || String(svg.nodeName).toLowerCase() === 'parsererror') return String(svgText || '');
+  doc.querySelectorAll('g#Background, [id="Background"]').forEach(bg => bg.remove());
+  if(!svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  if(!svg.getAttribute('xmlns:xlink')) svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+  return new XMLSerializer().serializeToString(svg);
+}
+
 async function _drawFullSvgSafely(svgText, alpha, baseUrl, size = 4096){
   // Render the real SVG, not just the character layer. This is what preserves
   // owner-selected OCAS metadata backgrounds while still avoiding tainted canvas:
@@ -6984,8 +6994,19 @@ async function downloadTokenPng(id, withBg = true){
 
     if(withBg){
       // With BG strategy:
-      const displayedSrc = _getCurrentModalImageSourceForDownload(id);
-      if(displayedSrc){
+      // SVG is the source of truth for OCAS backgrounds. Render the full SVG so
+      // g#Background gradients/patterns are preserved exactly.
+      const rawSvg = await _getRawSvgForDownload(id);
+      if(rawSvg){
+        try{
+          canvas = await _drawFullSvgSafely(rawSvg, false, document.baseURI, SIZE);
+        }catch(svgErr){
+          console.warn('Safe full SVG download render failed, trying current image fallback:', svgErr);
+        }
+      }
+
+      const displayedSrc = canvas ? null : _getCurrentModalImageSourceForDownload(id);
+      if(!canvas && displayedSrc){
         try{
           canvas = await drawUrlImageSafely(displayedSrc, false);
         }catch(displayErr){
@@ -7009,16 +7030,6 @@ async function downloadTokenPng(id, withBg = true){
       // For PNG tokens: load a fresh <img> with crossOrigin='anonymous' set
       //   BEFORE src is assigned — this is the only reliable way to get a
       //   CORS-clean image for canvas export regardless of browser cache.
-
-      const rawSvg = canvas ? null : await _getRawSvgForDownload(id);
-      if(!canvas && rawSvg){
-        try{
-          canvas = await _drawFullSvgSafely(rawSvg, false, document.baseURI, SIZE);
-        }catch(svgErr){
-          console.warn('Safe full SVG download render failed, trying SVG parts fallback:', svgErr);
-          canvas = await drawFromSvgParts(rawSvg, false, true);
-        }
-      }
 
       // PNG token: load fresh with crossOrigin='anonymous' set before src.
       // Must use cache:'reload' so Chrome doesn't serve the cached non-CORS version.
@@ -7047,8 +7058,7 @@ async function downloadTokenPng(id, withBg = true){
 
       if(!canvas) throw new Error('Could not load token image for download.');
     }else{
-      // Transparent/no-background: use raw SVG/embedded character PNG only.
-      // This keeps the character export working even when live metadata changes the displayed background image.
+      // Transparent/no-background: render the original SVG with only g#Background removed.
       let rawSvg = await _getRawSvgForDownload(id);
 
       // Fallback to the older working path: check the current download source/map again.
@@ -7059,16 +7069,7 @@ async function downloadTokenPng(id, withBg = true){
 
       if(!rawSvg) throw new Error('No raw SVG found for this token. Try refreshing the page, then open the token and use No BG again.');
 
-      const embedded = _extractEmbeddedRasterFromSvg(rawSvg);
-      if(!embedded) throw new Error('No embedded character image found in this token SVG.');
-
-      const made = makeCanvas(true);
-      canvas = made.canvas;
-      const ctx = made.ctx;
-      ctx.clearRect(0, 0, SIZE, SIZE);
-      const img = await loadImage(embedded);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, 0, 0, SIZE, SIZE);
+      canvas = await _drawFullSvgSafely(_svgWithoutBackgroundGroup(rawSvg), true, document.baseURI, SIZE);
     }
 
     await canvasToDownload(canvas);

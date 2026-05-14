@@ -83,15 +83,6 @@ function injectStyles(){
   mix-blend-mode:screen;
   opacity:.92;
 }
-#modal.${MODAL_CLASS_PREFIX}active #mImg .tv-enhanced-eye-glow{
-  z-index:5;
-  background:
-    radial-gradient(circle at 45% 39%,rgba(255,60,60,.58) 0 2.5%,rgba(255,38,38,.32) 4.5%,transparent 10%),
-    radial-gradient(circle at 55% 39%,rgba(255,60,60,.58) 0 2.5%,rgba(255,38,38,.32) 4.5%,transparent 10%);
-  filter:blur(.2px);
-  mix-blend-mode:screen;
-  opacity:0;
-}
 #modal.${MODAL_CLASS_PREFIX}active #mImg .tv-enhanced-shimmer{
   z-index:6;
   background:linear-gradient(112deg,transparent 18%,rgba(255,215,128,.08) 40%,rgba(255,255,255,.26) 49%,rgba(255,215,128,.10) 58%,transparent 70%);
@@ -126,28 +117,6 @@ function injectStyles(){
   opacity:.9;
   z-index:1;
 }
-#modal.${MODAL_CLASS_PREFIX}trait-eyes #mImg{
-  box-shadow:inset 0 0 44px rgba(255,255,255,.08),0 0 44px rgba(45,212,191,.25),0 0 90px rgba(45,212,191,.12);
-  animation:tvEnhancedEyePulse 5.8s ease-in-out infinite;
-}
-#modal.${MODAL_CLASS_PREFIX}trait-eyes #mImg .tv-enhanced-eye-glow{
-  opacity:.7;
-  animation:tvEnhancedEyeGlow 3.2s ease-in-out infinite;
-}
-#modal.${MODAL_CLASS_PREFIX}eye-left #mImg .tv-enhanced-eye-glow{
-  background:radial-gradient(circle at 45% 39%,rgba(255,64,64,.62) 0 3%,rgba(255,38,38,.34) 5%,transparent 11%);
-}
-#modal.${MODAL_CLASS_PREFIX}eye-right #mImg .tv-enhanced-eye-glow{
-  background:radial-gradient(circle at 55% 39%,rgba(255,64,64,.62) 0 3%,rgba(255,38,38,.34) 5%,transparent 11%);
-}
-#modal.${MODAL_CLASS_PREFIX}eye-hot #mImg .tv-enhanced-eye-glow{
-  opacity:.82;
-  filter:blur(.35px) saturate(1.2);
-}
-#modal.${MODAL_CLASS_PREFIX}trait-eyes #mImg > img,
-#modal.${MODAL_CLASS_PREFIX}trait-eyes #mImg > .svg-wrap{
-  filter:drop-shadow(0 0 16px rgba(45,212,191,.30)) drop-shadow(0 0 26px rgba(255,255,255,.16)) saturate(1.08);
-}
 #modal.${MODAL_CLASS_PREFIX}trait-metal #mImg::before{
   animation-duration:5.4s;
   background:linear-gradient(112deg,transparent 16%,rgba(255,215,128,.14) 38%,rgba(255,255,255,.32) 49%,rgba(255,215,128,.12) 58%,transparent 70%);
@@ -180,6 +149,34 @@ function injectStyles(){
     radial-gradient(circle at 50% 70%,rgba(25,195,125,.28),transparent 58%);
   opacity:1;
 }
+#modal.${MODAL_CLASS_PREFIX}type-ape #mImg{
+  box-shadow:inset 0 0 48px rgba(255,255,255,.08),0 0 46px rgba(210,130,48,.24),0 0 88px rgba(145,92,38,.14);
+}
+#modal.${MODAL_CLASS_PREFIX}type-ape #mImg .tv-enhanced-token-aura{
+  background:
+    radial-gradient(circle at 50% 46%,rgba(230,150,72,.34),transparent 44%),
+    radial-gradient(circle at 50% 70%,rgba(116,76,40,.22),transparent 58%);
+  opacity:.98;
+}
+#modal.${MODAL_CLASS_PREFIX}type-radioactive #mImg{
+  box-shadow:inset 0 0 52px rgba(160,255,80,.10),0 0 52px rgba(121,255,42,.32),0 0 104px rgba(51,255,70,.16);
+  animation:tvEnhancedToxicPulse 4.8s ease-in-out infinite;
+}
+#modal.${MODAL_CLASS_PREFIX}type-radioactive #mImg .tv-enhanced-token-aura{
+  background:
+    radial-gradient(circle at 50% 46%,rgba(125,255,40,.46),transparent 42%),
+    radial-gradient(circle at 50% 70%,rgba(30,255,105,.26),transparent 60%);
+  opacity:1;
+}
+#modal.${MODAL_CLASS_PREFIX}type-demonic #mImg{
+  box-shadow:inset 0 0 52px rgba(255,98,38,.10),0 0 52px rgba(255,82,38,.30),0 0 98px rgba(255,145,38,.14);
+}
+#modal.${MODAL_CLASS_PREFIX}type-demonic #mImg .tv-enhanced-token-aura{
+  background:
+    radial-gradient(circle at 50% 46%,rgba(255,82,38,.40),transparent 43%),
+    radial-gradient(circle at 50% 72%,rgba(255,166,48,.22),transparent 58%);
+  opacity:1;
+}
 #modal.${MODAL_CLASS_PREFIX}rank-gold #mImg{
   border-color:rgba(255,215,0,.36);
   box-shadow:inset 0 0 46px rgba(255,255,255,.08),0 0 48px rgba(255,215,0,.28),0 0 96px rgba(255,199,44,.14);
@@ -192,18 +189,13 @@ function injectStyles(){
   0%,64%{transform:translateX(-135%)}
   82%,100%{transform:translateX(135%)}
 }
-@keyframes tvEnhancedEyePulse{
-  0%,100%{filter:saturate(1);box-shadow:inset 0 0 40px rgba(255,255,255,.06),0 0 36px rgba(45,212,191,.16),0 0 72px rgba(45,212,191,.08)}
-  50%{filter:saturate(1.08);box-shadow:inset 0 0 48px rgba(255,255,255,.08),0 0 48px rgba(45,212,191,.26),0 0 96px rgba(45,212,191,.12)}
-}
-@keyframes tvEnhancedEyeGlow{
-  0%,100%{opacity:.44;transform:scale(.98)}
-  50%{opacity:.86;transform:scale(1.04)}
+@keyframes tvEnhancedToxicPulse{
+  0%,100%{filter:saturate(1);box-shadow:inset 0 0 48px rgba(160,255,80,.08),0 0 44px rgba(121,255,42,.24),0 0 90px rgba(51,255,70,.12)}
+  50%{filter:saturate(1.08);box-shadow:inset 0 0 56px rgba(160,255,80,.12),0 0 58px rgba(121,255,42,.38),0 0 118px rgba(51,255,70,.18)}
 }
 @media (prefers-reduced-motion:reduce){
   #modal.${MODAL_CLASS_PREFIX}active #mImg,
   #modal.${MODAL_CLASS_PREFIX}active #mImg::before,
-  #modal.${MODAL_CLASS_PREFIX}active #mImg .tv-enhanced-eye-glow,
   #modal.${MODAL_CLASS_PREFIX}active #mImg .tv-enhanced-shimmer{animation:none}
 }
 @media (max-width:900px){
@@ -221,18 +213,15 @@ function normalize(value){
 function classesForTraits(traits){
   const entries = Object.entries(traits || {}).map(([k,v]) => [normalize(k), normalize(v)]);
   const classes = [];
-  if(entries.some(([k,v]) => k.includes('eye') || v.includes('smokey') || v.includes('blind') || v.includes('possessed') || v.includes('posessed') || v.includes('left') || v.includes('right'))){
-    classes.push(`${MODAL_CLASS_PREFIX}trait-eyes`);
-  }
-  if(entries.some(([k,v]) => k.includes('eye') && v.includes('left'))) classes.push(`${MODAL_CLASS_PREFIX}eye-left`);
-  if(entries.some(([k,v]) => k.includes('eye') && v.includes('right'))) classes.push(`${MODAL_CLASS_PREFIX}eye-right`);
-  if(entries.some(([k,v]) => k.includes('eye') && /red|laser|glow|smokey|possess|posess|left|right/.test(v))) classes.push(`${MODAL_CLASS_PREFIX}eye-hot`);
   if(entries.some(([k,v]) => k.includes('jewell') || v.includes('gold') || v.includes('diamond') || v.includes('chain') || v.includes('grill') || v.includes('choker') || v.includes('earring') || v.includes('bracelet'))){
     classes.push(`${MODAL_CLASS_PREFIX}trait-metal`);
   }
   if(entries.some(([k,v]) => k === 'type' && /zombie|alien|skeleton|radioactive|demonic/.test(v))){
     classes.push(`${MODAL_CLASS_PREFIX}trait-haze`);
   }
+  if(entries.some(([k,v]) => k === 'type' && v.includes('ape'))) classes.push(`${MODAL_CLASS_PREFIX}type-ape`);
+  if(entries.some(([k,v]) => k === 'type' && v.includes('radioactive'))) classes.push(`${MODAL_CLASS_PREFIX}type-radioactive`);
+  if(entries.some(([k,v]) => k === 'type' && v.includes('demonic'))) classes.push(`${MODAL_CLASS_PREFIX}type-demonic`);
   return classes;
 }
 
@@ -256,7 +245,7 @@ export function clearEnhancedRender(modal = document.getElementById('modal')){
 function ensureImageLayers(modal){
   const img = modal?.querySelector('#mImg');
   if(!img) return;
-  ['token-aura', 'eye-glow', 'shimmer'].forEach(name => {
+  ['token-aura', 'shimmer'].forEach(name => {
     if(img.querySelector(`.tv-enhanced-${name}`)) return;
     const layer = document.createElement('span');
     layer.className = `tv-enhanced-layer tv-enhanced-${name}`;
