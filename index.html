@@ -6685,6 +6685,9 @@ async function _drawFullSvgSafely(svgText, alpha, baseUrl, size = 4096){
   // owner-selected OCAS metadata backgrounds while still avoiding tainted canvas:
   // any external SVG <image> refs are fetched as blobs and inlined as data URLs first.
   const safeSvg = await _inlineExternalSvgImages(svgText, baseUrl);
+  if(/<(?:image|img)\b[^>]*(?:href|xlink:href|src)=["'](?!data:|blob:)[^"']+["']/i.test(safeSvg)){
+    throw new Error('SVG still contains external image references after inlining.');
+  }
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -6980,19 +6983,12 @@ async function downloadTokenPng(id, withBg = true){
 
       const rawSvg = await _getRawSvgForDownload(id);
       if(rawSvg){
-        const svgBlob = new Blob([rawSvg], { type:'image/svg+xml;charset=utf-8' });
-        const objUrl  = URL.createObjectURL(svgBlob);
         try{
-          const { canvas: c2, ctx } = makeCanvas(false);
-          const img = await loadImage(objUrl);
-          ctx.drawImage(img, 0, 0, SIZE, SIZE);
-          const embedded = _extractEmbeddedRasterFromSvg(rawSvg);
-          if(embedded){
-            const charImg = await loadImage(embedded).catch(()=>null);
-            if(charImg){ ctx.imageSmoothingEnabled=false; ctx.drawImage(charImg, 0, 0, SIZE, SIZE); }
-          }
-          canvas = c2;
-        }finally{ URL.revokeObjectURL(objUrl); }
+          canvas = await _drawFullSvgSafely(rawSvg, false, document.baseURI, SIZE);
+        }catch(svgErr){
+          console.warn('Safe full SVG download render failed, trying SVG parts fallback:', svgErr);
+          canvas = await drawFromSvgParts(rawSvg, false, true);
+        }
       }
 
       // PNG token: load fresh with crossOrigin='anonymous' set before src.
