@@ -140,17 +140,24 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid.list .vs-val.gold{color:#FFD700}
 #tokenGrid.list .vs-val.red{color:#f87171}
 #tokenGrid.list .vs-val.muted{color:var(--sub);font-weight:400}
-#traitRadar{margin:0 0 10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(124,77,255,.06));box-shadow:0 10px 28px rgba(0,0,0,.24);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+#traitRadar{max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden;margin:0 0 10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(124,77,255,.06));box-shadow:0 10px 28px rgba(0,0,0,.24);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .trait-radar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .trait-radar-title{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
 .trait-radar-status{font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.trait-radar-row{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:1px}
+.trait-radar-row{display:flex;max-width:100%;min-width:0;gap:7px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:1px}
 .trait-radar-row::-webkit-scrollbar{display:none}
 .trait-radar-chip{flex:0 0 auto;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.045);color:var(--text);border-radius:999px;padding:7px 11px;font:700 12px Space Grotesk,system-ui,sans-serif;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);transition:background .15s,border-color .15s,color .15s,transform .15s}
 .trait-radar-chip:hover{background:rgba(45,212,191,.10);border-color:rgba(45,212,191,.36);color:#e8fffb}
 .trait-radar-chip.active{background:linear-gradient(135deg,rgba(45,212,191,.22),rgba(124,77,255,.16));border-color:rgba(45,212,191,.55);color:#fff;box-shadow:0 0 18px rgba(45,212,191,.12)}
 .trait-radar-chip.clear{color:var(--sub)}
-@media(max-width:900px){#traitRadar{margin-bottom:8px;padding:9px}.trait-radar-head{margin-bottom:7px}.trait-radar-chip{padding:7px 10px;font-size:11px}.trait-radar-status{max-width:42vw}}
+#traitRadarDrawer{display:none;margin-top:9px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(8,14,23,.76);padding:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+#traitRadarDrawer.open{display:block}
+.trait-radar-form{display:grid;grid-template-columns:1fr 90px 110px auto;gap:8px;align-items:center}
+.trait-radar-input{min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text);padding:7px 9px;font:600 12px Space Grotesk,system-ui,sans-serif}
+.trait-radar-check{display:inline-flex;align-items:center;gap:5px;font:600 11px Space Grotesk,system-ui,sans-serif;color:var(--sub);white-space:nowrap}
+.trait-radar-quick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:8px}
+.trait-radar-quick::-webkit-scrollbar{display:none}
+@media(max-width:900px){html,body{max-width:100%;overflow-x:hidden!important}#traitRadar{width:100%;max-width:100%;margin-bottom:8px;padding:9px}.trait-radar-head{margin-bottom:7px}.trait-radar-chip{padding:7px 10px;font-size:11px}.trait-radar-status{max-width:42vw}.trait-radar-form{grid-template-columns:1fr 1fr}.trait-radar-form .btn{width:100%}.trait-radar-check{min-height:34px}}
 #tooltip{position:fixed;left:0;top:0;display:none;z-index:9999;max-width:760px;background:rgba(15,23,34,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none}
 #tooltip.show{opacity:1;transform:translateY(0) scale(1)}
 .tip-title{font-weight:800;margin-bottom:6px;display:flex;gap:10px;align-items:center}
@@ -421,7 +428,7 @@ a{color:var(--accent)!important}
      resolution or auto-fill recalculation. */
   #tokenGrid:not(.compact):not(.list){
     display:grid!important;
-    grid-template-columns:repeat(3,1fr)!important;
+    grid-template-columns:repeat(2,1fr)!important;
     grid-auto-rows:auto!important;
     gap:6px!important;
     --cell:0px!important
@@ -2697,6 +2704,19 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
             <div class="trait-radar-status" id="traitRadarStatus">Tap a hunt to browse</div>
           </div>
           <div class="trait-radar-row" id="traitRadarChips"></div>
+          <div id="traitRadarDrawer">
+            <div class="trait-radar-form">
+              <input id="traitRadarKeywords" class="trait-radar-input" placeholder="Zombie + Gold, Human + Clean, Diamond..." aria-label="Trait Radar keywords">
+              <input id="traitRadarRankMax" class="trait-radar-input" inputmode="numeric" placeholder="Rank <">
+              <input id="traitRadarTraitCount" class="trait-radar-input" inputmode="numeric" placeholder="Traits #">
+              <button type="button" class="btn" onclick="applyCustomTraitRadar()" style="font-size:12px;padding:7px 12px">Apply</button>
+              <label class="trait-radar-check"><input id="traitRadarListed" type="checkbox"> Listed</label>
+              <label class="trait-radar-check"><input id="traitRadarClean" type="checkbox"> Clean</label>
+              <button type="button" class="btn ghost" onclick="clearCustomTraitRadarInputs()" style="font-size:12px;padding:7px 12px">Reset</button>
+              <button type="button" class="btn ghost" onclick="toggleTraitRadarBuilder(false)" style="font-size:12px;padding:7px 12px">Close</button>
+            </div>
+            <div class="trait-radar-quick" id="traitRadarQuick"></div>
+          </div>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;flex-wrap:wrap">
@@ -3104,14 +3124,19 @@ function applyViewMode(val){
   tg.classList.toggle('view-5x5', val === 'grid5');
   // Force grid card styles via JS — belt-and-suspenders over CSS
   if(val === 'compact' || val === 'standard' || val === 'grid5'){
+    const mobileGrid = window.innerWidth <= 900;
     tg.querySelectorAll('.token').forEach(card => {
-      card.style.cssText = 'display:block!important;padding:0!important;min-height:0!important;position:relative!important';
+      card.style.cssText = mobileGrid
+        ? 'display:block!important;position:relative!important;padding:0 0 100% 0!important;height:0!important;min-height:0!important;overflow:visible!important'
+        : 'display:block!important;padding:0!important;min-height:0!important;position:relative!important';
       const pb = card.querySelector('.pinbar');
       if(pb) pb.style.display = 'none';
       const tm = card.querySelector('.tmeta');
       if(tm) tm.style.display = 'none';
       const th = card.querySelector('.thumb');
-      if(th) th.style.cssText = 'width:100%!important;height:auto!important;aspect-ratio:1/1!important;position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;border-radius:10px!important';
+      if(th) th.style.cssText = mobileGrid
+        ? 'position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;border-radius:10px!important'
+        : 'width:100%!important;height:auto!important;aspect-ratio:1/1!important;position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;border-radius:10px!important';
       // Inject compact price badge if listed
       const id = +card.dataset.id;
       const listing = window.LISTINGS?.[id]?.opensea;
@@ -3833,7 +3858,8 @@ d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorit
 }
 async function renderTokenGridFromState(){
   if(window.TRAIT_RADAR_ACTIVE && typeof applyTraitRadar === 'function'){
-    await applyTraitRadar(window.TRAIT_RADAR_ACTIVE, { keepActive:true });
+    if(window.TRAIT_RADAR_ACTIVE === 'custom' && typeof applyCustomTraitRadar === 'function') await applyCustomTraitRadar();
+    else await applyTraitRadar(window.TRAIT_RADAR_ACTIVE, { keepActive:true });
     return;
   }
   if(currentTraitCount!=null && CHART_ID_MAP[currentTraitCount]){
@@ -3922,6 +3948,7 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
 const TRAIT_RADAR_CATEGORIES = [
   { key:'diamond', label:'Diamond Gang', desc:'Diamond and icy jewelry traits' },
   { key:'zombies', label:'Underrated Zombies', desc:'Zombie builds with sleeper rarity' },
+  { key:'human', label:'Human Heat', desc:'Clean human builds with style' },
   { key:'clean', label:'Clean Fits', desc:'Simple, balanced builds' },
   { key:'chaos', label:'Chaos Builds', desc:'Busy or clashing trait stacks' },
   { key:'gold', label:'Rare Gold Combos', desc:'Gold traits with rarity bite' },
@@ -3949,17 +3976,18 @@ function _traitRadarRowsForKey(key, entries){
   const weird = /(zombie|alien|skeleton|demonic|radioactive|cursed|laser|clown|mutant|toxic|red eye|glowing)/i;
   const aura = /(zombie|alien|skeleton|demonic|radioactive|toxic|ember|aura)/i;
   let rows = entries;
-  if(key === 'diamond') rows = entries.filter(e => _traitRadarHas(e, /diamond|ice|icy/i)).sort(_traitRadarSortScore);
-  else if(key === 'zombies') rows = entries.filter(e => _traitRadarHas(e, /zombie/i) && (e.rank || 99999) > 1000).sort(_traitRadarSortScore);
-  else if(key === 'clean') rows = entries.filter(e => e.traitCount >= 6 && e.traitCount <= 8 && e.weirdCount === 0).sort(_traitRadarSortRank);
-  else if(key === 'chaos') rows = entries.filter(e => e.traitCount >= 10 || e.weirdCount >= 2).sort(_traitRadarSortScore);
-  else if(key === 'gold') rows = entries.filter(e => _traitRadarHas(e, gold) && (e.rareCount > 0 || e.rareScore > 16)).sort(_traitRadarSortScore);
-  else if(key === 'sleepers') rows = entries.filter(e => (e.rank || 99999) > 1000 && e.rareScore > 18).sort((a,b) => (a.price ?? 9999) - (b.price ?? 9999) || _traitRadarSortScore(a,b));
-  else if(key === 'weird') rows = entries.filter(e => _traitRadarHas(e, weird)).sort(_traitRadarSortScore);
-  else if(key === 'alien') rows = entries.filter(e => _traitRadarHas(e, /alien/i) && _traitRadarHas(e, drip)).sort(_traitRadarSortScore);
-  else if(key === 'cursed') rows = entries.filter(e => _traitRadarHas(e, /demonic|skeleton|radioactive|cursed|zombie|laser|red eye|toxic/i)).sort(_traitRadarSortScore);
-  else if(key === 'aura') rows = entries.filter(e => _traitRadarHas(e, aura)).sort(_traitRadarSortScore);
-  else if(key === 'unique') rows = entries.filter(e => e.rareCount >= 2 || e.rarestPct <= .35).sort(_traitRadarSortScore);
+  if(key === 'diamond') rows = entries.filter(e => _traitRadarHas(e, /diamond/i) && !_traitRadarHas(e, /zombie|alien|demonic|radioactive/i)).sort(_traitRadarSortRank);
+  else if(key === 'zombies') rows = entries.filter(e => _traitRadarHas(e, /zombie/i) && (e.rank || 99999) > 1800 && e.rareScore > 10).sort(_traitRadarSortScore);
+  else if(key === 'human') rows = entries.filter(e => _traitRadarHas(e, /human/i) && _traitRadarHas(e, drip) && e.weirdCount === 0).sort(_traitRadarSortRank);
+  else if(key === 'clean') rows = entries.filter(e => e.traitCount >= 6 && e.traitCount <= 8 && e.weirdCount === 0 && !_traitRadarHas(e, /gold|diamond|laser|radioactive/i)).sort((a,b)=>a.traitCount-b.traitCount || _traitRadarSortRank(a,b));
+  else if(key === 'chaos') rows = entries.filter(e => e.traitCount >= 10 || e.weirdCount >= 3).sort((a,b)=>b.weirdCount-a.weirdCount || b.traitCount-a.traitCount || _traitRadarSortScore(a,b));
+  else if(key === 'gold') rows = entries.filter(e => _traitRadarHas(e, gold) && !_traitRadarHas(e, /diamond/i) && (e.rareCount > 0 || e.rareScore > 14)).sort(_traitRadarSortScore);
+  else if(key === 'sleepers') rows = entries.filter(e => (e.rank || 99999) > 1500 && e.rareScore > 14 && e.weirdCount <= 1).sort((a,b) => (a.price ?? 9999) - (b.price ?? 9999) || _traitRadarSortScore(a,b));
+  else if(key === 'weird') rows = entries.filter(e => _traitRadarHas(e, weird) && !_traitRadarHas(e, /zombie|alien|gold|diamond/i)).sort(_traitRadarSortScore);
+  else if(key === 'alien') rows = entries.filter(e => _traitRadarHas(e, /alien/i) && !_traitRadarHas(e, /zombie|skeleton|demonic/i)).sort(_traitRadarSortScore);
+  else if(key === 'cursed') rows = entries.filter(e => _traitRadarHas(e, /demonic|skeleton|radioactive|cursed|toxic/i)).sort(_traitRadarSortScore);
+  else if(key === 'aura') rows = entries.filter(e => _traitRadarHas(e, aura) && e.rareScore > 8).sort((a,b)=>((a.rank||99999)-(b.rank||99999)) || b.rareScore-a.rareScore);
+  else if(key === 'unique') rows = entries.filter(e => (e.rareCount >= 2 || e.rarestPct <= .35) && e.weirdCount < 2).sort(_traitRadarSortScore);
   return rows.slice(0, 420).map(e => e.id);
 }
 async function buildTraitRadarCache(){
@@ -3995,6 +4023,7 @@ async function buildTraitRadarCache(){
           rarestPct,
           weirdCount,
           price: typeof getListingEth === 'function' ? getListingEth(id) : null,
+          listed: typeof getListingEth === 'function' ? getListingEth(id) != null : false,
           text: parts.join(' ').toLowerCase()
         });
       }
@@ -4018,12 +4047,51 @@ function renderTraitRadarChips(){
     btn.onclick = () => applyTraitRadar(cat.key);
     host.appendChild(btn);
   }
+  const custom = document.createElement('button');
+  custom.type = 'button';
+  custom.className = 'trait-radar-chip' + (window.TRAIT_RADAR_ACTIVE === 'custom' ? ' active' : '');
+  custom.textContent = 'Build Radar';
+  custom.onclick = () => toggleTraitRadarBuilder();
+  host.appendChild(custom);
   const clear = document.createElement('button');
   clear.type = 'button';
   clear.className = 'trait-radar-chip clear';
   clear.textContent = 'Clear Hunt';
   clear.onclick = clearTraitRadar;
   host.appendChild(clear);
+}
+function renderTraitRadarQuick(){
+  const host = document.getElementById('traitRadarQuick');
+  if(!host) return;
+  const words = ['Zombie','Human','Alien','Gold','Diamond','Clean','Listed','Rank < 1000','Traits 8'];
+  host.innerHTML = '';
+  for(const word of words){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'trait-radar-chip';
+    b.textContent = word;
+    b.onclick = () => {
+      if(word === 'Listed') document.getElementById('traitRadarListed').checked = true;
+      else if(word === 'Clean') document.getElementById('traitRadarClean').checked = true;
+      else if(word === 'Rank < 1000') document.getElementById('traitRadarRankMax').value = '1000';
+      else if(word === 'Traits 8') document.getElementById('traitRadarTraitCount').value = '8';
+      else {
+        const input = document.getElementById('traitRadarKeywords');
+        input.value = input.value ? input.value + ' + ' + word : word;
+      }
+    };
+    host.appendChild(b);
+  }
+}
+function toggleTraitRadarBuilder(force){
+  const drawer = document.getElementById('traitRadarDrawer');
+  if(!drawer) return;
+  drawer.classList.toggle('open', typeof force === 'boolean' ? force : !drawer.classList.contains('open'));
+  renderTraitRadarQuick();
+}
+function clearCustomTraitRadarInputs(){
+  ['traitRadarKeywords','traitRadarRankMax','traitRadarTraitCount'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['traitRadarListed','traitRadarClean'].forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
 }
 async function applyTraitRadar(key, opts){
   const cat = TRAIT_RADAR_CATEGORIES.find(c => c.key === key);
@@ -4034,7 +4102,30 @@ async function applyTraitRadar(key, opts){
   const entries = await buildTraitRadarCache();
   const ids = _traitRadarRowsForKey(key, entries);
   _traitRadarStatus(`${cat.label}: ${ids.length} tokens`);
-  await renderTokenGrid(ids, { preserveOrder:true });
+  await renderTokenGrid(ids);
+}
+async function applyCustomTraitRadar(){
+  window.TRAIT_RADAR_ACTIVE = 'custom';
+  renderTraitRadarChips();
+  _traitRadarStatus('Building custom radar...');
+  const raw = String(document.getElementById('traitRadarKeywords')?.value || '').toLowerCase();
+  const parsedTerms = raw.split(/\s*\+\s*|,\s*|\s+/).map(s => s.trim()).filter(Boolean);
+  const rankMax = Number(document.getElementById('traitRadarRankMax')?.value || 0) || null;
+  const traitCount = Number(document.getElementById('traitRadarTraitCount')?.value || 0) || null;
+  const listedOnly = !!document.getElementById('traitRadarListed')?.checked || parsedTerms.includes('listed');
+  const cleanOnly = !!document.getElementById('traitRadarClean')?.checked || parsedTerms.includes('clean');
+  const terms = parsedTerms.filter(t => !['listed','clean'].includes(t));
+  const entries = await buildTraitRadarCache();
+  const ids = entries.filter(e => {
+    if(terms.length && !terms.every(t => e.text.includes(t))) return false;
+    if(rankMax && (!e.rank || e.rank > rankMax)) return false;
+    if(traitCount && e.traitCount !== traitCount) return false;
+    if(listedOnly && !e.listed) return false;
+    if(cleanOnly && !(e.weirdCount === 0 && e.traitCount >= 6 && e.traitCount <= 9)) return false;
+    return true;
+  }).map(e => e.id);
+  _traitRadarStatus(`Custom Radar: ${ids.length} tokens`);
+  await renderTokenGrid(ids);
 }
 async function clearTraitRadar(){
   window.TRAIT_RADAR_ACTIVE = null;
