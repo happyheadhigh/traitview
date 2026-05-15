@@ -7155,6 +7155,27 @@ function _ellipsizeCanvasText(ctx, text, maxWidth){
   return text.slice(0, lo).trimEnd() + '...';
 }
 
+function _drawShareCardRank(ctx, rank, x, y){
+  if(!rank) return;
+  const color = typeof rankColor === 'function' ? rankColor(rank) : '#e6edf7';
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.translate(x, y);
+  ctx.beginPath();
+  ctx.moveTo(0, -9);
+  ctx.bezierCurveTo(0, -9, 3, -1, 12, 0);
+  ctx.bezierCurveTo(12, 0, 3, 1, 0, 13);
+  ctx.bezierCurveTo(0, 13, -3, 1, -12, 0);
+  ctx.bezierCurveTo(-12, 0, -3, -1, 0, -9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = '800 28px Space Grotesk, Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(String(rank), 17, 10);
+  ctx.restore();
+}
+
 async function _tokenCanvasWithBackground(id, size){
   const rawSvg = await _getRawSvgForDownload(id);
   if(rawSvg) return _drawSvgBackgroundAndEmbeddedArt(rawSvg, false, document.baseURI, size);
@@ -7263,10 +7284,11 @@ async function downloadShareCardPng(id){
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = '800 78px Space Grotesk, Segoe UI, sans-serif';
-    ctx.fillText('#' + id, 568, 170);
+    const title = '#' + id;
+    ctx.fillText(title, 568, 170);
+    if(osRank) _drawShareCardRank(ctx, osRank, 590 + ctx.measureText(title).width, 154);
 
     const stats = [];
-    if(osRank) stats.push('OS Rank #' + osRank);
     stats.push('Traits: ' + traitCount);
     if(owner) stats.push('Owner ' + _shareCardShortAddr(owner));
     let statX = 570;
@@ -7321,13 +7343,6 @@ async function downloadShareCardPng(id){
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('No trait data available', 570, y);
     }
-
-    ctx.fillStyle = '#64748b';
-    ctx.font = '600 18px Space Grotesk, Segoe UI, sans-serif';
-    ctx.fillText('TraitView - Render Tools', 570, 560);
-    ctx.textAlign = 'right';
-    ctx.fillText('onchainallstars.xyz', 1090, 560);
-    ctx.textAlign = 'left';
 
     await _downloadCanvasAsPng(canvas, `ocas-${id}-share-card.png`);
   }catch(e){
