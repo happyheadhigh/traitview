@@ -140,26 +140,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid.list .vs-val.gold{color:#FFD700}
 #tokenGrid.list .vs-val.red{color:#f87171}
 #tokenGrid.list .vs-val.muted{color:var(--sub);font-weight:400}
-#traitRadar{width:100%;max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden;margin:0 0 10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(124,77,255,.06));box-shadow:0 10px 28px rgba(0,0,0,.24);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-#traitRadar,#traitRadar *{box-sizing:border-box}
-.trait-radar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;min-width:0;max-width:100%}
-.trait-radar-title{flex:0 0 auto;font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
-.trait-radar-status{min-width:0;font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.trait-radar-row{display:flex;max-width:100%;min-width:0;gap:7px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:1px}
-.trait-radar-row::-webkit-scrollbar{display:none}
-.trait-radar-chip{flex:0 0 auto;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.045);color:var(--text);border-radius:999px;padding:7px 11px;font:700 12px Space Grotesk,system-ui,sans-serif;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);transition:background .15s,border-color .15s,color .15s,transform .15s}
-.trait-radar-chip:hover{background:rgba(45,212,191,.10);border-color:rgba(45,212,191,.36);color:#e8fffb}
-.trait-radar-chip.active{background:linear-gradient(135deg,rgba(45,212,191,.22),rgba(124,77,255,.16));border-color:rgba(45,212,191,.55);color:#fff;box-shadow:0 0 18px rgba(45,212,191,.12)}
-.trait-radar-chip.clear{color:var(--sub)}
-.trait-radar-chip.builder{background:linear-gradient(135deg,rgba(45,212,191,.28),rgba(124,77,255,.22));border-color:rgba(45,212,191,.52);color:#fff;box-shadow:0 0 20px rgba(45,212,191,.16);font-weight:800}
-#traitRadarDrawer{display:none;max-width:100%;min-width:0;overflow:hidden;margin-top:9px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(8,14,23,.76);padding:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
-#traitRadarDrawer.open{display:block}
-.trait-radar-form{display:grid;max-width:100%;min-width:0;grid-template-columns:1fr 90px 110px auto;gap:8px;align-items:center}
-.trait-radar-input{width:100%;max-width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text);padding:7px 9px;font:600 12px Space Grotesk,system-ui,sans-serif}
-.trait-radar-check{display:inline-flex;align-items:center;gap:5px;font:600 11px Space Grotesk,system-ui,sans-serif;color:var(--sub);white-space:nowrap}
-.trait-radar-quick{display:flex;max-width:100%;min-width:0;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;margin-top:8px}
-.trait-radar-quick::-webkit-scrollbar{display:none}
-@media(max-width:900px){html,body{width:100%;max-width:100%;overflow-x:hidden!important}.wrap,.card.panel{max-width:100%!important;min-width:0!important;overflow-x:hidden!important;box-sizing:border-box!important}#traitRadar{width:100%;max-width:100%;margin-bottom:8px;padding:9px}.trait-radar-head{margin-bottom:7px}.trait-radar-chip{padding:7px 10px;font-size:11px}.trait-radar-status{max-width:42vw}.trait-radar-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.trait-radar-form .btn{width:100%;min-width:0}.trait-radar-check{min-height:34px}}
+@media(max-width:900px){html,body{width:100%;max-width:100%;overflow-x:hidden!important}.wrap,.card.panel{max-width:100%!important;min-width:0!important;overflow-x:hidden!important;box-sizing:border-box!important}}
 #tooltip{position:fixed;left:0;top:0;display:none;z-index:9999;max-width:760px;background:rgba(15,23,34,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none}
 #tooltip.show{opacity:1;transform:translateY(0) scale(1)}
 .tip-title{font-weight:800;margin-bottom:6px;display:flex;gap:10px;align-items:center}
@@ -2700,26 +2681,6 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 <div class="card panel">
         <!-- Active filter pills shown above grid -->
         <div id="activeMobilePills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;min-height:0"></div>
-        <div id="traitRadar" aria-label="Trait Radar discovery filters">
-          <div class="trait-radar-head">
-            <div class="trait-radar-title">Trait Radar</div>
-            <div class="trait-radar-status" id="traitRadarStatus">Tap a hunt to browse</div>
-          </div>
-          <div class="trait-radar-row" id="traitRadarChips"></div>
-          <div id="traitRadarDrawer">
-            <div class="trait-radar-form">
-              <input id="traitRadarKeywords" class="trait-radar-input" placeholder="Zombie + Gold, Human + Clean, Diamond..." aria-label="Trait Radar keywords">
-              <input id="traitRadarRankMax" class="trait-radar-input" inputmode="numeric" placeholder="Rank <">
-              <input id="traitRadarTraitCount" class="trait-radar-input" inputmode="numeric" placeholder="Traits #">
-              <button type="button" class="btn" onclick="applyCustomTraitRadar()" style="font-size:12px;padding:7px 12px">Apply</button>
-              <label class="trait-radar-check"><input id="traitRadarListed" type="checkbox"> Listed</label>
-              <label class="trait-radar-check"><input id="traitRadarClean" type="checkbox"> Clean</label>
-              <button type="button" class="btn ghost" onclick="clearCustomTraitRadarInputs()" style="font-size:12px;padding:7px 12px">Reset</button>
-              <button type="button" class="btn ghost" onclick="toggleTraitRadarBuilder(false)" style="font-size:12px;padding:7px 12px">Close</button>
-            </div>
-            <div class="trait-radar-quick" id="traitRadarQuick"></div>
-          </div>
-        </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;flex-wrap:wrap">
           <div style="display:flex;gap:10px;align-items:center">
@@ -2975,10 +2936,10 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
         <div class="modal-tab-panel" id="tab-price">
           <div id="mPriceHistory"><div class="price-history-empty">Loading price history…</div></div>
         </div>
-        <!-- Tab: Similar Listed -->
-        <div class="modal-tab-panel" id="tab-similar">
-          <div id="mSimilarTokens"><div class="price-history-empty">Click "Similar" to find tokens sharing this token's rarest trait.</div></div>
-        </div>
+          <!-- Tab: Twins / Similar -->
+          <div class="modal-tab-panel" id="tab-similar">
+            <div id="mSimilarTokens"><div class="price-history-empty">Click "Similar" to find closest visual twins.</div></div>
+          </div>
       </div>
     </div>
   </div>
@@ -3859,11 +3820,6 @@ d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorit
 
 }
 async function renderTokenGridFromState(){
-  if(window.TRAIT_RADAR_ACTIVE && typeof applyTraitRadar === 'function'){
-    if(window.TRAIT_RADAR_ACTIVE === 'custom' && typeof applyCustomTraitRadar === 'function') await applyCustomTraitRadar();
-    else await applyTraitRadar(window.TRAIT_RADAR_ACTIVE, { keepActive:true });
-    return;
-  }
   if(currentTraitCount!=null && CHART_ID_MAP[currentTraitCount]){
     let ids = [...CHART_ID_MAP[currentTraitCount]];
     if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
@@ -3946,240 +3902,6 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
       const __pct = (__count && __total) ? ((__count/__total)*100) : null;
       const __pctTxt = __pct!=null ? ` <i class="trait-pct" style="opacity:.75;font-style:normal;font-size:12px;margin-left:4px;">— ${__pct < 0.1 ? __pct.toFixed(3) : __pct.toFixed(2)}%</i>` : '';
       row.innerHTML=`<input type="checkbox" id="${id}"><span>${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}}
-
-const TRAIT_RADAR_CATEGORIES = [
-  { key:'diamond', label:'Diamond Gang', desc:'Diamond and icy jewelry traits' },
-  { key:'zombies', label:'Underrated Zombies', desc:'Zombie builds with sleeper rarity' },
-  { key:'human', label:'Human Heat', desc:'Clean human builds with style' },
-  { key:'clean', label:'Clean Fits', desc:'Simple, balanced builds' },
-  { key:'chaos', label:'Chaos Builds', desc:'Busy or clashing trait stacks' },
-  { key:'gold', label:'Rare Gold Combos', desc:'Gold traits with rarity bite' },
-  { key:'sleepers', label:'Sleeper Picks', desc:'Interesting tokens outside the top ranks' },
-  { key:'weird', label:'Weirdest OCAS', desc:'Unusual rare-trait mixes' },
-  { key:'alien', label:'Alien Drip', desc:'Alien tokens with style traits' },
-  { key:'cursed', label:'Cursed OCAS', desc:'Dark, radioactive, demonic, or skeletal vibes' },
-  { key:'aura', label:'Aura Tokens', desc:'Radioactive, demonic, zombie, alien, and skeleton energy' },
-  { key:'unique', label:'Most Unique Traits', desc:'Tokens with multiple very rare traits' }
-];
-let TRAIT_RADAR_CACHE = null;
-let TRAIT_RADAR_BUILDING = null;
-window.TRAIT_RADAR_ACTIVE = null;
-
-function _traitRadarStatus(text){
-  const el = document.getElementById('traitRadarStatus');
-  if(el) el.textContent = text || 'Tap a hunt to browse';
-}
-function _traitRadarHas(entry, pattern){ return pattern.test(entry.text); }
-function _traitRadarSortScore(a,b){ return (b.rareScore - a.rareScore) || ((a.rank || 99999) - (b.rank || 99999)) || (a.id - b.id); }
-function _traitRadarSortRank(a,b){ return ((a.rank || 99999) - (b.rank || 99999)) || (b.rareScore - a.rareScore) || (a.id - b.id); }
-function _traitRadarRowsForKey(key, entries){
-  const drip = /(diamond|gold|golden|chain|earring|bracelet|jewel|jewellery|jewelry|grill|teeth|crown|suit|tux|robe|watch)/i;
-  const gold = /(gold|golden|grill|teeth|chain|crown)/i;
-  const weird = /(zombie|alien|skeleton|demonic|radioactive|cursed|laser|clown|mutant|toxic|red eye|glowing)/i;
-  const aura = /(zombie|alien|skeleton|demonic|radioactive|toxic|ember|aura)/i;
-  let rows = entries;
-  if(key === 'diamond') rows = entries.filter(e => _traitRadarHas(e, /diamond/i) && !_traitRadarHas(e, /zombie|alien|demonic|radioactive/i)).sort(_traitRadarSortRank);
-  else if(key === 'zombies') rows = entries.filter(e => _traitRadarHas(e, /zombie/i) && (e.rank || 99999) > 1800 && e.rareScore > 10).sort(_traitRadarSortScore);
-  else if(key === 'human') rows = entries.filter(e => _traitRadarHas(e, /human/i) && _traitRadarHas(e, drip) && e.weirdCount === 0).sort(_traitRadarSortRank);
-  else if(key === 'clean') rows = entries.filter(e => e.traitCount >= 6 && e.traitCount <= 8 && e.weirdCount === 0 && !_traitRadarHas(e, /gold|diamond|laser|radioactive/i)).sort((a,b)=>a.traitCount-b.traitCount || _traitRadarSortRank(a,b));
-  else if(key === 'chaos') rows = entries.filter(e => e.traitCount >= 10 || e.weirdCount >= 3).sort((a,b)=>b.weirdCount-a.weirdCount || b.traitCount-a.traitCount || _traitRadarSortScore(a,b));
-  else if(key === 'gold') rows = entries.filter(e => _traitRadarHas(e, gold) && !_traitRadarHas(e, /diamond/i) && (e.rareCount > 0 || e.rareScore > 14)).sort(_traitRadarSortScore);
-  else if(key === 'sleepers') rows = entries.filter(e => (e.rank || 99999) > 1500 && e.rareScore > 14 && e.weirdCount <= 1).sort((a,b) => (a.price ?? 9999) - (b.price ?? 9999) || _traitRadarSortScore(a,b));
-  else if(key === 'weird') rows = entries.filter(e => _traitRadarHas(e, weird) && !_traitRadarHas(e, /zombie|alien|gold|diamond/i)).sort(_traitRadarSortScore);
-  else if(key === 'alien') rows = entries.filter(e => _traitRadarHas(e, /alien/i) && !_traitRadarHas(e, /zombie|skeleton|demonic/i)).sort(_traitRadarSortScore);
-  else if(key === 'cursed') rows = entries.filter(e => _traitRadarHas(e, /demonic|skeleton|radioactive|cursed|toxic/i)).sort(_traitRadarSortScore);
-  else if(key === 'aura') rows = entries.filter(e => _traitRadarHas(e, aura) && e.rareScore > 8).sort((a,b)=>((a.rank||99999)-(b.rank||99999)) || b.rareScore-a.rareScore);
-  else if(key === 'unique') rows = entries.filter(e => (e.rareCount >= 2 || e.rarestPct <= .35) && e.weirdCount < 2).sort(_traitRadarSortScore);
-  return rows.slice(0, 420).map(e => e.id);
-}
-async function buildTraitRadarCache(){
-  if(TRAIT_RADAR_CACHE) return TRAIT_RADAR_CACHE;
-  if(TRAIT_RADAR_BUILDING) return TRAIT_RADAR_BUILDING;
-  TRAIT_RADAR_BUILDING = (async()=>{
-    const out = [];
-    const total = TOKEN_COUNT || (MANIFEST && (MANIFEST.tokenCount || MANIFEST.files?.at(-1)?.end)) || 10000;
-    for(const idx of indices()){
-      const ch = await ensureChunk(idx);
-      for(const [sid,row] of Object.entries(ch || {})){
-        const id = +sid;
-        const kv = typeof keepEntries === 'function' ? keepEntries(row.traits || {}) : Object.entries(row.traits || {});
-        let rareScore = 0, rareCount = 0, rarestPct = 100, weirdCount = 0, jewelryCount = 0, hatCount = 0, hairCount = 0;
-        const parts = [];
-        for(const [k,v] of kv){
-          const value = String(v || '');
-          const count = (TRAIT_FREQ?.[k]?.[v]) || total;
-          const pct = (count / total) * 100;
-          rarestPct = Math.min(rarestPct, pct);
-          if(pct <= 1) rareCount++;
-          rareScore += -Math.log(Math.max(count / total, 1e-12));
-          const bit = `${k} ${value}`;
-          if(/zombie|alien|skeleton|demonic|radioactive|cursed|laser|clown|mutant|toxic|red eye|glowing/i.test(bit)) weirdCount++;
-          if(/jewel|jewellery|jewelry|chain|earring|bracelet|diamond|gold|grill|teeth|watch/i.test(bit)) jewelryCount++;
-          if(/hat|cap|beanie|crown|helmet|headwear|halo/i.test(bit)) hatCount++;
-          if(/hair|mohawk|bald|messy|crazy|hobo/i.test(bit)) hairCount++;
-          parts.push(bit);
-        }
-        out.push({
-          id,
-          rank: RARITY_OBS_RANK.get(id) || OS_RANK_MAP.get(id) || null,
-          traitCount: typeof getTraitCount === 'function' ? getTraitCount(row) : kv.length,
-          rareScore,
-          rareCount,
-          rarestPct,
-          weirdCount,
-          jewelryCount,
-          hatCount,
-          hairCount,
-          price: typeof getListingEth === 'function' ? getListingEth(id) : null,
-          listed: typeof getListingEth === 'function' ? getListingEth(id) != null : false,
-          text: parts.join(' ').toLowerCase()
-        });
-      }
-    }
-    TRAIT_RADAR_CACHE = out;
-    TRAIT_RADAR_BUILDING = null;
-    return out;
-  })();
-  return TRAIT_RADAR_BUILDING;
-}
-function renderTraitRadarChips(){
-  const host = document.getElementById('traitRadarChips');
-  if(!host) return;
-  host.innerHTML = '';
-  for(const cat of TRAIT_RADAR_CATEGORIES){
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'trait-radar-chip' + (window.TRAIT_RADAR_ACTIVE === cat.key ? ' active' : '');
-    btn.textContent = cat.label;
-    btn.title = cat.desc;
-    btn.onclick = () => applyTraitRadar(cat.key);
-    host.appendChild(btn);
-  }
-  const custom = document.createElement('button');
-  custom.type = 'button';
-  custom.className = 'trait-radar-chip builder' + (window.TRAIT_RADAR_ACTIVE === 'custom' ? ' active' : '');
-  custom.textContent = '+ Build Radar';
-  custom.onclick = () => toggleTraitRadarBuilder();
-  host.appendChild(custom);
-  const clear = document.createElement('button');
-  clear.type = 'button';
-  clear.className = 'trait-radar-chip clear';
-  clear.textContent = 'Clear Hunt';
-  clear.onclick = clearTraitRadar;
-  host.appendChild(clear);
-}
-function renderTraitRadarQuick(){
-  const host = document.getElementById('traitRadarQuick');
-  if(!host) return;
-  const words = ['Zombie','Human','Alien','Gold','Diamond','Clean','Listed','Rank < 1000','Traits 8'];
-  host.innerHTML = '';
-  for(const word of words){
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'trait-radar-chip';
-    b.textContent = word;
-    b.onclick = () => {
-      if(word === 'Listed') document.getElementById('traitRadarListed').checked = true;
-      else if(word === 'Clean') document.getElementById('traitRadarClean').checked = true;
-      else if(word === 'Rank < 1000') document.getElementById('traitRadarRankMax').value = '1000';
-      else if(word === 'Traits 8') document.getElementById('traitRadarTraitCount').value = '8';
-      else {
-        const input = document.getElementById('traitRadarKeywords');
-        input.value = input.value ? input.value + ' + ' + word : word;
-      }
-    };
-    host.appendChild(b);
-  }
-}
-function toggleTraitRadarBuilder(force){
-  const drawer = document.getElementById('traitRadarDrawer');
-  if(!drawer) return;
-  drawer.classList.toggle('open', typeof force === 'boolean' ? force : !drawer.classList.contains('open'));
-  renderTraitRadarQuick();
-}
-function clearCustomTraitRadarInputs(){
-  ['traitRadarKeywords','traitRadarRankMax','traitRadarTraitCount'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
-  ['traitRadarListed','traitRadarClean'].forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
-}
-function _traitRadarIntent(raw){
-  raw = String(raw || '').toLowerCase();
-  const intent = {
-    terms: raw.split(/\s*\+\s*|,\s*|\s+/).map(s => s.trim()).filter(Boolean),
-    listed: /\blisted\b|\bfor sale\b/.test(raw),
-    cheap: /\bcheap\b|\bcheapest\b|\bfloor\b|\bdeal\b/.test(raw),
-    clean: /\bsimple\b|\bclean\b|\bminimal\b|\bplain\b/.test(raw),
-    stylish: /\bstylish\b|\bstyle\b|\bdrip\b|\bfresh\b|\bcool fit\b|\bfit\b/.test(raw),
-    scary: /\bscary\b|\bcreepy\b|\bcursed\b|\bdark\b|\bspooky\b/.test(raw),
-    hat: /\bcool hat\b|\bhat\b|\bcap\b|\bbeanie\b|\bheadwear\b/.test(raw),
-    hair: /\bbad hair day\b|\bhair\b|\bmohawk\b|\bbald\b/.test(raw),
-    rare: /\brare\b|\btop rank\b|\btop ranked\b|\brank under\b/.test(raw),
-    jewelryMin: null,
-    required: []
-  };
-  if(/\b(2|two)\s+(jewellery|jewelry|jewel|jewels)\b/.test(raw)) intent.jewelryMin = 2;
-  else if(/\b(jewellery|jewelry|jewel|jewels|chain|earring|bracelet)\b/.test(raw)) intent.jewelryMin = 1;
-  if(/\bzombie\b/.test(raw)) intent.required.push(/zombie/i);
-  if(/\bhuman\b/.test(raw)) intent.required.push(/human/i);
-  if(/\balien\b/.test(raw)) intent.required.push(/alien/i);
-  if(/\bgold|golden\b/.test(raw)) intent.required.push(/gold|golden/i);
-  if(/\bdiamond\b/.test(raw)) intent.required.push(/diamond/i);
-  if(/\bblue\b/.test(raw)) intent.required.push(/blue|azure|cyan/i);
-  if(/\beyes?\b/.test(raw)) intent.required.push(/eye|eyes/i);
-  if(intent.hat) intent.required.push(/hat|cap|beanie|crown|helmet|headwear|halo/i);
-  if(intent.hair) intent.required.push(/hair|mohawk|bald|messy|crazy|hobo/i);
-  if(intent.scary) intent.required.push(/zombie|demonic|skull|skeleton|fang|red eye|laser|creepy|radioactive|toxic|cursed/i);
-  if(intent.stylish) intent.required.push(/jewel|jewelry|jewellery|diamond|gold|chain|earring|bracelet|shades|glasses|hat|cap|jacket|suit|tux|watch/i);
-  const stop = new Set(['and','with','looking','look','looks','a','an','the','of','for','to','me','show','find','tokens','token','simple','clean','stylish','style','drip','cool','fit','fits','scary','creepy','listed','cheap','cheapest','rare','top','rank','under','jewelry','jewellery','jewel','jewels','two','2','bad','day']);
-  intent.terms = intent.terms.filter(t => !stop.has(t));
-  return intent;
-}
-async function applyTraitRadar(key, opts){
-  const cat = TRAIT_RADAR_CATEGORIES.find(c => c.key === key);
-  if(!cat) return;
-  window.TRAIT_RADAR_ACTIVE = key;
-  renderTraitRadarChips();
-  _traitRadarStatus('Building local radar...');
-  const entries = await buildTraitRadarCache();
-  const ids = _traitRadarRowsForKey(key, entries);
-  _traitRadarStatus(`${cat.label}: ${ids.length} tokens`);
-  await renderTokenGrid(ids);
-}
-async function applyCustomTraitRadar(){
-  window.TRAIT_RADAR_ACTIVE = 'custom';
-  renderTraitRadarChips();
-  _traitRadarStatus('Building custom radar...');
-  const raw = String(document.getElementById('traitRadarKeywords')?.value || '').toLowerCase();
-  const intent = _traitRadarIntent(raw);
-  let rankMax = Number(document.getElementById('traitRadarRankMax')?.value || 0) || null;
-  const traitCount = Number(document.getElementById('traitRadarTraitCount')?.value || 0) || null;
-  const listedOnly = !!document.getElementById('traitRadarListed')?.checked || intent.listed || intent.cheap;
-  const cleanOnly = !!document.getElementById('traitRadarClean')?.checked || intent.clean;
-  if(intent.rare && !rankMax) rankMax = 1000;
-  if(intent.cheap){
-    const sort = document.getElementById('sortMode');
-    if(sort){ sort.value = 'price-asc'; localStorage.setItem(SORT_KEY, 'price-asc'); }
-  }
-  const entries = await buildTraitRadarCache();
-  const ids = entries.filter(e => {
-    if(intent.terms.length && !intent.terms.every(t => e.text.includes(t))) return false;
-    if(intent.required.length && !intent.required.every(re => re.test(e.text))) return false;
-    if(rankMax && (!e.rank || e.rank > rankMax)) return false;
-    if(traitCount && e.traitCount !== traitCount) return false;
-    if(listedOnly && !e.listed) return false;
-    if(cleanOnly && !(e.weirdCount === 0 && e.traitCount >= 6 && e.traitCount <= 9)) return false;
-    if(intent.jewelryMin && e.jewelryCount < intent.jewelryMin) return false;
-    return true;
-  }).map(e => e.id);
-  _traitRadarStatus(`Custom Radar: ${ids.length} tokens`);
-  await renderTokenGrid(ids);
-}
-async function clearTraitRadar(){
-  window.TRAIT_RADAR_ACTIVE = null;
-  renderTraitRadarChips();
-  _traitRadarStatus('Tap a hunt to browse');
-  await renderTokenGridFromState();
-}
-renderTraitRadarChips();
 
 /* tooltip + modal */
 function tipHtml(id,row){ const kv=keepEntries(row.traits); const traitsHtml=kv.length?kv.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join(''):'<div style="color:var(--muted)">No traits</div>'; let imgHtml='<div style="color:var(--muted)">No image</div>'; const mapVal=IMAGES_MAP && IMAGES_MAP.get(id); const src=mapVal || row.image || imgForId(id); if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgHtml=`<div class="svg-wrap">${s}</div>`; else if(/^data:image\//i.test(s)) imgHtml=`<img src="${s}" alt="#${id}">`; else imgHtml=`<img src="${ipfsToHttp(s)}" alt="#${id}">`; } const obsRank=RARITY_OBS_RANK.get(id); const theoRank=RARITY_THEO_RANK.get(id); const listing=(window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null; const ethVal = parseEthMaybeWei(listing?listing.price:null); const linkHtml=(listing&&listing.url&&ethVal!=null)?`<a class="linkpill" href="${listing.url}" target="_blank" rel="noopener">OpenSea (${formatEth(ethVal)})</a>`:''; const rankHtml=`${obsRank?`<span class="chip">Obs ${rankDiamondHtml(obsRank)}</span>`:''} ${theoRank?`<span class="chip">Theo ${rankDiamondHtml(theoRank)}</span>`:''}`; return `<div class="tip-title">#${id} • Traits: ${getTraitCount(row)} ${rankHtml}</div>${linkHtml?`<div style="margin:6px 0">${linkHtml}</div>`:''}<div class="tip-body"><div class="tip-img">${imgHtml}</div><div class="traits">${traitsHtml}</div></div>`; }
@@ -4708,9 +4430,6 @@ function toggleLiveListingsMode(forceValue){
 
 function clearFilters(){
   currentTraitCount=null; activeTraits.clear(); rankMin=null; rankMax=null; OPEN_GROUPS.clear();
-  window.TRAIT_RADAR_ACTIVE = null;
-  if(typeof renderTraitRadarChips === 'function') renderTraitRadarChips();
-  if(typeof _traitRadarStatus === 'function') _traitRadarStatus('Tap a hunt to browse');
   document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.remove('active'));
   document.getElementById('rankMin').value='';
   document.getElementById('rankMax').value='';
@@ -8671,7 +8390,7 @@ document.addEventListener('click', function(e){
   if(tabName === 'similar' && window._modalCurrentId) loadSimilarTokens(window._modalCurrentId);
 });
 
-async function loadSimilarTokens(id){
+async function loadSimilarListedTokens(id){
   const el = document.getElementById('mSimilarTokens');
   if(!el) return;
 
@@ -8776,6 +8495,107 @@ async function loadSimilarTokens(id){
       }).join('')}
       ${similar.length > 24 ? `<div style="display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--sub);padding:8px">+${similar.length-24} more</div>` : ''}
     </div>`;
+}
+
+const TWIN_CACHE = new Map();
+function _twinTraitWeight(name){
+  name = String(name || '').toLowerCase();
+  if(/type|body|species|skin|background/.test(name)) return 3;
+  if(/head|hair|eyes|mouth|face/.test(name)) return 2;
+  if(/clothes|shirt|jacket|suit|hat|jewellery|jewelry|chain|earring|accessor/.test(name)) return 1.5;
+  return 1;
+}
+function _twinLabel(baseRow, row, sharedCount){
+  const text = Object.values(row?.traits || {}).join(' ').toLowerCase();
+  const baseText = Object.values(baseRow?.traits || {}).join(' ').toLowerCase();
+  const sameType = keepEntries(baseRow?.traits || {}).some(([k,v]) => /type|body|species/i.test(k) && String(row?.traits?.[k]) === String(v));
+  if(sameType && /(zombie|demonic|skeleton|skull|radioactive|laser|red eye|toxic|cursed)/i.test(text) && !/(zombie|demonic|skeleton|skull|radioactive|laser|red eye|toxic|cursed)/i.test(baseText)) return 'Evil Twin';
+  if(sharedCount >= 6) return 'Closest Twin';
+  return 'Cousin';
+}
+function _scoreTwin(baseId, baseRow, otherId, otherRow){
+  const baseTraits = baseRow?.traits || {};
+  const otherTraits = otherRow?.traits || {};
+  const baseEntries = keepEntries(baseTraits);
+  let maxScore = 0, score = 0;
+  const shared = [];
+  for(const [name,value] of baseEntries){
+    const weight = _twinTraitWeight(name);
+    maxScore += weight;
+    if(Object.prototype.hasOwnProperty.call(otherTraits, name) && String(otherTraits[name]) === String(value)){
+      score += weight;
+      shared.push(`${name}: ${value}`);
+    }
+  }
+  const baseCount = typeof getTraitCount === 'function' ? getTraitCount(baseRow) : baseEntries.length;
+  const otherCount = typeof getTraitCount === 'function' ? getTraitCount(otherRow) : keepEntries(otherTraits).length;
+  const countBonus = Math.max(0, 1 - Math.abs(baseCount - otherCount) / Math.max(baseCount, otherCount, 1)) * 0.75;
+  const baseRank = RARITY_OBS_RANK.get(+baseId) || null;
+  const otherRank = RARITY_OBS_RANK.get(+otherId) || null;
+  const rankBonus = baseRank && otherRank ? Math.max(0, 1 - Math.abs(baseRank - otherRank) / 10000) * 0.35 : 0;
+  const total = score + countBonus + rankBonus;
+  const pct = maxScore ? Math.round(Math.min(99, (total / (maxScore + 1.1)) * 100)) : 0;
+  return { id:+otherId, score:total, pct, sharedCount:shared.length, shared:shared.slice(0,4), rank:otherRank };
+}
+async function findTwinTokens(id){
+  id = +id;
+  if(TWIN_CACHE.has(id)) return TWIN_CACHE.get(id);
+  const baseRow = await fetchRow(id);
+  const baseTraits = keepEntries(baseRow?.traits || {});
+  if(!baseTraits.length) return [];
+  const results = [];
+  for(const idx of indices()){
+    const ch = await ensureChunk(idx);
+    for(const [sid,row] of Object.entries(ch || {})){
+      const otherId = +sid;
+      if(otherId === id) continue;
+      const scored = _scoreTwin(id, baseRow, otherId, row);
+      if(scored.sharedCount > 0){
+        scored.label = _twinLabel(baseRow, row, scored.sharedCount);
+        results.push(scored);
+      }
+    }
+  }
+  results.sort((a,b) => (b.score - a.score) || (b.sharedCount - a.sharedCount) || (a.id - b.id));
+  const top = results.slice(0, 36);
+  TWIN_CACHE.set(id, top);
+  return top;
+}
+async function loadSimilarTokens(id){
+  const el = document.getElementById('mSimilarTokens');
+  if(!el) return;
+  el.innerHTML = '<div class="price-history-empty">Finding closest twins...</div>';
+  try{
+    const twins = await findTwinTokens(id);
+    if(!twins.length){
+      el.innerHTML = '<div class="price-history-empty">No close trait matches found.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div style="font-size:11px;color:var(--sub);margin-bottom:8px">Closest trait-based matches across the full collection.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;max-height:340px;overflow-y:auto;padding-right:2px">
+        ${twins.slice(0,24).map((t,idx) => {
+          const imgSrc = _getTokenImgSrc(t.id);
+          const imgTag = imgSrc ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;position:absolute;inset:0">` : '';
+          const label = idx === 0 ? 'Closest Twin' : t.label;
+          return `<div onclick="openModal(${t.id})" style="cursor:pointer;border-radius:9px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)">
+            <div style="position:relative;padding-bottom:100%;background:var(--soft)">${imgTag}</div>
+            <div style="padding:6px;font-size:10px;line-height:1.25">
+              <div style="display:flex;justify-content:space-between;gap:6px;align-items:center">
+                <b style="color:var(--text)">#${t.id}</b>
+                <span style="color:#2dd4bf;font-weight:800">${t.pct}%</span>
+              </div>
+              <div style="color:var(--sub);margin-top:2px">${label} - ${t.sharedCount} shared</div>
+              ${t.rank ? `<div style="margin-top:2px">${rankDiamondHtml(t.rank, "font-size:9px;font-weight:700;")}</div>` : ''}
+              <div style="color:#94a3b8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${t.shared.join(', ')}">${t.shared.join(' - ')}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }catch(e){
+    console.error('[Twin Finder]', e);
+    el.innerHTML = '<div class="price-history-empty">Could not load twins for this token.</div>';
+  }
 }
 
 /* ── Wallet View ─────────────────────────────────────────────────── */
