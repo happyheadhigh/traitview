@@ -140,7 +140,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid.list .vs-val.gold{color:#FFD700}
 #tokenGrid.list .vs-val.red{color:#f87171}
 #tokenGrid.list .vs-val.muted{color:var(--sub);font-weight:400}
-#tooltip{position:fixed;left:0;top:0;display:none;z-index:9999;max-width:760px;background:rgba(15,23,34,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#tooltip{position:fixed;left:0;top:0;display:none;z-index:9999;max-width:760px;background:rgba(15,23,34,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none}
 #tooltip.show{opacity:1;transform:translateY(0) scale(1)}
 .tip-title{font-weight:800;margin-bottom:6px;display:flex;gap:10px;align-items:center}
 .tip-body{display:grid;grid-template-columns:220px 1fr;gap:12px}
@@ -3940,6 +3940,7 @@ function attachPreviewHandlers(){
   attachGrid(document.getElementById('mispricedGrid'));
 
   const reattach=()=>{
+    attachGrid(document.getElementById('tokenGrid'));
     attachGrid(document.getElementById('salesGrid'));
     attachGrid(document.getElementById('mispricedGrid'));
   };
@@ -7142,6 +7143,18 @@ function _drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
   return y;
 }
 
+function _ellipsizeCanvasText(ctx, text, maxWidth){
+  text = String(text || '');
+  if(ctx.measureText(text).width <= maxWidth) return text;
+  let lo = 0, hi = text.length;
+  while(lo < hi){
+    const mid = Math.ceil((lo + hi) / 2);
+    if(ctx.measureText(text.slice(0, mid).trimEnd() + '...').width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return text.slice(0, lo).trimEnd() + '...';
+}
+
 async function _tokenCanvasWithBackground(id, size){
   const rawSvg = await _getRawSvgForDownload(id);
   if(rawSvg) return _drawSvgBackgroundAndEmbeddedArt(rawSvg, false, document.baseURI, size);
@@ -7173,7 +7186,7 @@ async function downloadShareCardPng(id){
   try{
     const row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || await fetchRow(id);
     const osRank = OS_RANK_MAP?.get(id) || OS_RANK_MAP?.get(String(id)) || null;
-    const tvRank = RARITY_OBS_RANK?.get(id) || null;
+    const traitCount = typeof getTraitCount === 'function' ? getTraitCount(row) : (row?.traits ? Object.keys(row.traits).length : 0);
     const owner = window.OWNER_CACHE?.[id] || document.getElementById('mOwner')?.dataset?.address || '';
     const traits = _shareCardTraitRows(row, 5);
 
@@ -7185,18 +7198,42 @@ async function downloadShareCardPng(id){
     ctx.imageSmoothingEnabled = true;
 
     const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, '#090d14');
-    bg.addColorStop(.48, '#111827');
-    bg.addColorStop(1, '#0b121c');
+    bg.addColorStop(0, '#08111a');
+    bg.addColorStop(.42, '#0d1d24');
+    bg.addColorStop(.72, '#10162a');
+    bg.addColorStop(1, '#070b12');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(45,212,191,.10)';
-    ctx.beginPath(); ctx.arc(1060, 70, 260, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(124,77,255,.10)';
-    ctx.beginPath(); ctx.arc(105, 575, 270, 0, Math.PI * 2); ctx.fill();
+    const wash = ctx.createRadialGradient(215, 105, 20, 215, 105, 520);
+    wash.addColorStop(0, 'rgba(45,212,191,.24)');
+    wash.addColorStop(.55, 'rgba(45,212,191,.07)');
+    wash.addColorStop(1, 'rgba(45,212,191,0)');
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, W, H);
+    const violet = ctx.createRadialGradient(1000, 520, 40, 1000, 520, 560);
+    violet.addColorStop(0, 'rgba(124,77,255,.24)');
+    violet.addColorStop(.55, 'rgba(124,77,255,.06)');
+    violet.addColorStop(1, 'rgba(124,77,255,0)');
+    ctx.fillStyle = violet;
+    ctx.fillRect(0, 0, W, H);
+    const sheen = ctx.createLinearGradient(210, 0, 990, H);
+    sheen.addColorStop(0, 'rgba(255,255,255,0)');
+    sheen.addColorStop(.5, 'rgba(255,255,255,.055)');
+    sheen.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(0, 0, W, H);
 
-    _roundRect(ctx, 36, 36, W - 72, H - 72, 28);
-    ctx.fillStyle = 'rgba(13,20,31,.88)';
+    ctx.shadowColor = 'rgba(45,212,191,.22)';
+    ctx.shadowBlur = 34;
+    _roundRect(ctx, 36, 36, W - 72, H - 72, 30);
+    ctx.fillStyle = 'rgba(8,14,23,.70)';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    const glassTop = ctx.createLinearGradient(36, 36, 36, H - 36);
+    glassTop.addColorStop(0, 'rgba(255,255,255,.085)');
+    glassTop.addColorStop(.42, 'rgba(255,255,255,.025)');
+    glassTop.addColorStop(1, 'rgba(255,255,255,.012)');
+    ctx.fillStyle = glassTop;
     ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.12)';
     ctx.lineWidth = 2;
@@ -7204,9 +7241,12 @@ async function downloadShareCardPng(id){
 
     const artCanvas = await _tokenCanvasWithBackground(id, 960);
     const artX = 72, artY = 90, artSize = 450;
+    ctx.shadowColor = 'rgba(125,211,252,.22)';
+    ctx.shadowBlur = 26;
     _roundRect(ctx, artX - 12, artY - 12, artSize + 24, artSize + 24, 24);
-    ctx.fillStyle = 'rgba(255,255,255,.055)';
+    ctx.fillStyle = 'rgba(255,255,255,.065)';
     ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(255,255,255,.14)';
     ctx.stroke();
     ctx.save();
@@ -7217,41 +7257,65 @@ async function downloadShareCardPng(id){
     ctx.restore();
     ctx.imageSmoothingEnabled = true;
 
-    ctx.fillStyle = '#7dd3fc';
-    ctx.font = '700 22px Space Grotesk, Segoe UI, sans-serif';
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = '700 20px Space Grotesk, Segoe UI, sans-serif';
     ctx.fillText('ON-CHAIN ALL STARS', 570, 98);
 
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '800 74px Space Grotesk, Segoe UI, sans-serif';
-    ctx.fillText('#' + id, 568, 174);
+    ctx.font = '800 78px Space Grotesk, Segoe UI, sans-serif';
+    ctx.fillText('#' + id, 568, 170);
 
-    const rankParts = [];
-    if(tvRank) rankParts.push('TV Rank #' + tvRank);
-    if(osRank) rankParts.push('OS Rank #' + osRank);
-    if(owner) rankParts.push('Owner ' + _shareCardShortAddr(owner));
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '600 24px Space Grotesk, Segoe UI, sans-serif';
-    ctx.fillText(rankParts.join('  /  ') || 'TraitView rarity card', 570, 222);
+    const stats = [];
+    if(osRank) stats.push('OS Rank #' + osRank);
+    stats.push('Traits: ' + traitCount);
+    if(owner) stats.push('Owner ' + _shareCardShortAddr(owner));
+    let statX = 570;
+    ctx.font = '700 22px Space Grotesk, Segoe UI, sans-serif';
+    for(const stat of stats){
+      const w = Math.ceil(ctx.measureText(stat).width) + 28;
+      _roundRect(ctx, statX, 196, w, 38, 11);
+      ctx.fillStyle = 'rgba(255,255,255,.07)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(stat, statX + 14, 222);
+      statX += w + 12;
+    }
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = '700 18px Space Grotesk, Segoe UI, sans-serif';
-    ctx.fillText('TOP TRAITS', 570, 285);
+    ctx.fillText('TOP TRAITS', 570, 292);
 
-    let y = 324;
-    ctx.font = '600 24px Space Grotesk, Segoe UI, sans-serif';
+    let y = 334;
     for(const t of traits){
-      _roundRect(ctx, 570, y - 25, 520, 42, 12);
+      _roundRect(ctx, 570, y - 32, 520, 50, 13);
       ctx.fillStyle = 'rgba(255,255,255,.055)';
       ctx.fill();
-      ctx.fillStyle = '#e2e8f0';
+      ctx.strokeStyle = 'rgba(255,255,255,.075)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
       const pct = t.pct == null ? '' : (t.pct < .1 ? t.pct.toFixed(3) : t.pct.toFixed(1)) + '%';
-      const count = t.count ? ' - ' + t.count + ' tokens' : '';
-      _drawWrappedText(ctx, `${t.trait}: ${t.value}`, 590, y, 365, 26, 1);
-      ctx.fillStyle = '#7dd3fc';
-      ctx.textAlign = 'right';
-      ctx.fillText(pct + count, 1070, y);
+      const count = t.count ? t.count + ' tokens' : '';
       ctx.textAlign = 'left';
-      y += 54;
+      ctx.font = '700 13px Space Grotesk, Segoe UI, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(_ellipsizeCanvasText(ctx, String(t.trait).toUpperCase(), 310), 590, y - 9);
+      ctx.font = '700 22px Space Grotesk, Segoe UI, sans-serif';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(_ellipsizeCanvasText(ctx, String(t.value), 330), 590, y + 12);
+      ctx.textAlign = 'right';
+      ctx.font = '800 21px Space Grotesk, Segoe UI, sans-serif';
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillText(pct, 1070, y - 5);
+      if(count){
+        ctx.font = '600 13px Space Grotesk, Segoe UI, sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(count, 1070, y + 14);
+      }
+      ctx.textAlign = 'left';
+      y += 58;
     }
     if(!traits.length){
       ctx.fillStyle = '#94a3b8';
