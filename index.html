@@ -140,24 +140,26 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid.list .vs-val.gold{color:#FFD700}
 #tokenGrid.list .vs-val.red{color:#f87171}
 #tokenGrid.list .vs-val.muted{color:var(--sub);font-weight:400}
-#traitRadar{max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden;margin:0 0 10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(124,77,255,.06));box-shadow:0 10px 28px rgba(0,0,0,.24);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-.trait-radar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-.trait-radar-title{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
-.trait-radar-status{font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#traitRadar{width:100%;max-width:100%;min-width:0;box-sizing:border-box;overflow:hidden;margin:0 0 10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(124,77,255,.06));box-shadow:0 10px 28px rgba(0,0,0,.24);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+#traitRadar,#traitRadar *{box-sizing:border-box}
+.trait-radar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;min-width:0;max-width:100%}
+.trait-radar-title{flex:0 0 auto;font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.trait-radar-status{min-width:0;font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .trait-radar-row{display:flex;max-width:100%;min-width:0;gap:7px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:1px}
 .trait-radar-row::-webkit-scrollbar{display:none}
 .trait-radar-chip{flex:0 0 auto;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.045);color:var(--text);border-radius:999px;padding:7px 11px;font:700 12px Space Grotesk,system-ui,sans-serif;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);transition:background .15s,border-color .15s,color .15s,transform .15s}
 .trait-radar-chip:hover{background:rgba(45,212,191,.10);border-color:rgba(45,212,191,.36);color:#e8fffb}
 .trait-radar-chip.active{background:linear-gradient(135deg,rgba(45,212,191,.22),rgba(124,77,255,.16));border-color:rgba(45,212,191,.55);color:#fff;box-shadow:0 0 18px rgba(45,212,191,.12)}
 .trait-radar-chip.clear{color:var(--sub)}
-#traitRadarDrawer{display:none;margin-top:9px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(8,14,23,.76);padding:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.trait-radar-chip.builder{background:linear-gradient(135deg,rgba(45,212,191,.28),rgba(124,77,255,.22));border-color:rgba(45,212,191,.52);color:#fff;box-shadow:0 0 20px rgba(45,212,191,.16);font-weight:800}
+#traitRadarDrawer{display:none;max-width:100%;min-width:0;overflow:hidden;margin-top:9px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(8,14,23,.76);padding:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 #traitRadarDrawer.open{display:block}
-.trait-radar-form{display:grid;grid-template-columns:1fr 90px 110px auto;gap:8px;align-items:center}
-.trait-radar-input{min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text);padding:7px 9px;font:600 12px Space Grotesk,system-ui,sans-serif}
+.trait-radar-form{display:grid;max-width:100%;min-width:0;grid-template-columns:1fr 90px 110px auto;gap:8px;align-items:center}
+.trait-radar-input{width:100%;max-width:100%;min-width:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text);padding:7px 9px;font:600 12px Space Grotesk,system-ui,sans-serif}
 .trait-radar-check{display:inline-flex;align-items:center;gap:5px;font:600 11px Space Grotesk,system-ui,sans-serif;color:var(--sub);white-space:nowrap}
-.trait-radar-quick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:8px}
+.trait-radar-quick{display:flex;max-width:100%;min-width:0;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;margin-top:8px}
 .trait-radar-quick::-webkit-scrollbar{display:none}
-@media(max-width:900px){html,body{max-width:100%;overflow-x:hidden!important}#traitRadar{width:100%;max-width:100%;margin-bottom:8px;padding:9px}.trait-radar-head{margin-bottom:7px}.trait-radar-chip{padding:7px 10px;font-size:11px}.trait-radar-status{max-width:42vw}.trait-radar-form{grid-template-columns:1fr 1fr}.trait-radar-form .btn{width:100%}.trait-radar-check{min-height:34px}}
+@media(max-width:900px){html,body{width:100%;max-width:100%;overflow-x:hidden!important}.wrap,.card.panel{max-width:100%!important;min-width:0!important;overflow-x:hidden!important;box-sizing:border-box!important}#traitRadar{width:100%;max-width:100%;margin-bottom:8px;padding:9px}.trait-radar-head{margin-bottom:7px}.trait-radar-chip{padding:7px 10px;font-size:11px}.trait-radar-status{max-width:42vw}.trait-radar-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.trait-radar-form .btn{width:100%;min-width:0}.trait-radar-check{min-height:34px}}
 #tooltip{position:fixed;left:0;top:0;display:none;z-index:9999;max-width:760px;background:rgba(15,23,34,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none}
 #tooltip.show{opacity:1;transform:translateY(0) scale(1)}
 .tip-title{font-weight:800;margin-bottom:6px;display:flex;gap:10px;align-items:center}
@@ -4001,7 +4003,7 @@ async function buildTraitRadarCache(){
       for(const [sid,row] of Object.entries(ch || {})){
         const id = +sid;
         const kv = typeof keepEntries === 'function' ? keepEntries(row.traits || {}) : Object.entries(row.traits || {});
-        let rareScore = 0, rareCount = 0, rarestPct = 100, weirdCount = 0;
+        let rareScore = 0, rareCount = 0, rarestPct = 100, weirdCount = 0, jewelryCount = 0, hatCount = 0, hairCount = 0;
         const parts = [];
         for(const [k,v] of kv){
           const value = String(v || '');
@@ -4012,6 +4014,9 @@ async function buildTraitRadarCache(){
           rareScore += -Math.log(Math.max(count / total, 1e-12));
           const bit = `${k} ${value}`;
           if(/zombie|alien|skeleton|demonic|radioactive|cursed|laser|clown|mutant|toxic|red eye|glowing/i.test(bit)) weirdCount++;
+          if(/jewel|jewellery|jewelry|chain|earring|bracelet|diamond|gold|grill|teeth|watch/i.test(bit)) jewelryCount++;
+          if(/hat|cap|beanie|crown|helmet|headwear|halo/i.test(bit)) hatCount++;
+          if(/hair|mohawk|bald|messy|crazy|hobo/i.test(bit)) hairCount++;
           parts.push(bit);
         }
         out.push({
@@ -4022,6 +4027,9 @@ async function buildTraitRadarCache(){
           rareCount,
           rarestPct,
           weirdCount,
+          jewelryCount,
+          hatCount,
+          hairCount,
           price: typeof getListingEth === 'function' ? getListingEth(id) : null,
           listed: typeof getListingEth === 'function' ? getListingEth(id) != null : false,
           text: parts.join(' ').toLowerCase()
@@ -4049,8 +4057,8 @@ function renderTraitRadarChips(){
   }
   const custom = document.createElement('button');
   custom.type = 'button';
-  custom.className = 'trait-radar-chip' + (window.TRAIT_RADAR_ACTIVE === 'custom' ? ' active' : '');
-  custom.textContent = 'Build Radar';
+  custom.className = 'trait-radar-chip builder' + (window.TRAIT_RADAR_ACTIVE === 'custom' ? ' active' : '');
+  custom.textContent = '+ Build Radar';
   custom.onclick = () => toggleTraitRadarBuilder();
   host.appendChild(custom);
   const clear = document.createElement('button');
@@ -4093,6 +4101,38 @@ function clearCustomTraitRadarInputs(){
   ['traitRadarKeywords','traitRadarRankMax','traitRadarTraitCount'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   ['traitRadarListed','traitRadarClean'].forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
 }
+function _traitRadarIntent(raw){
+  raw = String(raw || '').toLowerCase();
+  const intent = {
+    terms: raw.split(/\s*\+\s*|,\s*|\s+/).map(s => s.trim()).filter(Boolean),
+    listed: /\blisted\b|\bfor sale\b/.test(raw),
+    cheap: /\bcheap\b|\bcheapest\b|\bfloor\b|\bdeal\b/.test(raw),
+    clean: /\bsimple\b|\bclean\b|\bminimal\b|\bplain\b/.test(raw),
+    stylish: /\bstylish\b|\bstyle\b|\bdrip\b|\bfresh\b|\bcool fit\b|\bfit\b/.test(raw),
+    scary: /\bscary\b|\bcreepy\b|\bcursed\b|\bdark\b|\bspooky\b/.test(raw),
+    hat: /\bcool hat\b|\bhat\b|\bcap\b|\bbeanie\b|\bheadwear\b/.test(raw),
+    hair: /\bbad hair day\b|\bhair\b|\bmohawk\b|\bbald\b/.test(raw),
+    rare: /\brare\b|\btop rank\b|\btop ranked\b|\brank under\b/.test(raw),
+    jewelryMin: null,
+    required: []
+  };
+  if(/\b(2|two)\s+(jewellery|jewelry|jewel|jewels)\b/.test(raw)) intent.jewelryMin = 2;
+  else if(/\b(jewellery|jewelry|jewel|jewels|chain|earring|bracelet)\b/.test(raw)) intent.jewelryMin = 1;
+  if(/\bzombie\b/.test(raw)) intent.required.push(/zombie/i);
+  if(/\bhuman\b/.test(raw)) intent.required.push(/human/i);
+  if(/\balien\b/.test(raw)) intent.required.push(/alien/i);
+  if(/\bgold|golden\b/.test(raw)) intent.required.push(/gold|golden/i);
+  if(/\bdiamond\b/.test(raw)) intent.required.push(/diamond/i);
+  if(/\bblue\b/.test(raw)) intent.required.push(/blue|azure|cyan/i);
+  if(/\beyes?\b/.test(raw)) intent.required.push(/eye|eyes/i);
+  if(intent.hat) intent.required.push(/hat|cap|beanie|crown|helmet|headwear|halo/i);
+  if(intent.hair) intent.required.push(/hair|mohawk|bald|messy|crazy|hobo/i);
+  if(intent.scary) intent.required.push(/zombie|demonic|skull|skeleton|fang|red eye|laser|creepy|radioactive|toxic|cursed/i);
+  if(intent.stylish) intent.required.push(/jewel|jewelry|jewellery|diamond|gold|chain|earring|bracelet|shades|glasses|hat|cap|jacket|suit|tux|watch/i);
+  const stop = new Set(['and','with','looking','look','looks','a','an','the','of','for','to','me','show','find','tokens','token','simple','clean','stylish','style','drip','cool','fit','fits','scary','creepy','listed','cheap','cheapest','rare','top','rank','under','jewelry','jewellery','jewel','jewels','two','2','bad','day']);
+  intent.terms = intent.terms.filter(t => !stop.has(t));
+  return intent;
+}
 async function applyTraitRadar(key, opts){
   const cat = TRAIT_RADAR_CATEGORIES.find(c => c.key === key);
   if(!cat) return;
@@ -4109,19 +4149,25 @@ async function applyCustomTraitRadar(){
   renderTraitRadarChips();
   _traitRadarStatus('Building custom radar...');
   const raw = String(document.getElementById('traitRadarKeywords')?.value || '').toLowerCase();
-  const parsedTerms = raw.split(/\s*\+\s*|,\s*|\s+/).map(s => s.trim()).filter(Boolean);
-  const rankMax = Number(document.getElementById('traitRadarRankMax')?.value || 0) || null;
+  const intent = _traitRadarIntent(raw);
+  let rankMax = Number(document.getElementById('traitRadarRankMax')?.value || 0) || null;
   const traitCount = Number(document.getElementById('traitRadarTraitCount')?.value || 0) || null;
-  const listedOnly = !!document.getElementById('traitRadarListed')?.checked || parsedTerms.includes('listed');
-  const cleanOnly = !!document.getElementById('traitRadarClean')?.checked || parsedTerms.includes('clean');
-  const terms = parsedTerms.filter(t => !['listed','clean'].includes(t));
+  const listedOnly = !!document.getElementById('traitRadarListed')?.checked || intent.listed || intent.cheap;
+  const cleanOnly = !!document.getElementById('traitRadarClean')?.checked || intent.clean;
+  if(intent.rare && !rankMax) rankMax = 1000;
+  if(intent.cheap){
+    const sort = document.getElementById('sortMode');
+    if(sort){ sort.value = 'price-asc'; localStorage.setItem(SORT_KEY, 'price-asc'); }
+  }
   const entries = await buildTraitRadarCache();
   const ids = entries.filter(e => {
-    if(terms.length && !terms.every(t => e.text.includes(t))) return false;
+    if(intent.terms.length && !intent.terms.every(t => e.text.includes(t))) return false;
+    if(intent.required.length && !intent.required.every(re => re.test(e.text))) return false;
     if(rankMax && (!e.rank || e.rank > rankMax)) return false;
     if(traitCount && e.traitCount !== traitCount) return false;
     if(listedOnly && !e.listed) return false;
     if(cleanOnly && !(e.weirdCount === 0 && e.traitCount >= 6 && e.traitCount <= 9)) return false;
+    if(intent.jewelryMin && e.jewelryCount < intent.jewelryMin) return false;
     return true;
   }).map(e => e.id);
   _traitRadarStatus(`Custom Radar: ${ids.length} tokens`);
@@ -4155,42 +4201,34 @@ function attachPreviewHandlers(){
   // On mobile/touch, tapping fires mousemove which shows tooltip instead of modal
   const isTouchDevice = () => window.matchMedia('(hover: none)').matches || window.innerWidth <= 900;
 
+  async function onMove(e){
+    const box=e.target.closest('[data-id]');
+    if(!box){ hideTip(); return; }
+    const id=+box.dataset.id;
+    const row=(typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || await fetchRow(id);
+    tip.innerHTML=tipHtml(id,row);
+    pos(e.clientX,e.clientY);
+  }
+
+  if(!isTouchDevice()){
+    $('#tokenGrid').onmousemove=onMove;
+    $('#tokenGrid').onmouseleave=hideTip;
+  }else{
+    $('#tokenGrid').onmousemove=null;
+    $('#tokenGrid').onmouseleave=null;
+    hideTip();
+  }
+
   const attachGrid = (el) => {
     if(!el) return;
-    if(el._tvHoverMove) el.removeEventListener('mousemove', el._tvHoverMove);
-    if(el._tvHoverLeave) el.removeEventListener('mouseleave', el._tvHoverLeave);
-    el.onmousemove = null;
-    el.onmouseleave = null;
-    if(isTouchDevice()){
-      hideTip();
-      return;
+    if(!isTouchDevice()){
+      el.onmousemove=onMove;
+      el.onmouseleave=hideTip;
+    }else{
+      el.onmousemove=null;
+      el.onmouseleave=null;
     }
-    const state = { lastId:null, seq:0 };
-    const onMove = async (e) => {
-      const box = e.target.closest('[data-id]');
-      if(!box || !el.contains(box)){ state.lastId = null; hideTip(); return; }
-      const id = +box.dataset.id;
-      if(id !== state.lastId){
-        state.lastId = id;
-        const seq = ++state.seq;
-        try{
-          const row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || await fetchRow(id);
-          if(seq !== state.seq || state.lastId !== id) return;
-          tip.innerHTML = tipHtml(id,row);
-        }catch(err){
-          if(seq !== state.seq) return;
-          tip.innerHTML = `<div class="tip-title">#${id}</div><div style="color:var(--muted);font-size:12px">Preview unavailable</div>`;
-        }
-      }
-      if(tip.innerHTML) pos(e.clientX,e.clientY);
-    };
-    const onLeave = () => { state.lastId = null; state.seq++; hideTip(); };
-    el._tvHoverMove = onMove;
-    el._tvHoverLeave = onLeave;
-    el.addEventListener('mousemove', onMove);
-    el.addEventListener('mouseleave', onLeave);
   };
-  attachGrid(document.getElementById('tokenGrid'));
   attachGrid(document.getElementById('salesGrid'));
   attachGrid(document.getElementById('mispricedGrid'));
 
@@ -6419,7 +6457,7 @@ const VS = {
     const gap = window.innerWidth <= 900 ? 6 : 8;
     tg._vsRows.style.cssText = this.mode === 'list'
       ? `display:flex;flex-direction:column;gap:${gap}px;width:100%;padding:${gap}px;box-sizing:border-box`
-      : `display:grid;grid-template-columns:repeat(${this.cols}, minmax(0, 1fr));gap:${gap}px;width:100%;padding:${gap}px;box-sizing:border-box`;
+      : `display:grid;grid-template-columns:repeat(${this.cols}, minmax(0, 1fr));gap:${gap}px;width:100%;max-width:100%;min-width:0;padding:${gap}px;box-sizing:border-box;overflow-x:hidden`;
 
     tg.appendChild(tg._vsTop);
     tg.appendChild(tg._vsRows);
@@ -6530,7 +6568,7 @@ const VS = {
     const imgSrc = this._imgSrc(id);
     const d = document.createElement('div');
     d.dataset.id = id;
-    d.style.cssText = 'position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1;contain:layout paint style';
+    d.style.cssText = 'position:relative;min-width:0;width:100%;max-width:100%;border-radius:10px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1;contain:layout paint style;box-sizing:border-box';
     d.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>') +
       (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
