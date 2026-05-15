@@ -1212,6 +1212,8 @@ a{color:var(--accent)!important}
 .modal-tab-panel.active { display: block; }
 .render-tools-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.03);color:var(--sub);font-size:11px;font-weight:700}
 .render-tools-pill span{color:var(--text)}
+.export-menu-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:transparent;border:none;color:var(--text);cursor:pointer;border-radius:7px;font-size:13px;white-space:nowrap;text-align:left;font-family:inherit}
+.export-menu-btn:hover{background:rgba(255,255,255,.08)}
 @media (max-width:900px){
   .render-tools-pill{width:100%;justify-content:center}
 }
@@ -2879,8 +2881,8 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
             <span style="color:var(--sub);font-size:10px">Owned by</span>
             <span class="owner-addr" id="mOwnerAddr">…</span>
           </span>
-          <span class="render-tools-pill" aria-label="Render tools">
-            Render Tools <span>PNG</span>
+          <span class="render-tools-pill" aria-label="Export tools">
+            Export <span>PNG</span>
           </span>
         </div>
       </div>
@@ -2894,15 +2896,18 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg>
           </button>
           <div id="mDownloadWrap" style="position:relative;flex:0 0 auto">
-            <button id="mDownloadBtn" title="Download PNG" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sub);cursor:pointer;flex:0 0 auto">
+            <button id="mDownloadBtn" title="Export" aria-label="Export" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sub);cursor:pointer;flex:0 0 auto">
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>
             </button>
-            <div id="mDownloadMenu" style="display:none;position:absolute;right:0;top:40px;background:var(--card,#1a1a2e);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:4px;z-index:9999;min-width:140px;box-shadow:0 4px 20px rgba(0,0,0,.5)">
-              <button id="mDownloadBgBtn" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:transparent;border:none;color:var(--text);cursor:pointer;border-radius:7px;font-size:13px;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background='transparent'">
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>With Background
+            <div id="mDownloadMenu" style="display:none;position:absolute;right:0;top:40px;background:var(--card,#1a1a2e);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:4px;z-index:9999;min-width:190px;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+              <button id="mDownloadBgBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>Download With BG
               </button>
-              <button id="mDownloadNoBgBtn" style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:transparent;border:none;color:var(--text);cursor:pointer;border-radius:7px;font-size:13px;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background='transparent'">
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>No Background
+              <button id="mDownloadNoBgBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>Download No BG
+              </button>
+              <button id="mShareCardBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 10l2-2 2 2 2-3 2 3"/></svg>Share Card PNG
               </button>
             </div>
           </div>
@@ -3981,6 +3986,7 @@ async function openModal(id){
   const dlMenu   = document.getElementById('mDownloadMenu');
   const dlBgBtn  = document.getElementById('mDownloadBgBtn');
   const dlNoBgBtn = document.getElementById('mDownloadNoBgBtn');
+  const shareCardBtn = document.getElementById('mShareCardBtn');
   if(dlBtn && dlMenu){
     dlBtn.onclick = (e) => {
       e.stopPropagation();
@@ -3997,6 +4003,7 @@ async function openModal(id){
   }
   if(dlBgBtn)  dlBgBtn.onclick  = () => { if(dlMenu) dlMenu.style.display='none'; downloadTokenPng(id, true);  };
   if(dlNoBgBtn) dlNoBgBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; downloadTokenPng(id, false); };
+  if(shareCardBtn) shareCardBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; downloadShareCardPng(id); };
   if(favBtn){
     favBtn.setAttribute('data-fav-id', String(id));
     favBtn.classList.toggle('active', isFavorite(id));
@@ -6875,16 +6882,8 @@ function _getCurrentModalImageSourceForDownload(id){
   return src ? String(src).trim() : null;
 }
 
-async function downloadTokenPng(id, withBg = true){
-  const btn      = document.getElementById(withBg ? 'mDownloadBgBtn' : 'mDownloadNoBgBtn');
-  const label    = withBg ? 'With BG' : 'No BG';
-  const filename = withBg ? `ocas-${id}.png` : `ocas-${id}-nobg.png`;
-  _setDownloadBtnState(btn, 'Preparing…', true);
-
-  const SIZE = 4096;
-  const resetBtn = () => _setDownloadBtnState(btn, label, false);
-
-  const canvasToDownload = (canvas) => new Promise((resolve, reject) => {
+function _downloadCanvasAsPng(canvas, filename){
+  return new Promise((resolve, reject) => {
     try{
       canvas.getContext('2d').getImageData(0, 0, 1, 1);
       canvas.toBlob((blob) => {
@@ -6901,6 +6900,18 @@ async function downloadTokenPng(id, withBg = true){
       }, 'image/png');
     }catch(e){ reject(e); }
   });
+}
+
+async function downloadTokenPng(id, withBg = true){
+  const btn      = document.getElementById(withBg ? 'mDownloadBgBtn' : 'mDownloadNoBgBtn');
+  const label    = withBg ? 'With BG' : 'No BG';
+  const filename = withBg ? `ocas-${id}.png` : `ocas-${id}-nobg.png`;
+  _setDownloadBtnState(btn, 'Preparing…', true);
+
+  const SIZE = 4096;
+  const resetBtn = () => _setDownloadBtnState(btn, label, false);
+
+  const canvasToDownload = (canvas) => _downloadCanvasAsPng(canvas, filename);
 
   const makeCanvas = (alpha) => {
     const canvas = document.createElement('canvas');
@@ -6977,25 +6988,6 @@ async function downloadTokenPng(id, withBg = true){
     }finally{
       URL.revokeObjectURL(objUrl);
     }
-  };
-
-  const drawFromSvgParts = async (svgText, alpha, includeBg) => {
-    const embedded = _extractEmbeddedRasterFromSvg(svgText);
-    if(!embedded) throw new Error('No embedded character image found in this token SVG.');
-    const { canvas, ctx } = makeCanvas(alpha);
-    if(includeBg){
-      const fill = _extractLiveMetadataBackgroundFill(window._TV_LAST_DOWNLOAD_NFT) || _extractSvgBackgroundFill(svgText) || '#182a29';
-      ctx.save();
-      ctx.fillStyle = fill;
-      ctx.fillRect(0, 0, SIZE, SIZE);
-      ctx.restore();
-    }else{
-      ctx.clearRect(0, 0, SIZE, SIZE);
-    }
-    const img = await loadImage(embedded);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0, SIZE, SIZE);
-    return canvas;
   };
 
   try{
@@ -7095,6 +7087,190 @@ async function downloadTokenPng(id, withBg = true){
     console.error('downloadTokenPng:', e);
     alert('Download error: ' + (e?.message || String(e)));
     resetBtn();
+  }
+}
+
+function _shareCardShortAddr(addr){
+  addr = String(addr || '').trim();
+  return addr ? addr.slice(0,6) + '...' + addr.slice(-4) : '';
+}
+
+function _shareCardTraitRows(row, limit = 5){
+  const kv = typeof keepEntries === 'function' ? keepEntries(row?.traits || {}) : Object.entries(row?.traits || {});
+  const total = TOKEN_COUNT || 10000;
+  const rows = kv.map(([trait, value]) => {
+    const count = TRAIT_FREQ?.[trait]?.[value] || null;
+    const pct = count ? (count / total * 100) : null;
+    const score = pct ? -Math.log(Math.max(count / total, 1e-12)) : 0;
+    return { trait, value, count, pct, score };
+  });
+  rows.sort((a,b) => (b.score - a.score) || String(a.trait).localeCompare(String(b.trait)));
+  return rows.slice(0, limit);
+}
+
+function _roundRect(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function _drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  let line = '';
+  let lines = 0;
+  for(let i = 0; i < words.length; i++){
+    const test = line ? line + ' ' + words[i] : words[i];
+    if(ctx.measureText(test).width > maxWidth && line){
+      ctx.fillText(line, x, y);
+      y += lineHeight;
+      lines++;
+      line = words[i];
+      if(lines >= maxLines) return y;
+    }else{
+      line = test;
+    }
+  }
+  if(line && lines < maxLines){
+    ctx.fillText(line, x, y);
+    y += lineHeight;
+  }
+  return y;
+}
+
+async function _tokenCanvasWithBackground(id, size){
+  const rawSvg = await _getRawSvgForDownload(id);
+  if(rawSvg) return _drawSvgBackgroundAndEmbeddedArt(rawSvg, false, document.baseURI, size);
+
+  const src = _getCurrentModalImageSourceForDownload(id) || (typeof _getFreshImg === 'function' ? _getFreshImg(id) : null) || await _getTokenDownloadSource(id);
+  if(!src) throw new Error('No token image source available for share card.');
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d', { alpha:false });
+  ctx.imageSmoothingEnabled = false;
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.crossOrigin = 'anonymous';
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('Token image failed to load for share card.'));
+    el.src = String(src).startsWith('ipfs://') ? ipfsToHttp(src) : String(src);
+  });
+  ctx.drawImage(img, 0, 0, size, size);
+  ctx.getImageData(0, 0, 1, 1);
+  return canvas;
+}
+
+async function downloadShareCardPng(id){
+  id = Number(id);
+  const btn = document.getElementById('mShareCardBtn');
+  _setDownloadBtnState(btn, 'Preparing...', true);
+  try{
+    const row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || await fetchRow(id);
+    const osRank = OS_RANK_MAP?.get(id) || OS_RANK_MAP?.get(String(id)) || null;
+    const tvRank = RARITY_OBS_RANK?.get(id) || null;
+    const owner = window.OWNER_CACHE?.[id] || document.getElementById('mOwner')?.dataset?.address || '';
+    const traits = _shareCardTraitRows(row, 5);
+
+    const W = 1200, H = 630;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d', { alpha:false });
+    ctx.imageSmoothingEnabled = true;
+
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#090d14');
+    bg.addColorStop(.48, '#111827');
+    bg.addColorStop(1, '#0b121c');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(45,212,191,.10)';
+    ctx.beginPath(); ctx.arc(1060, 70, 260, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(124,77,255,.10)';
+    ctx.beginPath(); ctx.arc(105, 575, 270, 0, Math.PI * 2); ctx.fill();
+
+    _roundRect(ctx, 36, 36, W - 72, H - 72, 28);
+    ctx.fillStyle = 'rgba(13,20,31,.88)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.12)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const artCanvas = await _tokenCanvasWithBackground(id, 960);
+    const artX = 72, artY = 90, artSize = 450;
+    _roundRect(ctx, artX - 12, artY - 12, artSize + 24, artSize + 24, 24);
+    ctx.fillStyle = 'rgba(255,255,255,.055)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.14)';
+    ctx.stroke();
+    ctx.save();
+    _roundRect(ctx, artX, artY, artSize, artSize, 18);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(artCanvas, artX, artY, artSize, artSize);
+    ctx.restore();
+    ctx.imageSmoothingEnabled = true;
+
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = '700 22px Space Grotesk, Segoe UI, sans-serif';
+    ctx.fillText('ON-CHAIN ALL STARS', 570, 98);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '800 74px Space Grotesk, Segoe UI, sans-serif';
+    ctx.fillText('#' + id, 568, 174);
+
+    const rankParts = [];
+    if(tvRank) rankParts.push('TV Rank #' + tvRank);
+    if(osRank) rankParts.push('OS Rank #' + osRank);
+    if(owner) rankParts.push('Owner ' + _shareCardShortAddr(owner));
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 24px Space Grotesk, Segoe UI, sans-serif';
+    ctx.fillText(rankParts.join('  /  ') || 'TraitView rarity card', 570, 222);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '700 18px Space Grotesk, Segoe UI, sans-serif';
+    ctx.fillText('TOP TRAITS', 570, 285);
+
+    let y = 324;
+    ctx.font = '600 24px Space Grotesk, Segoe UI, sans-serif';
+    for(const t of traits){
+      _roundRect(ctx, 570, y - 25, 520, 42, 12);
+      ctx.fillStyle = 'rgba(255,255,255,.055)';
+      ctx.fill();
+      ctx.fillStyle = '#e2e8f0';
+      const pct = t.pct == null ? '' : (t.pct < .1 ? t.pct.toFixed(3) : t.pct.toFixed(1)) + '%';
+      const count = t.count ? ' - ' + t.count + ' tokens' : '';
+      _drawWrappedText(ctx, `${t.trait}: ${t.value}`, 590, y, 365, 26, 1);
+      ctx.fillStyle = '#7dd3fc';
+      ctx.textAlign = 'right';
+      ctx.fillText(pct + count, 1070, y);
+      ctx.textAlign = 'left';
+      y += 54;
+    }
+    if(!traits.length){
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('No trait data available', 570, y);
+    }
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 18px Space Grotesk, Segoe UI, sans-serif';
+    ctx.fillText('TraitView - Render Tools', 570, 560);
+    ctx.textAlign = 'right';
+    ctx.fillText('onchainallstars.xyz', 1090, 560);
+    ctx.textAlign = 'left';
+
+    await _downloadCanvasAsPng(canvas, `ocas-${id}-share-card.png`);
+  }catch(e){
+    console.error('downloadShareCardPng:', e);
+    alert('Share card error: ' + (e?.message || String(e)));
+  }finally{
+    _setDownloadBtnState(btn, 'Share Card PNG', false);
   }
 }
 
