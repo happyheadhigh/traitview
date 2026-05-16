@@ -149,6 +149,14 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .tip-img img{max-width:100%;max-height:100%}
 .traits{font-size:13px;color:var(--text)}
 .traits div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--chip-b);padding:4px 0}
+#twinFinderPanel{display:none;margin:0 0 10px;padding:10px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(45,212,191,.07),rgba(124,77,255,.05));box-shadow:0 10px 28px rgba(0,0,0,.22);max-width:100%;overflow:hidden}
+#twinFinderPanel.open{display:block}
+.twin-finder-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.twin-finder-title{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.twin-finder-controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.twin-finder-controls .input{width:118px}
+#twinFinderResults{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;max-height:360px;overflow:auto;padding-right:2px}
+@media(max-width:900px){#twinFinderPanel{padding:9px}.twin-finder-head{align-items:flex-start;flex-direction:column}.twin-finder-controls{width:100%}.twin-finder-controls .input{flex:1;min-width:0;width:auto}#twinFinderResults{grid-template-columns:repeat(2,minmax(0,1fr));max-height:320px}}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:99999}
 #modal .box{background:rgba(10,15,22,.96);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.10);border-radius:18px;max-width:900px;width:90vw;max-height:90vh;overflow:auto;padding:14px;color:var(--text);box-shadow:0 24px 60px rgba(0,0,0,.65)}
 #modal .mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap}
@@ -2681,10 +2689,25 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 <div class="card panel">
         <!-- Active filter pills shown above grid -->
         <div id="activeMobilePills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;min-height:0"></div>
+        <div id="twinFinderPanel" aria-label="Twin Finder">
+          <div class="twin-finder-head">
+            <div>
+              <div class="twin-finder-title">Twin Finder</div>
+              <div style="font-size:11px;color:var(--sub)">Find closest visual matches by type, eyes, teeth, hair, headwear, clothes, and jewelry.</div>
+            </div>
+            <div class="twin-finder-controls">
+              <input id="twinFinderInput" class="input" type="number" min="1" inputmode="numeric" placeholder="Token #">
+              <button type="button" class="btn" onclick="runTwinFinderFromInput()" style="font-size:12px;padding:7px 12px">Find Twins</button>
+              <button type="button" class="btn ghost" onclick="toggleTwinFinder(false)" style="font-size:12px;padding:7px 12px">Close</button>
+            </div>
+          </div>
+          <div id="twinFinderResults"><div class="price-history-empty">Enter a token ID to find visual twins.</div></div>
+        </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;flex-wrap:wrap">
           <div style="display:flex;gap:10px;align-items:center">
             <h3 class="section" style="margin:0">Matching Token IDs</h3>
+            <button type="button" class="btn ghost" onclick="toggleTwinFinder()" style="font-size:11px;padding:5px 10px">Twin Finder</button>
             <button id="onlyListedPill" onclick="toggleLiveListingsMode()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:'Space Grotesk',sans-serif">
               <span style="width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0" id="onlyListedDot"></span>
               Live Listings
@@ -3919,47 +3942,37 @@ function attachPreviewHandlers(){
   }
   function hideTip(){ tip.classList.remove('show'); tip.style.display='none'; }
 
-  // Only attach hover tooltips on non-touch devices
-  // On mobile/touch, tapping fires mousemove which shows tooltip instead of modal
   const isTouchDevice = () => window.matchMedia('(hover: none)').matches || window.innerWidth <= 900;
-
-  async function onMove(e){
-    const box=e.target.closest('[data-id]');
-    if(!box){ hideTip(); return; }
-    const id=+box.dataset.id;
-    const row=(typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || await fetchRow(id);
-    tip.innerHTML=tipHtml(id,row);
-    pos(e.clientX,e.clientY);
+  if(window.__tvHoverInstalled){
+    if(isTouchDevice()) hideTip();
+    return;
   }
-
-  if(!isTouchDevice()){
-    $('#tokenGrid').onmousemove=onMove;
-    $('#tokenGrid').onmouseleave=hideTip;
-  }else{
-    $('#tokenGrid').onmousemove=null;
-    $('#tokenGrid').onmouseleave=null;
-    hideTip();
-  }
-
-  const attachGrid = (el) => {
-    if(!el) return;
-    if(!isTouchDevice()){
-      el.onmousemove=onMove;
-      el.onmouseleave=hideTip;
-    }else{
-      el.onmousemove=null;
-      el.onmouseleave=null;
+  window.__tvHoverInstalled = true;
+  const hoverState = { id:null, seq:0 };
+  document.addEventListener('pointermove', async (e)=>{
+    if(isTouchDevice()){ hideTip(); return; }
+    const modal = document.getElementById('modal');
+    if(modal && modal.style.display !== 'none' && modal.contains(e.target)){ hideTip(); return; }
+    const box = e.target.closest('#tokenGrid [data-id], #salesGrid [data-id], #mispricedGrid [data-id]');
+    if(!box){ hoverState.id = null; hideTip(); return; }
+    const id = +box.dataset.id;
+    if(!id){ hideTip(); return; }
+    if(id !== hoverState.id){
+      hoverState.id = id;
+      const seq = ++hoverState.seq;
+      try{
+        const row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || await fetchRow(id);
+        if(seq !== hoverState.seq || hoverState.id !== id) return;
+        tip.innerHTML = tipHtml(id,row);
+      }catch(err){
+        if(seq !== hoverState.seq) return;
+        tip.innerHTML = `<div class="tip-title">#${id}</div><div style="color:var(--muted);font-size:12px">Preview unavailable</div>`;
+      }
     }
-  };
-  attachGrid(document.getElementById('salesGrid'));
-  attachGrid(document.getElementById('mispricedGrid'));
-
-  const reattach=()=>{
-    attachGrid(document.getElementById('tokenGrid'));
-    attachGrid(document.getElementById('salesGrid'));
-    attachGrid(document.getElementById('mispricedGrid'));
-  };
-  window._reattachHovers=reattach;
+    if(tip.innerHTML) pos(e.clientX,e.clientY);
+  }, { passive:true });
+  document.addEventListener('pointerleave', hideTip);
+  window._reattachHovers=()=>{ if(isTouchDevice()) hideTip(); };
 }
 async function openModal(id){
   window._modalCurrentId = +id;
@@ -8387,7 +8400,7 @@ document.addEventListener('click', function(e){
   const tabName = tab.dataset.tab;
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
   document.querySelectorAll('.modal-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-'+tabName));
-  if(tabName === 'similar' && window._modalCurrentId) loadSimilarTokens(window._modalCurrentId);
+  if(tabName === 'similar' && window._modalCurrentId) loadSimilarListedTokens(window._modalCurrentId);
 });
 
 async function loadSimilarListedTokens(id){
@@ -8500,10 +8513,22 @@ async function loadSimilarListedTokens(id){
 const TWIN_CACHE = new Map();
 function _twinTraitWeight(name){
   name = String(name || '').toLowerCase();
-  if(/type|body|species|skin|background/.test(name)) return 3;
-  if(/head|hair|eyes|mouth|face/.test(name)) return 2;
-  if(/clothes|shirt|jacket|suit|hat|jewellery|jewelry|chain|earring|accessor/.test(name)) return 1.5;
+  if(/type|body|species|skin|base/.test(name)) return 14;
+  if(/eyes?/.test(name)) return 8;
+  if(/teeth|mouth/.test(name)) return 7;
+  if(/hair/.test(name)) return 6;
+  if(/facial|beard|mustache|moustache/.test(name)) return 5.5;
+  if(/hat|headwear|head|cap|crown|helmet/.test(name)) return 5;
+  if(/clothes|shirt|jacket|suit|hoodie|robe|outfit/.test(name)) return 4;
+  if(/jewellery|jewelry|chain|earring|bracelet|necklace|ring|grill|watch/.test(name)) return 2;
+  if(/background|tattoo/.test(name)) return 1;
   return 1;
+}
+function _twinTypeValue(row){
+  for(const [k,v] of keepEntries(row?.traits || {})){
+    if(/type|body|species|skin|base/i.test(k)) return String(v || '').toLowerCase();
+  }
+  return '';
 }
 function _twinLabel(baseRow, row, sharedCount){
   const text = Object.values(row?.traits || {}).join(' ').toLowerCase();
@@ -8517,6 +8542,7 @@ function _scoreTwin(baseId, baseRow, otherId, otherRow){
   const baseTraits = baseRow?.traits || {};
   const otherTraits = otherRow?.traits || {};
   const baseEntries = keepEntries(baseTraits);
+  const sameType = _twinTypeValue(baseRow) && _twinTypeValue(baseRow) === _twinTypeValue(otherRow);
   let maxScore = 0, score = 0;
   const shared = [];
   for(const [name,value] of baseEntries){
@@ -8533,7 +8559,8 @@ function _scoreTwin(baseId, baseRow, otherId, otherRow){
   const baseRank = RARITY_OBS_RANK.get(+baseId) || null;
   const otherRank = RARITY_OBS_RANK.get(+otherId) || null;
   const rankBonus = baseRank && otherRank ? Math.max(0, 1 - Math.abs(baseRank - otherRank) / 10000) * 0.35 : 0;
-  const total = score + countBonus + rankBonus;
+  const typePenalty = sameType ? 1 : 0.28;
+  const total = (score * typePenalty) + countBonus + rankBonus + (sameType ? 3 : 0);
   const pct = maxScore ? Math.round(Math.min(99, (total / (maxScore + 1.1)) * 100)) : 0;
   return { id:+otherId, score:total, pct, sharedCount:shared.length, shared:shared.slice(0,4), rank:otherRank };
 }
@@ -8561,40 +8588,45 @@ async function findTwinTokens(id){
   TWIN_CACHE.set(id, top);
   return top;
 }
-async function loadSimilarTokens(id){
-  const el = document.getElementById('mSimilarTokens');
-  if(!el) return;
-  el.innerHTML = '<div class="price-history-empty">Finding closest twins...</div>';
+function toggleTwinFinder(force){
+  const panel = document.getElementById('twinFinderPanel');
+  if(!panel) return;
+  const open = typeof force === 'boolean' ? force : !panel.classList.contains('open');
+  panel.classList.toggle('open', open);
+  if(open){
+    const input = document.getElementById('twinFinderInput');
+    if(input && window._modalCurrentId && !input.value) input.value = window._modalCurrentId;
+  }
+}
+async function runTwinFinderFromInput(id){
+  const input = document.getElementById('twinFinderInput');
+  const targetId = +(id || input?.value || window._modalCurrentId || 0);
+  const host = document.getElementById('twinFinderResults');
+  if(!host) return;
+  if(!targetId){ host.innerHTML = '<div class="price-history-empty">Enter a token ID to find visual twins.</div>'; return; }
+  if(input) input.value = String(targetId);
+  toggleTwinFinder(true);
+  host.innerHTML = '<div class="price-history-empty">Finding closest twins...</div>';
   try{
-    const twins = await findTwinTokens(id);
-    if(!twins.length){
-      el.innerHTML = '<div class="price-history-empty">No close trait matches found.</div>';
-      return;
-    }
-    el.innerHTML = `
-      <div style="font-size:11px;color:var(--sub);margin-bottom:8px">Closest trait-based matches across the full collection.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;max-height:340px;overflow-y:auto;padding-right:2px">
-        ${twins.slice(0,24).map((t,idx) => {
-          const imgSrc = _getTokenImgSrc(t.id);
-          const imgTag = imgSrc ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;position:absolute;inset:0">` : '';
-          const label = idx === 0 ? 'Closest Twin' : t.label;
-          return `<div onclick="openModal(${t.id})" style="cursor:pointer;border-radius:9px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)">
-            <div style="position:relative;padding-bottom:100%;background:var(--soft)">${imgTag}</div>
-            <div style="padding:6px;font-size:10px;line-height:1.25">
-              <div style="display:flex;justify-content:space-between;gap:6px;align-items:center">
-                <b style="color:var(--text)">#${t.id}</b>
-                <span style="color:#2dd4bf;font-weight:800">${t.pct}%</span>
-              </div>
-              <div style="color:var(--sub);margin-top:2px">${label} - ${t.sharedCount} shared</div>
-              ${t.rank ? `<div style="margin-top:2px">${rankDiamondHtml(t.rank, "font-size:9px;font-weight:700;")}</div>` : ''}
-              <div style="color:#94a3b8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${t.shared.join(', ')}">${t.shared.join(' - ')}</div>
-            </div>
-          </div>`;
-        }).join('')}
+    const twins = await findTwinTokens(targetId);
+    if(!twins.length){ host.innerHTML = '<div class="price-history-empty">No close trait matches found.</div>'; return; }
+    host.innerHTML = twins.slice(0,24).map((t,idx)=>{
+      const imgSrc = _getTokenImgSrc(t.id);
+      const imgTag = imgSrc ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;position:absolute;inset:0">` : '';
+      const label = idx === 0 ? 'Closest Twin' : t.label;
+      return `<div onclick="openModal(${t.id})" style="cursor:pointer;border-radius:9px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)">
+        <div style="position:relative;padding-bottom:100%;background:var(--soft)">${imgTag}</div>
+        <div style="padding:6px;font-size:10px;line-height:1.25">
+          <div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><b style="color:var(--text)">#${t.id}</b><span style="color:#2dd4bf;font-weight:800">${t.pct}%</span></div>
+          <div style="color:var(--sub);margin-top:2px">${label} - ${t.sharedCount} shared</div>
+          ${t.rank ? `<div style="margin-top:2px">${rankDiamondHtml(t.rank, "font-size:9px;font-weight:700;")}</div>` : ''}
+          <div style="color:#94a3b8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${t.shared.join(', ')}">${t.shared.join(' - ')}</div>
+        </div>
       </div>`;
+    }).join('');
   }catch(e){
-    console.error('[Twin Finder]', e);
-    el.innerHTML = '<div class="price-history-empty">Could not load twins for this token.</div>';
+    console.error('[Twin Finder panel]', e);
+    host.innerHTML = '<div class="price-history-empty">Could not load twins for this token.</div>';
   }
 }
 
