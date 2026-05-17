@@ -1191,6 +1191,81 @@ a{color:var(--accent)!important}
 .rarity-bar-wrap { background: var(--chip); border-radius: 4px; height: 8px; overflow: hidden; }
 .rarity-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width .4s ease; }
 .rarity-contrib { color: var(--accent); font-size: 12px; font-weight: 700; text-align: right; }
+.combo-insights-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(122,162,255,.18);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at top left, rgba(45,212,191,.11), transparent 32%),
+    linear-gradient(135deg, rgba(15,23,34,.78), rgba(20,18,38,.68));
+  box-shadow: 0 14px 36px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.combo-insights-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.combo-insights-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.combo-insights-sub {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.combo-insights-toggle {
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  color: var(--sub);
+  border-radius: 999px;
+  padding: 5px 9px;
+  font: 700 11px/1 var(--font);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.combo-insights-toggle:hover { color: var(--text); border-color: rgba(45,212,191,.35); }
+.combo-insights-list { display: grid; gap: 8px; }
+.combo-insights-panel.is-collapsed .combo-insights-list,
+.combo-insights-panel.is-collapsed .combo-insights-fallback { display: none; }
+.combo-insight-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 10px;
+  align-items: start;
+  padding: 9px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 10px;
+  background: rgba(255,255,255,.045);
+}
+.combo-insight-label {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(45,212,191,.12);
+  border: 1px solid rgba(45,212,191,.24);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.combo-insight-text { color: var(--text); font-size: 12px; line-height: 1.35; min-width: 0; }
+.combo-insight-meta { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.combo-insights-fallback { color: var(--muted); font-size: 12px; line-height: 1.4; }
+@media (max-width: 900px) {
+  .rarity-row { grid-template-columns: minmax(0,1fr) 40px minmax(70px,.8fr) 40px; }
+  .combo-insights-panel { padding: 10px; border-radius: 10px; }
+  .combo-insight-card { grid-template-columns: 1fr; gap: 6px; }
+  .combo-insight-label { justify-self: start; }
+}
 
 /* ── Price History (modal tab) ───────────────────────────────────── */
 #mPriceHistory { margin-top: 14px; }
@@ -4141,6 +4216,271 @@ async function openModal(id){
   m.style.display = 'flex';
 }
 
+const COMBO_ROWS_CACHE = { ready:false, promise:null, rows:[] };
+const COMBO_COUNT_CACHE = new Map();
+const COMBO_INSIGHT_CACHE = new Map();
+
+function comboEsc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function comboNorm(s){ return String(s || '').trim().toLowerCase(); }
+function comboPartTrait(part){ return part?.trait || part?.name || ''; }
+function comboPartKey(part){ return `${comboNorm(comboPartTrait(part))}=${comboNorm(part.value)}`; }
+function comboHasPart(row, part){
+  const wantTrait = comboNorm(comboPartTrait(part));
+  const wantValue = comboNorm(part.value);
+  return row.entries.some(([k,v]) => comboNorm(k) === wantTrait && comboNorm(v) === wantValue);
+}
+function comboTraitCountLabel(count){
+  return count === 1 ? '1 of 1' : `Only ${count}`;
+}
+function comboPct(count){
+  const total = TOKEN_COUNT || 10000;
+  const pct = total ? (count / total) * 100 : 0;
+  return pct < 0.1 ? pct.toFixed(3) : pct.toFixed(2);
+}
+function comboTraitPhrase(entry){
+  if(!entry) return '';
+  return `${entry.value}`;
+}
+function comboPartName(entry){
+  return entry ? entry.name : '';
+}
+function comboPluralType(typeValue){
+  const s = String(typeValue || 'tokens').trim();
+  if(!s) return 'tokens';
+  if(/s$/i.test(s)) return s;
+  return `${s}s`;
+}
+function comboFindTrait(entries, patterns){
+  return entries.find(([k,v]) => patterns.some(re => re.test(k) || re.test(v)))
+    ? (() => {
+        const hit = entries.find(([k,v]) => patterns.some(re => re.test(k) || re.test(v)));
+        return { name: hit[0], value: hit[1] };
+      })()
+    : null;
+}
+function comboUniqueParts(parts){
+  const seen = new Set();
+  return parts.filter(Boolean).filter(part => {
+    const key = comboPartKey(part);
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+async function ensureComboRows(){
+  if(COMBO_ROWS_CACHE.ready) return COMBO_ROWS_CACHE.rows;
+  if(COMBO_ROWS_CACHE.promise) return COMBO_ROWS_CACHE.promise;
+  COMBO_ROWS_CACHE.promise = (async()=>{
+    const rows = [];
+    for(const idx of indices()){
+      const ch = await ensureChunk(idx);
+      for(const [sid,data] of Object.entries(ch || {})){
+        const id = +sid;
+        if(!Number.isFinite(id) || id < 1 || id > (TOKEN_COUNT || 10000)) continue;
+        const entries = keepEntries(data.traits);
+        if(entries.length) rows.push({ id, entries });
+      }
+    }
+    COMBO_ROWS_CACHE.rows = rows;
+    COMBO_ROWS_CACHE.ready = true;
+    return rows;
+  })();
+  return COMBO_ROWS_CACHE.promise;
+}
+async function comboCount(parts, notParts){
+  const yes = comboUniqueParts(parts || []);
+  const no = comboUniqueParts(notParts || []);
+  if(!yes.length) return 0;
+  const key = yes.map(comboPartKey).sort().join('|') + (no.length ? `!${no.map(comboPartKey).sort().join('|')}` : '');
+  if(COMBO_COUNT_CACHE.has(key)) return COMBO_COUNT_CACHE.get(key);
+  const rows = await ensureComboRows();
+  let count = 0;
+  for(const row of rows){
+    if(yes.every(part => comboHasPart(row, part)) && no.every(part => !comboHasPart(row, part))) count++;
+  }
+  COMBO_COUNT_CACHE.set(key, count);
+  return count;
+}
+function comboVisualTraits(entries){
+  const type = comboFindTrait(entries, [/^type$/i, /base/i, /skin/i, /body/i, /species/i]);
+  const eyes = comboFindTrait(entries, [/eyes?/i]);
+  const teeth = comboFindTrait(entries, [/teeth/i, /mouth/i, /grill/i]);
+  const hair = comboFindTrait(entries, [/^hair$/i, /hair/i]);
+  const facialHair = comboFindTrait(entries, [/facial/i, /beard/i, /mustache/i, /moustache/i]);
+  const headwear = comboFindTrait(entries, [/headwear/i, /\bhat\b/i, /\bcap\b/i, /crown/i, /helmet/i]);
+  const jewellery = comboFindTrait(entries, [/jewellery/i, /jewelry/i, /chain/i, /earring/i, /bracelet/i, /necklace/i, /ring/i, /watch/i, /grill/i]);
+  return { type, eyes, teeth, hair, facialHair, headwear, jewellery };
+}
+function comboInsightSort(a,b){
+  if(a.count !== b.count) return a.count - b.count;
+  return b.weight - a.weight;
+}
+function pushComboInsight(list, insight){
+  if(!insight || !insight.text || !insight.count) return;
+  const key = insight.text.toLowerCase();
+  if(list.some(i => i.text.toLowerCase() === key)) return;
+  list.push(insight);
+}
+async function buildComboInsights(id, row){
+  id = +id;
+  if(COMBO_INSIGHT_CACHE.has(id)) return COMBO_INSIGHT_CACHE.get(id);
+  const entries = keepEntries(row.traits);
+  const total = TOKEN_COUNT || 10000;
+  const visual = comboVisualTraits(entries);
+  const type = visual.type;
+  const traitStats = entries.map(([name,value]) => {
+    const count = (TRAIT_FREQ[name]?.[value]) || 1;
+    const pct = total ? (count / total) * 100 : 0;
+    return { name, value, count, pct };
+  }).sort((a,b) => a.count - b.count);
+  const insights = [];
+  const rareLimit = Math.max(4, Math.floor(total * 0.01));
+
+  for(const t of traitStats.slice(0, 5)){
+    if(t.count <= rareLimit){
+      pushComboInsight(insights, {
+        count: t.count,
+        weight: 70 - t.count,
+        label: comboTraitCountLabel(t.count),
+        text: `${comboTraitPhrase(t)} appears on only ${t.count} OCAS.`,
+        meta: `${t.name} - ${comboPct(t.count)}% of collection`
+      });
+    }
+  }
+
+  if(type){
+    for(const t of traitStats){
+      if(comboPartKey(t) === comboPartKey(type)) continue;
+      if(t.count > Math.max(18, Math.floor(total * 0.018))) continue;
+      const count = await comboCount([type, t]);
+      if(count > 0 && count <= Math.max(7, Math.floor(total * 0.007))){
+        pushComboInsight(insights, {
+          count,
+          weight: 90 - count,
+          label: count === 1 ? 'Type match' : 'Type combo',
+          text: count === 1
+            ? `This is the only ${type.value} with ${t.value}.`
+            : `Only ${count} ${comboPluralType(type.value)} have ${t.value}.`,
+          meta: `${type.name} + ${t.name}`
+        });
+      }
+    }
+  }
+
+  const comboDefs = [
+    { label:'Rare combo', parts:[visual.type, visual.eyes], name:'Type + Eyes', weight:86 },
+    { label:'Rare combo', parts:[visual.type, visual.teeth], name:'Type + Teeth', weight:86 },
+    { label:'Rare combo', parts:[visual.type, visual.hair], name:'Type + Hair', weight:82 },
+    { label:'Rare combo', parts:[visual.type, visual.headwear], name:'Type + Headwear', weight:80 },
+    { label:'Rare combo', parts:[visual.type, visual.jewellery], name:'Type + Jewellery', weight:76 },
+    { label:'Face combo', parts:[visual.eyes, visual.teeth], name:'Eyes + Teeth', weight:78 },
+    { label:'Style combo', parts:[visual.hair, visual.headwear], name:'Hair + Headwear', weight:72 },
+    { label:'Face combo', parts:[visual.type, visual.eyes, visual.teeth], name:'Type + Eyes + Teeth', weight:94 },
+    { label:'Face combo', parts:[visual.type, visual.eyes, visual.teeth, visual.hair], name:'Type + Eyes + Teeth + Hair', weight:96 }
+  ];
+
+  for(const def of comboDefs){
+    const parts = comboUniqueParts(def.parts);
+    if(parts.length < 2 || parts.length !== def.parts.filter(Boolean).length) continue;
+    const count = await comboCount(parts);
+    if(count > 0 && count <= Math.max(8, Math.floor(total * 0.008))){
+      pushComboInsight(insights, {
+        count,
+        weight: def.weight - count,
+        label: count === 1 ? '1 of 1' : def.label,
+        text: count === 1
+          ? `No other OCAS shares this ${def.name} combo.`
+          : `Only ${count} OCAS share this ${def.name} combo.`,
+        meta: parts.map(p => `${p.name}: ${p.value}`).join(' + ')
+      });
+    }
+  }
+
+  const faceParts = comboUniqueParts([visual.type, visual.eyes, visual.teeth, visual.hair, visual.facialHair, visual.headwear]);
+  if(faceParts.length >= 3){
+    const count = await comboCount(faceParts);
+    if(count > 0 && count <= 4){
+      pushComboInsight(insights, {
+        count,
+        weight: 110 - count,
+        label: count === 1 ? '1 of 1' : 'Closest face',
+        text: count === 1
+          ? 'No other OCAS shares this high-impact face combo.'
+          : `Only ${count} OCAS share this high-impact face combo.`,
+        meta: faceParts.map(p => p.name).join(' + ')
+      });
+    }
+  }
+
+  if(type){
+    for(const t of traitStats.slice(0, 8)){
+      if(comboPartKey(t) === comboPartKey(type) || t.count > 30) continue;
+      const domain = TRAIT_DOMAIN[type.name] || [];
+      const values = domain instanceof Set ? [...domain] : (Array.isArray(domain) ? domain : Object.keys(domain));
+      let top = null;
+      for(const typeValue of values.slice(0, 24)){
+        const candidate = { name:type.name, value:typeValue };
+        const count = await comboCount([t, candidate]);
+        if(!top || count > top.count) top = { value:typeValue, count };
+      }
+      const exceptionCount = top ? t.count - top.count : 0;
+      if(top && top.value !== type.value && exceptionCount > 0 && exceptionCount <= 4){
+        pushComboInsight(insights, {
+          count: exceptionCount,
+          weight: 68 - exceptionCount,
+          label: 'Trait exception',
+          text: `Only ${exceptionCount} ${t.value} OCAS are not ${top.value}.`,
+          meta: `${t.name} exception within ${type.name}`
+        });
+        break;
+      }
+    }
+  }
+
+  const best = insights.sort(comboInsightSort).slice(0, 6);
+  const result = { insights: best, rarest: traitStats.slice(0, 4) };
+  COMBO_INSIGHT_CACHE.set(id, result);
+  return result;
+}
+function renderComboInsights(data){
+  if(!data.insights.length){
+    const rare = data.rarest.map(t => `${comboEsc(t.value)} (${t.count})`).join(', ');
+    return `<div class="combo-insights-fallback">No extreme combo insights found, but this token's rarest traits are: ${rare || 'not available'}.</div>`;
+  }
+  return `<div class="combo-insights-list">${data.insights.map(i => `
+    <div class="combo-insight-card">
+      <div class="combo-insight-label">${comboEsc(i.label)}</div>
+      <div class="combo-insight-text">
+        ${comboEsc(i.text)}
+        <div class="combo-insight-meta">${comboEsc(i.meta)} - ${comboPct(i.count)}%</div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+async function hydrateComboInsights(id, row){
+  const body = document.getElementById('comboInsightsBody');
+  if(!body) return;
+  const tokenId = +id;
+  body.innerHTML = '<div class="combo-insights-fallback">Analyzing local trait combos...</div>';
+  try{
+    const data = await buildComboInsights(tokenId, row);
+    if(window._modalCurrentId !== tokenId) return;
+    body.innerHTML = renderComboInsights(data);
+  }catch(e){
+    console.warn('[ComboInsights] failed:', e);
+    if(window._modalCurrentId !== tokenId) return;
+    body.innerHTML = '<div class="combo-insights-fallback">Combo insights could not be generated for this token.</div>';
+  }
+}
+function toggleComboInsights(){
+  const panel = document.getElementById('comboInsightsPanel');
+  const btn = document.getElementById('comboInsightsToggle');
+  if(!panel) return;
+  const collapsed = panel.classList.toggle('is-collapsed');
+  if(btn) btn.textContent = collapsed ? 'Show' : 'Hide';
+}
+
 function buildRarityBreakdown(id, row){
   const host = document.getElementById('mRarityBreakdown');
   if(!host) return;
@@ -4187,7 +4527,20 @@ function buildRarityBreakdown(id, row){
     Bar width = % contribution to score
   </div>`;
 
+  html += `
+  <div id="comboInsightsPanel" class="combo-insights-panel">
+    <div class="combo-insights-head">
+      <div class="combo-insights-title">
+        Combo Intelligence
+        <div class="combo-insights-sub">Objective rarity relationships from loaded OCAS traits</div>
+      </div>
+      <button id="comboInsightsToggle" class="combo-insights-toggle" type="button" onclick="toggleComboInsights()">Hide</button>
+    </div>
+    <div id="comboInsightsBody"><div class="combo-insights-fallback">Analyzing local trait combos...</div></div>
+  </div>`;
+
   host.innerHTML = html;
+  hydrateComboInsights(id, row);
 }
 
 // Price history cache: tokenId → { sales, lastFetched }
