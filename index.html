@@ -769,62 +769,96 @@ a{color:var(--accent)!important}
 
 /* === Mobile-only modal header/layout cleanup === */
 @media (max-width:900px){
+  #modal .box{
+    padding:10px!important;
+    width:calc(100vw - 16px)!important;
+    max-height:calc(100dvh - 20px)!important;
+  }
   #modal .mhead{
     display:grid!important;
     grid-template-columns:minmax(0,1fr) auto!important;
-    grid-template-areas:
-      "title close"
-      "owner actions"
-      "meta actions"!important;
     align-items:start!important;
-    gap:10px 12px!important;
+    gap:6px 8px!important;
+    margin-bottom:8px!important;
+    width:100%!important;
+    overflow:visible!important;
   }
   #modal .mhead > div:first-child{
-    grid-area:title!important;
+    grid-column:1!important;
+    grid-row:1!important;
     min-width:0!important;
     display:flex!important;
     flex-direction:column!important;
-    gap:8px!important;
+    gap:5px!important;
   }
   #modal .mhead > div:first-child > #mTitle{
-    font-size:15px!important;
-    line-height:1.1!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:5px!important;
+    flex-wrap:wrap!important;
+    font-size:14px!important;
+    line-height:1.15!important;
     margin:0!important;
+    min-width:0!important;
   }
   #modal .mhead > div:first-child > div{
     display:flex!important;
     align-items:center!important;
-    gap:8px!important;
+    gap:6px!important;
     flex-wrap:wrap!important;
+    min-width:0!important;
   }
   #mPrice{
     display:inline-flex!important;
     align-items:center!important;
-    min-height:34px!important;
+    min-height:26px!important;
+    font-size:12px!important;
+    line-height:1.1!important;
+    margin:0!important;
   }
   #mOwner{
-    grid-area:owner!important;
     width:fit-content!important;
     max-width:100%!important;
     display:inline-flex!important;
     align-items:center!important;
+    gap:5px!important;
+    min-height:26px!important;
+    padding:3px 7px!important;
+    font-size:11px!important;
+    line-height:1.1!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+  }
+  #mOwner > span:first-child{
+    font-size:9px!important;
+    white-space:nowrap!important;
+    flex:0 0 auto!important;
+  }
+  #mOwner .owner-addr{
+    max-width:112px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
   }
   #modal .mhead .modal-actions{
-    grid-area:close / close / actions / actions!important;
+    grid-column:2!important;
+    grid-row:1!important;
     display:flex!important;
     flex-direction:column!important;
     align-items:flex-end!important;
-    gap:8px!important;
+    gap:6px!important;
     margin-top:0!important;
     min-width:0!important;
+    max-width:45vw!important;
   }
   #modal .mhead .modal-action-icons{
     display:flex!important;
     align-items:center!important;
     justify-content:flex-end!important;
-    gap:8px!important;
+    gap:6px!important;
     flex-wrap:nowrap!important;
     min-width:0!important;
+    max-width:100%!important;
   }
   #modal .mhead .modal-action-icons > *{
     flex:0 0 auto!important;
@@ -833,14 +867,29 @@ a{color:var(--accent)!important}
     display:flex!important;
     align-items:center!important;
     justify-content:flex-end!important;
-    gap:8px!important;
+    gap:6px!important;
     flex-wrap:nowrap!important;
     min-width:0!important;
   }
+  #modal .mhead .modal-action-icons #mLinks .linkpill{
+    min-height:30px!important;
+    height:30px!important;
+    padding:4px 8px!important;
+    font-size:0!important;
+    max-width:92px!important;
+    overflow:hidden!important;
+  }
+  #modal .mhead .modal-action-icons #mLinks .linkpill span{
+    font-size:12px!important;
+    max-width:56px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
   #modal .mhead .modal-actions .btn.ghost{
     min-height:auto!important;
-    width:34px!important;
-    height:34px!important;
+    width:32px!important;
+    height:32px!important;
     padding:0!important;
     border-radius:999px!important;
     border-color:rgba(255,255,255,.16)!important;
@@ -849,12 +898,27 @@ a{color:var(--accent)!important}
     line-height:1!important;
   }
   #modal .mhead .modal-actions .btn.ghost span{
-    font-size:22px!important;
-    line-height:34px!important;
+    font-size:21px!important;
+    line-height:32px!important;
   }
   #modal .mhead .modal-action-icons #mFavoriteBtn,
   #modal .mhead .modal-action-icons #mDownloadBtn{
     display:inline-flex!important;
+    width:32px!important;
+    height:32px!important;
+    min-width:32px!important;
+    padding:0!important;
+  }
+  #mDownloadWrap{position:relative!important}
+  #mDownloadMenu{
+    right:0!important;
+    top:38px!important;
+    min-width:218px!important;
+    max-width:calc(100vw - 28px)!important;
+    background:rgba(10,15,22,.98)!important;
+    border-color:rgba(255,255,255,.16)!important;
+    backdrop-filter:blur(16px)!important;
+    -webkit-backdrop-filter:blur(16px)!important;
   }
   #modal .mbody{
     grid-template-columns:1fr!important;
@@ -1300,9 +1364,19 @@ a{color:var(--accent)!important}
 .export-menu-btn:hover{background:rgba(255,255,255,.08)}
 .share-card-palette-row{display:grid;gap:5px;padding:8px 8px 7px;margin:2px 0 3px;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
 .share-card-palette-row label{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:rgba(226,232,240,.76);font-weight:800}
-.share-card-palette-row select{width:100%;min-height:34px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:var(--text);font:700 12px/1 var(--font);padding:6px 8px}
+.share-card-palette-row select{
+  width:100%;min-height:34px;border-radius:8px;
+  background:rgba(9,14,22,.96);border:1px solid rgba(255,255,255,.16);
+  color:#f8fafc;font:700 12px/1 var(--font);padding:6px 28px 6px 8px;
+  color-scheme:dark;appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,#cbd5e1 50%),linear-gradient(135deg,#cbd5e1 50%,transparent 50%);
+  background-position:calc(100% - 15px) 14px,calc(100% - 10px) 14px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;
+}
+.share-card-palette-row select:hover,.share-card-palette-row select:focus{border-color:rgba(167,139,250,.45);box-shadow:0 0 0 2px rgba(167,139,250,.16);outline:none}
+.share-card-palette-row select option{background:#101522;color:#f8fafc}
 @media (max-width:900px){
-  .render-tools-pill{width:100%;justify-content:center}
+  .render-tools-pill{display:none}
 }
 
 /* ── Wallet View panel ───────────────────────────────────────────── */
