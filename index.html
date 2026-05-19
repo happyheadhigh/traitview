@@ -7672,27 +7672,35 @@ function _getShareCardPalette(){
   const palettes = {
     default: {
       bg:['#08111a','#0d1d24','#10162a','#070b12'],
-      wash:'rgba(45,212,191,.24)', wash2:'rgba(124,77,255,.22)',
-      glass:'rgba(8,14,23,.70)', glass2:'rgba(255,255,255,.075)', border:'rgba(255,255,255,.12)', glow:'rgba(45,212,191,.22)',
-      brand:'#67e8f9', stat:'#cbd5e1', traitLabel:'#aab7ca', traitValue:'#eef4ff', traitAccent:'#7dd3fc'
+      wash:'rgba(28,255,175,.28)', washMid:'rgba(28,255,175,.075)', wash2:'rgba(103,232,249,.22)', wash2Mid:'rgba(103,232,249,.055)',
+      glass:'rgba(8,14,23,.70)', glass2:'rgba(255,255,255,.075)', border:'rgba(255,255,255,.12)', glow:'rgba(28,255,175,.23)',
+      stat:'#d7f7ef', statBg:'rgba(28,255,175,.085)', statBorder:'rgba(28,255,175,.20)',
+      traitLabel:'#aab7ca', traitValue:'#eef4ff', traitAccent:'#67e8f9',
+      traitRow:'rgba(255,255,255,.055)', traitBorder:'rgba(255,255,255,.075)', artFill:'rgba(255,255,255,.065)'
     },
     dark: {
-      bg:['#05070b','#090d13','#0d111a','#030407'],
-      wash:'rgba(148,163,184,.15)', wash2:'rgba(100,116,139,.12)',
-      glass:'rgba(9,12,18,.76)', glass2:'rgba(255,255,255,.055)', border:'rgba(226,232,240,.12)', glow:'rgba(148,163,184,.18)',
-      brand:'#dbeafe', stat:'#d1d5db', traitLabel:'#a1a1aa', traitValue:'#f4f4f5', traitAccent:'#cbd5e1'
+      bg:['#020304','#05070b','#080b11','#000102'],
+      wash:'rgba(255,255,255,.10)', washMid:'rgba(255,255,255,.035)', wash2:'rgba(28,255,175,.12)', wash2Mid:'rgba(28,255,175,.035)',
+      glass:'rgba(2,4,8,.82)', glass2:'rgba(255,255,255,.060)', border:'rgba(226,232,240,.16)', glow:'rgba(255,255,255,.16)',
+      stat:'#f3f4f6', statBg:'rgba(255,255,255,.095)', statBorder:'rgba(255,255,255,.18)',
+      traitLabel:'#b9c1cf', traitValue:'#ffffff', traitAccent:'#93c5fd',
+      traitRow:'rgba(255,255,255,.070)', traitBorder:'rgba(255,255,255,.11)', artFill:'rgba(255,255,255,.095)'
     },
     glow: {
       bg:['#050816','#071520','#140b2d','#02040d'],
-      wash:'rgba(34,211,238,.32)', wash2:'rgba(167,139,250,.34)',
-      glass:'rgba(5,10,24,.70)', glass2:'rgba(255,255,255,.085)', border:'rgba(125,211,252,.24)', glow:'rgba(125,211,252,.34)',
-      brand:'#5eead4', stat:'#dbeafe', traitLabel:'#bae6fd', traitValue:'#f8fafc', traitAccent:'#d8b4fe'
+      wash:'rgba(34,211,238,.34)', washMid:'rgba(34,211,238,.095)', wash2:'rgba(167,139,250,.38)', wash2Mid:'rgba(167,139,250,.10)',
+      glass:'rgba(5,10,24,.70)', glass2:'rgba(255,255,255,.090)', border:'rgba(125,211,252,.28)', glow:'rgba(125,211,252,.38)',
+      stat:'#e0f2fe', statBg:'rgba(34,211,238,.105)', statBorder:'rgba(167,139,250,.26)',
+      traitLabel:'#bae6fd', traitValue:'#f8fafc', traitAccent:'#d8b4fe',
+      traitRow:'rgba(125,211,252,.065)', traitBorder:'rgba(167,139,250,.16)', artFill:'rgba(34,211,238,.075)'
     },
     minimal: {
-      bg:['#111827','#172033','#1a2335','#0b101b'],
-      wash:'rgba(255,255,255,.10)', wash2:'rgba(45,212,191,.10)',
-      glass:'rgba(15,23,42,.72)', glass2:'rgba(255,255,255,.060)', border:'rgba(255,255,255,.14)', glow:'rgba(255,255,255,.14)',
-      brand:'#e5e7eb', stat:'#d1d5db', traitLabel:'#aeb8c8', traitValue:'#f8fafc', traitAccent:'#93c5fd'
+      bg:['#111827','#162033','#1e293b','#0f172a'],
+      wash:'rgba(255,255,255,.085)', washMid:'rgba(255,255,255,.026)', wash2:'rgba(28,255,175,.085)', wash2Mid:'rgba(28,255,175,.024)',
+      glass:'rgba(15,23,42,.68)', glass2:'rgba(255,255,255,.050)', border:'rgba(255,255,255,.16)', glow:'rgba(255,255,255,.10)',
+      stat:'#e5e7eb', statBg:'rgba(255,255,255,.060)', statBorder:'rgba(255,255,255,.15)',
+      traitLabel:'#c4ccd8', traitValue:'#f8fafc', traitAccent:'#86efac',
+      traitRow:'rgba(255,255,255,.040)', traitBorder:'rgba(255,255,255,.090)', artFill:'rgba(255,255,255,.045)'
     }
   };
   return palettes[style] || palettes.default;
@@ -7726,13 +7734,13 @@ async function downloadShareCardPng(id){
     ctx.fillRect(0, 0, W, H);
     const wash = ctx.createRadialGradient(215, 105, 20, 215, 105, 520);
     wash.addColorStop(0, pal.wash);
-    wash.addColorStop(.55, 'rgba(45,212,191,.07)');
+    wash.addColorStop(.55, pal.washMid);
     wash.addColorStop(1, 'rgba(45,212,191,0)');
     ctx.fillStyle = wash;
     ctx.fillRect(0, 0, W, H);
     const violet = ctx.createRadialGradient(1000, 520, 40, 1000, 520, 560);
     violet.addColorStop(0, pal.wash2);
-    violet.addColorStop(.55, 'rgba(124,77,255,.06)');
+    violet.addColorStop(.55, pal.wash2Mid);
     violet.addColorStop(1, 'rgba(124,77,255,0)');
     ctx.fillStyle = violet;
     ctx.fillRect(0, 0, W, H);
@@ -7764,7 +7772,7 @@ async function downloadShareCardPng(id){
     ctx.shadowColor = pal.glow;
     ctx.shadowBlur = 26;
     _roundRect(ctx, artX - 12, artY - 12, artSize + 24, artSize + 24, 24);
-    ctx.fillStyle = 'rgba(255,255,255,.065)';
+    ctx.fillStyle = pal.artFill;
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = pal.border;
@@ -7777,9 +7785,11 @@ async function downloadShareCardPng(id){
     ctx.restore();
     ctx.imageSmoothingEnabled = true;
 
-    ctx.fillStyle = pal.brand;
+    ctx.fillStyle = '#f8fafc';
     ctx.font = '800 23px Space Grotesk, Segoe UI, sans-serif';
-    ctx.fillText('ON-CHAIN ALL STARS', 540, 92);
+    ctx.fillText('ON-CHAIN', 540, 92);
+    ctx.fillStyle = '#1CFFAF';
+    ctx.fillText('ALL-STARS', 674, 92);
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = '800 60px Space Grotesk, Segoe UI, sans-serif';
@@ -7795,9 +7805,9 @@ async function downloadShareCardPng(id){
     for(const stat of stats){
       const w = Math.ceil(ctx.measureText(stat).width) + 24;
       _roundRect(ctx, statX, 182, w, 34, 10);
-      ctx.fillStyle = 'rgba(255,255,255,.07)';
+      ctx.fillStyle = pal.statBg;
       ctx.fill();
-      ctx.strokeStyle = pal.border;
+      ctx.strokeStyle = pal.statBorder;
       ctx.lineWidth = 1;
       ctx.stroke();
       ctx.fillStyle = pal.stat;
@@ -7812,9 +7822,9 @@ async function downloadShareCardPng(id){
     let y = 292;
     for(const t of traits){
       _roundRect(ctx, 540, y - 28, 550, 43, 12);
-      ctx.fillStyle = 'rgba(255,255,255,.055)';
+      ctx.fillStyle = pal.traitRow;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.075)';
+      ctx.strokeStyle = pal.traitBorder;
       ctx.lineWidth = 1;
       ctx.stroke();
       const pct = t.pct == null ? '' : (t.pct < .1 ? t.pct.toFixed(3) : t.pct.toFixed(1)) + '%';
