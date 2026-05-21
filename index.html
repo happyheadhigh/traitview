@@ -183,20 +183,33 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .holder-tag.grail b{color:#fde68a}.holder-tag.combo b{color:#67e8f9}.holder-tag.trait b{color:#f0abfc}.holder-tag.drip b{color:#1CFFAF}.holder-tag.cursed b{color:#fda4af}
 .wallet-connect-btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .wallet-connect-btn.connected{color:#1CFFAF!important;border-color:rgba(28,255,175,.35)!important;background:rgba(28,255,175,.08)!important}
-.connected-holder-panel{display:none;margin:0 0 10px;padding:10px;border:1px solid rgba(28,255,175,.16);border-radius:12px;background:linear-gradient(135deg,rgba(28,255,175,.075),rgba(124,77,255,.055));box-shadow:0 12px 30px rgba(0,0,0,.22);overflow:hidden}
+.connected-holder-panel{display:none;margin:0 0 8px;padding:7px 9px;border:1px solid rgba(28,255,175,.16);border-radius:12px;background:linear-gradient(135deg,rgba(28,255,175,.075),rgba(124,77,255,.055));box-shadow:0 10px 24px rgba(0,0,0,.18);overflow:hidden}
 .connected-holder-panel.is-visible{display:block}
-.connected-holder-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.connected-holder-inner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.connected-holder-top{display:flex;align-items:center;gap:7px;min-width:0}
 .connected-holder-title{font-size:11px;color:var(--sub);letter-spacing:.08em;text-transform:uppercase;font-weight:900}
 .connected-holder-addr{font-family:monospace;color:var(--text);font-size:12px;font-weight:800}
-.connected-holder-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0}
-.connected-holder-stat{border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(255,255,255,.045);padding:7px 8px;min-width:0}
-.connected-holder-stat span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.connected-holder-stat b{display:block;margin-top:2px;color:var(--text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.connected-holder-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.connected-holder-stats{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:0}
+.connected-holder-stat{display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:rgba(255,255,255,.045);padding:4px 7px;min-width:0;line-height:1}
+.connected-holder-stat span{display:inline;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);font-weight:800;white-space:nowrap}
+.connected-holder-stat b{display:inline;color:var(--text);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:138px}
+.connected-holder-panel .holder-tags{display:flex;align-items:center;gap:4px;margin:0;flex-wrap:wrap}
+.connected-holder-panel .holder-tag{padding:4px 6px;border-radius:999px;flex-direction:row;align-items:center;gap:4px}
+.connected-holder-panel .holder-tag b{font-size:10px}
+.connected-holder-panel .holder-tag span{display:none}
+.connected-holder-actions{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto}
+.connected-holder-actions .mispriced-mode-btn{padding:4px 7px;font-size:10px}
 .connected-holder-actions .mispriced-mode-btn.active{border-color:rgba(28,255,175,.42);color:#1CFFAF;background:rgba(28,255,175,.09)}
 @media(max-width:900px){
-  .connected-holder-panel{margin:8px 0 0;padding:9px}
-  .connected-holder-stats{grid-template-columns:1fr 1fr}
+  #connectedHolderPanel{display:none!important}
+  #mobileConnectedHolderPanel.connected-holder-panel{display:none;margin:0;padding:9px}
+  #mobileConnectedHolderPanel.connected-holder-panel.is-visible{display:block}
+  .connected-holder-inner{align-items:flex-start;flex-direction:column}
+  .connected-holder-stats{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .connected-holder-stat{border-radius:10px;justify-content:space-between}
+  .connected-holder-panel .holder-tags{align-items:stretch;width:100%}
+  .connected-holder-panel .holder-tag{border-radius:10px;flex-direction:column;align-items:flex-start}
+  .connected-holder-panel .holder-tag span{display:block}
   #mobileConnectedHolderPanel .holder-tags{margin-bottom:2px}
 }
 #modal .mbody{display:grid;grid-template-columns:280px 1fr;gap:14px}
@@ -661,7 +674,7 @@ a{color:var(--accent)!important}
   }
   .mbb-btn{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    background:none;border:none;cursor:pointer;padding:8px 20px;
+    background:none;border:none;cursor:pointer;padding:8px 10px;
     color:var(--sub);
     -webkit-tap-highlight-color:transparent;touch-action:manipulation;
     transition:color .15s;flex:1;
@@ -690,6 +703,30 @@ a{color:var(--accent)!important}
   }
   #mobileWalletDrawer.open{transform:translateX(0)}
   #mobileWalletHeader{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 16px 10px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    flex-shrink:0;
+  }
+
+  #mobileHolderOverlay{
+    display:none;position:fixed;inset:0;z-index:700;
+    background:rgba(0,0,0,.5);
+  }
+  #mobileHolderOverlay.open{display:block}
+  #mobileHolderDrawer{
+    position:fixed;top:0;right:0;bottom:0;z-index:701;
+    width:min(340px,92vw);
+    background:rgba(12,17,26,.98);
+    border-left:1px solid rgba(255,255,255,.12);
+    transform:translateX(100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column;
+    box-shadow:-8px 0 40px rgba(0,0,0,.5);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  #mobileHolderDrawer.open{transform:translateX(0)}
+  #mobileHolderHeader{
     display:flex;justify-content:space-between;align-items:center;
     padding:14px 16px 10px;
     border-bottom:1px solid rgba(255,255,255,.08);
@@ -2226,8 +2263,11 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 #mobileBottomBar { display: none; } /* shown only on mobile */
 #mobileAnalyticsOverlay { display: none; }
 #mobileAnalyticsSheet { display: none; } /* shown only on mobile */
+#mobileWalletOverlay,#mobileHolderOverlay { display: none; }
+#mobileWalletDrawer,#mobileHolderDrawer { display: none; }
 @media (max-width: 900px) {
   #mobileAnalyticsSheet { display: flex; }
+  #mobileWalletDrawer,#mobileHolderDrawer { display: flex; }
 }
 #floatFilterBtn {
   display: none; /* shown only on mobile via @media below */
@@ -3052,6 +3092,9 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   <button class="mbb-btn" id="mbbWallet" onclick="openMobileWalletDrawer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
   </button>
+  <button class="mbb-btn" id="mbbHolder" onclick="openMobileHolderDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.8-4 4.4-6 8-6s6.2 2 8 6"/></svg>
+  </button>
   <button class="mbb-btn" id="mbbAnalytics" onclick="openMobileAnalytics()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
   </button>
@@ -3081,6 +3124,19 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     <div id="mobileWalletStatus" style="font-size:12px;color:var(--sub);margin-bottom:8px"></div>
     <div id="mobileWalletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
     <div id="mobileWalletGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+  </div>
+</div>
+
+<!-- Mobile connected holder right drawer -->
+<div id="mobileHolderOverlay" onclick="closeMobileHolderDrawer()"></div>
+<div id="mobileHolderDrawer">
+  <div id="mobileHolderHeader">
+    <span style="font-weight:700;font-size:15px;color:var(--text)">Connected Holder</span>
+    <button onclick="closeMobileHolderDrawer()" style="background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer;padding:0;line-height:1">×</button>
+  </div>
+  <div id="mobileHolderBody" style="padding:10px 14px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div id="mobileConnectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
+    <div id="mobileHolderEmpty" style="font-size:12px;color:var(--sub);line-height:1.4;padding:4px 0">Connect a wallet from the menu to see holder stats and tags here.</div>
   </div>
 </div>
 
@@ -3459,30 +3515,26 @@ function renderConnectedHolderPanel(host, stats){
   if(!host || !stats) return;
   const rank = stats.bestRank ? rankDiamondHtml(stats.bestRank, 'font-size:13px;font-weight:900;') : '—';
   const type = stats.dominantType ? `${stats.dominantType[0]} (${stats.dominantType[1]})` : '—';
-  const strong = stats.strongestCategory ? `${stats.strongestCategory[0]}` : '—';
-  const rare = stats.rarestOwned ? `#${stats.rarestOwned.id} ${stats.rarestOwned.value}` : stats.personality;
   host.innerHTML = `
-    <div class="connected-holder-top">
-      <div>
+    <div class="connected-holder-inner">
+      <div class="connected-holder-top">
         <div class="connected-holder-title">Connected holder</div>
         <div class="connected-holder-addr">${shortAddr(CONNECTED_WALLET.address)}</div>
       </div>
-      <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
-    </div>
-    <div class="connected-holder-stats">
-      <div class="connected-holder-stat"><span>Total owned</span><b>${stats.total}</b></div>
-      <div class="connected-holder-stat"><span>Network</span><b>${comboEsc(walletChainLabel(CONNECTED_WALLET.chainId))}</b></div>
-      <div class="connected-holder-stat"><span>Best rank</span><b>${rank}</b></div>
-      <div class="connected-holder-stat"><span>Dominant type</span><b>${comboEsc(type)}</b></div>
-      <div class="connected-holder-stat"><span>Strongest</span><b>${comboEsc(strong)}</b></div>
-      <div class="connected-holder-stat" style="grid-column:span 2"><span>Rarest owned signal</span><b>${comboEsc(rare)}</b></div>
-    </div>
-    <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
-    <div class="connected-holder-actions">
-      <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
-      <button type="button" class="mispriced-mode-btn" onclick="openConnectedWalletView()">Open Wallet View</button>
+      <div class="connected-holder-stats">
+        <div class="connected-holder-stat"><span>Owned</span><b>${stats.total}</b></div>
+        <div class="connected-holder-stat"><span>Best</span><b>${rank}</b></div>
+        <div class="connected-holder-stat"><span>Type</span><b>${comboEsc(type)}</b></div>
+      </div>
+      <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
+      <div class="connected-holder-actions">
+        <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
+        <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
+      </div>
     </div>`;
   host.classList.add('is-visible');
+  const empty = document.getElementById('mobileHolderEmpty');
+  if(empty && host.id === 'mobileConnectedHolderPanel') empty.style.display = stats.total ? 'none' : 'block';
 }
 function updateWalletConnectButtons(status){
   const connected = !!CONNECTED_WALLET?.address;
@@ -3554,6 +3606,8 @@ function disconnectTraitViewWallet(){
     const host = document.getElementById(id);
     if(host){ host.innerHTML = ''; host.classList.remove('is-visible'); }
   });
+  const empty = document.getElementById('mobileHolderEmpty');
+  if(empty) empty.style.display = 'block';
   updateWalletConnectButtons();
   if(VS?._nodeCache) VS._nodeCache.clear();
   if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
@@ -6529,6 +6583,7 @@ function openMobileWalletDrawer(addr){
   const drawer  = document.getElementById('mobileWalletDrawer');
   const overlay = document.getElementById('mobileWalletOverlay');
   if(!drawer) return;
+  if(typeof closeMobileHolderDrawer === 'function') closeMobileHolderDrawer();
   drawer.classList.add('open');
   overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -6545,6 +6600,29 @@ function closeMobileWalletDrawer(){
   document.getElementById('mobileWalletOverlay')?.classList.remove('open');
   document.body.style.overflow = '';
   document.getElementById('mbbWallet')?.classList.remove('active');
+}
+
+function openMobileHolderDrawer(){
+  const drawer  = document.getElementById('mobileHolderDrawer');
+  const overlay = document.getElementById('mobileHolderOverlay');
+  if(!drawer) return;
+  closeMobileWalletDrawer();
+  drawer.classList.add('open');
+  overlay?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('mbbHolder')?.classList.add('active');
+  const empty = document.getElementById('mobileHolderEmpty');
+  if(empty) empty.style.display = CONNECTED_WALLET?.address ? 'none' : 'block';
+  if(CONNECTED_WALLET?.stats){
+    renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), CONNECTED_WALLET.stats);
+  }
+}
+
+function closeMobileHolderDrawer(){
+  document.getElementById('mobileHolderDrawer')?.classList.remove('open');
+  document.getElementById('mobileHolderOverlay')?.classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('mbbHolder')?.classList.remove('active');
 }
 
 // Also wire openMobileWallet alias used by VS owner click
