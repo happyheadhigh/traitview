@@ -1405,6 +1405,9 @@ a{color:var(--accent)!important}
 .studio-checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .studio-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--sub)}
 .studio-check input{accent-color:#1CFFAF}
+.studio-color-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.studio-color{display:grid;grid-template-columns:1fr 34px;align-items:center;gap:7px;font-size:10.5px;color:var(--sub)}
+.studio-color input{width:34px;height:28px;padding:0;border:1px solid rgba(255,255,255,.14);border-radius:7px;background:transparent}
 .studio-trait-list{display:grid;gap:5px;max-height:150px;overflow:auto;padding-right:2px}
 .studio-preview-wrap{display:grid;place-items:center;min-height:420px;border:1px solid rgba(255,255,255,.10);border-radius:14px;background:radial-gradient(circle at 20% 10%,rgba(28,255,175,.08),transparent 34%),rgba(0,0,0,.22);padding:12px;overflow:hidden}
 #studioPreview{max-width:100%;max-height:68vh;width:auto;height:auto;border-radius:10px;box-shadow:0 16px 50px rgba(0,0,0,.45)}
@@ -1414,7 +1417,7 @@ a{color:var(--accent)!important}
   .studio-box{width:100%;max-height:96vh;padding:10px;border-radius:14px}
   .studio-grid{grid-template-columns:1fr}
   .studio-preview-wrap{min-height:260px}
-  .studio-row,.studio-checks{grid-template-columns:1fr}
+  .studio-row,.studio-checks,.studio-color-grid{grid-template-columns:1fr}
 }
 @media (max-width:900px){
   .render-tools-pill{display:none}
@@ -3035,7 +3038,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     <div class="studio-head">
       <div>
         <div class="studio-title">TraitView Studio</div>
-        <div style="font-size:11px;color:var(--sub)">Opinionated OCAS share-card builder</div>
+        <div style="font-size:11px;color:var(--sub)">OCAS Share Card Builder</div>
       </div>
       <button class="btn ghost" onclick="closeTraitViewStudio()" style="width:34px;height:34px;padding:0;border-radius:999px">×</button>
     </div>
@@ -3051,6 +3054,17 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
         <div class="studio-panel">
           <div class="studio-label">Background</div>
           <select id="studioBackground" class="studio-select"><option value="gradient">Current gradient</option><option value="glass">Dark glass</option><option value="token">Token-matched accent</option><option value="solid">Solid dark</option><option value="frosted">Transparent/frosted look</option></select>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Custom Colors</div>
+          <div class="studio-color-grid">
+            <label class="studio-color">Gradient A<input type="color" id="studioColorBgA" value="#08111a"></label>
+            <label class="studio-color">Gradient B<input type="color" id="studioColorBgB" value="#10162a"></label>
+            <label class="studio-color">Solid BG<input type="color" id="studioColorSolid" value="#070b12"></label>
+            <label class="studio-color">Accent glow<input type="color" id="studioColorAccent" value="#1CFFAF"></label>
+            <label class="studio-color">Panel tint<input type="color" id="studioColorPanel" value="#08111a"></label>
+            <label class="studio-color">Text accent<input type="color" id="studioColorTextAccent" value="#67e8f9"></label>
+          </div>
         </div>
         <div class="studio-panel">
           <div class="studio-label">Display</div>
@@ -8129,6 +8143,7 @@ async function downloadShareCardPng(id){
 }
 
 let STUDIO_TOKEN_ID = null;
+let STUDIO_PREVIEW_TIMER = null;
 function studioDims(layout){
   if(layout === 'square') return { W:1080, H:1080 };
   if(layout === 'story') return { W:1080, H:1920 };
@@ -8137,12 +8152,21 @@ function studioDims(layout){
 function studioOptions(){
   const toggles = {};
   document.querySelectorAll('[data-studio-toggle]').forEach(el => { toggles[el.dataset.studioToggle] = !!el.checked; });
+  const color = id => document.getElementById(id)?.value || '';
   return {
     layout: document.getElementById('studioLayout')?.value || 'wide',
     palette: document.getElementById('studioPalette')?.value || 'default',
     background: document.getElementById('studioBackground')?.value || 'gradient',
     traitMode: document.getElementById('studioTraitMode')?.value || 'auto',
-    toggles
+    toggles,
+    colors: {
+      bgA: color('studioColorBgA'),
+      bgB: color('studioColorBgB'),
+      solid: color('studioColorSolid'),
+      accent: color('studioColorAccent'),
+      panel: color('studioColorPanel'),
+      textAccent: color('studioColorTextAccent')
+    }
   };
 }
 function studioTraitSelection(row, opts){
@@ -8153,10 +8177,55 @@ function studioTraitSelection(row, opts){
   const all = _shareCardTraitRows(row, 99);
   return all.filter(t => selected.has(`${t.trait}::${t.value}`)).slice(0,6);
 }
+function hexToRgb(hex){
+  const s = String(hex || '').replace('#','');
+  if(s.length !== 6) return {r:28,g:255,b:175};
+  return { r:parseInt(s.slice(0,2),16), g:parseInt(s.slice(2,4),16), b:parseInt(s.slice(4,6),16) };
+}
+function rgbaFromHex(hex, a){
+  const c = hexToRgb(hex);
+  return `rgba(${c.r},${c.g},${c.b},${a})`;
+}
+function contrastTextFor(hex){
+  const c = hexToRgb(hex);
+  const lum = (0.299*c.r + 0.587*c.g + 0.114*c.b) / 255;
+  return lum > .55 ? '#07111a' : '#f8fafc';
+}
+function applyStudioColorsToPalette(pal, opts){
+  const c = opts.colors || {};
+  const next = {...pal};
+  if(c.bgA && c.bgB) next.bg = [c.bgA, c.bgA, c.bgB, c.bgB];
+  if(c.solid) next.solid = c.solid;
+  if(c.accent){
+    next.wash = rgbaFromHex(c.accent, .30);
+    next.washMid = rgbaFromHex(c.accent, .075);
+    next.glow = rgbaFromHex(c.accent, .28);
+    next.statBg = rgbaFromHex(c.accent, .09);
+    next.statBorder = rgbaFromHex(c.accent, .24);
+  }
+  if(c.panel){
+    next.glass = rgbaFromHex(c.panel, .72);
+    next.artFill = rgbaFromHex(c.panel, .18);
+  }
+  if(c.textAccent){
+    next.traitAccent = c.textAccent;
+  }
+  return next;
+}
+function syncStudioColorDefaults(){
+  const pal = _getShareCardPalette(document.getElementById('studioPalette')?.value || 'default');
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+  set('studioColorBgA', pal.bg?.[0] || '#08111a');
+  set('studioColorBgB', pal.bg?.[2] || '#10162a');
+  set('studioColorSolid', pal.bg?.[3] || '#070b12');
+  set('studioColorAccent', '#1CFFAF');
+  set('studioColorPanel', pal.bg?.[0] || '#08111a');
+  set('studioColorTextAccent', pal.traitAccent || '#67e8f9');
+}
 function fillStudioBackground(ctx, W, H, pal, mode){
   const bg = ctx.createLinearGradient(0, 0, W, H);
   if(mode === 'solid'){
-    ctx.fillStyle = pal.bg[3];
+    ctx.fillStyle = pal.solid || pal.bg[3];
     ctx.fillRect(0,0,W,H);
     return;
   }
@@ -8198,7 +8267,7 @@ async function renderStudioCanvas(id, opts, targetCanvas){
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d', { alpha:false });
   ctx.imageSmoothingEnabled = true;
-  const pal = _getShareCardPalette(opts.palette);
+  const pal = applyStudioColorsToPalette(_getShareCardPalette(opts.palette), opts);
   fillStudioBackground(ctx, W, H, pal, opts.background);
 
   const margin = Math.round(Math.min(W,H) * .055);
@@ -8213,6 +8282,9 @@ async function renderStudioCanvas(id, opts, targetCanvas){
   ctx.stroke();
 
   const isWide = opts.layout === 'wide';
+  const enabledSections = ['tokenTags','comboInsight','topTraits','owner','holderTags'].filter(k => opts.toggles[k]).length;
+  const density = enabledSections + (opts.toggles.collection ? 1 : 0) + (opts.toggles.tokenId ? 1 : 0);
+  const scale = opts.layout === 'story' ? .96 : opts.layout === 'square' ? .90 : (density > 5 ? .88 : .96);
   const artSize = isWide ? Math.min(430, H - margin*3) : Math.min(W - margin*4, opts.layout === 'story' ? 720 : 520);
   const artX = isWide ? margin + 34 : Math.round((W - artSize) / 2);
   const artY = isWide ? Math.round((H - artSize) / 2) : margin + 62;
@@ -8229,30 +8301,30 @@ async function renderStudioCanvas(id, opts, targetCanvas){
   const traitCount = typeof getTraitCount === 'function' ? getTraitCount(row) : keepEntries(row.traits).length;
   const owner = window.OWNER_CACHE?.[id] || document.getElementById('mOwner')?.dataset?.address || '';
 
-  if(opts.toggles.collection){ drawStudioCollection(ctx, contentX, y); y += 58; }
+  if(opts.toggles.collection){ drawStudioCollection(ctx, contentX, y); y += Math.round(58 * scale); }
   if(opts.toggles.tokenId){
-    ctx.fillStyle = '#f8fafc'; ctx.font = `800 ${isWide ? 60 : 70}px Space Grotesk, Segoe UI, sans-serif`; ctx.textAlign = 'left';
+    ctx.fillStyle = contrastTextFor(pal.bg?.[0] || '#08111a'); ctx.font = `800 ${Math.round((isWide ? 60 : 70) * scale)}px Space Grotesk, Segoe UI, sans-serif`; ctx.textAlign = 'left';
     const title = '#' + id; ctx.fillText(title, contentX, y);
     if(opts.toggles.rank && osRank) _drawShareCardRank(ctx, osRank, contentX + ctx.measureText(title).width + 22, y - 14);
-    y += isWide ? 52 : 64;
+    y += Math.round((isWide ? 52 : 64) * scale);
   }
   const chips = [];
   if(opts.toggles.traitCount) chips.push('Traits: ' + traitCount);
   if(opts.toggles.owner && owner) chips.push('Owner ' + _shareCardShortAddr(owner));
-  ctx.font = '700 20px Space Grotesk, Segoe UI, sans-serif';
+  ctx.font = `700 ${Math.round(20 * scale)}px Space Grotesk, Segoe UI, sans-serif`;
   let chipX = contentX;
   for(const chip of chips){
     const w = Math.min(contentW, Math.ceil(ctx.measureText(chip).width) + 24);
-    _roundRect(ctx, chipX, y, w, 34, 10); ctx.fillStyle = pal.statBg; ctx.fill(); ctx.strokeStyle = pal.statBorder; ctx.stroke();
-    ctx.fillStyle = pal.stat; ctx.fillText(_ellipsizeCanvasText(ctx, chip, w - 22), chipX + 12, y + 23);
+    _roundRect(ctx, chipX, y, w, Math.round(34*scale), 10); ctx.fillStyle = pal.statBg; ctx.fill(); ctx.strokeStyle = pal.statBorder; ctx.stroke();
+    ctx.fillStyle = pal.stat; ctx.fillText(_ellipsizeCanvasText(ctx, chip, w - 22), chipX + 12, y + Math.round(23*scale));
     chipX += w + 10;
     if(chipX > contentX + contentW - 110){ chipX = contentX; y += 42; }
   }
-  if(chips.length) y += 54;
+  if(chips.length) y += Math.round(54 * scale);
 
   if(opts.toggles.tokenTags){
     const tags = await computeMarketPersonalityTags(id, row);
-    ctx.font = '800 16px Space Grotesk, Segoe UI, sans-serif';
+    ctx.font = `800 ${Math.round(16 * scale)}px Space Grotesk, Segoe UI, sans-serif`;
     let tagX = contentX;
     for(const tag of tags.slice(0,3)){
       const label = tag.label;
@@ -8262,15 +8334,15 @@ async function renderStudioCanvas(id, opts, targetCanvas){
       ctx.fillStyle = '#d7f7ef'; ctx.fillText(label, tagX + 11, y - 3);
       tagX += w + 8;
     }
-    if(tags.length) y += 30;
+    if(tags.length) y += Math.round(30 * scale);
   }
-  if(opts.toggles.holderTags && owner){
+  if(opts.toggles.owner && opts.toggles.holderTags && owner){
     const walletInput = (document.getElementById('walletInput')?.value || document.getElementById('mobileWalletInput')?.value || '').trim().toLowerCase();
     const ownerKey = String(owner).trim().toLowerCase();
     const walletIds = walletInput === ownerKey ? (window._walletTokenIds || window._mobileWalletIds || []) : [];
     if(walletIds.length){
       const holderTags = await computeHolderTags(owner, walletIds);
-      ctx.font = '800 15px Space Grotesk, Segoe UI, sans-serif';
+      ctx.font = `800 ${Math.round(15 * scale)}px Space Grotesk, Segoe UI, sans-serif`;
       let hx = contentX;
       for(const tag of holderTags.slice(0,3)){
         const label = tag.label;
@@ -8280,7 +8352,7 @@ async function renderStudioCanvas(id, opts, targetCanvas){
         ctx.fillStyle = '#f8fafc'; ctx.fillText(label, hx + 11, y - 2);
         hx += w + 8;
       }
-      if(holderTags.length) y += 30;
+      if(holderTags.length) y += Math.round(30 * scale);
     }
   }
 
@@ -8289,24 +8361,27 @@ async function renderStudioCanvas(id, opts, targetCanvas){
       const combo = await buildComboInsights(id, row);
       const insight = combo?.insights?.[0]?.text;
       if(insight){
-        ctx.font = '700 17px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitAccent;
+        ctx.font = `700 ${Math.round(17 * scale)}px Space Grotesk, Segoe UI, sans-serif`; ctx.fillStyle = pal.traitAccent;
         ctx.fillText(_ellipsizeCanvasText(ctx, insight, contentW), contentX, y);
-        y += 38;
+        y += Math.round(38 * scale);
       }
     }catch(_){}
   }
 
   if(opts.toggles.topTraits){
-    const traits = studioTraitSelection(row, opts);
-    ctx.fillStyle = pal.traitLabel; ctx.font = '800 17px Space Grotesk, Segoe UI, sans-serif'; ctx.fillText('TOP TRAITS', contentX, y); y += 36;
-    const rowH = isWide ? 43 : 54;
-    for(const t of traits.slice(0, opts.layout === 'story' ? 8 : 6)){
+    let traits = studioTraitSelection(row, opts);
+    const available = H - margin - y - 18;
+    const rowH = Math.round((isWide ? 43 : 54) * scale);
+    const maxTraitRows = Math.max(2, Math.min(opts.layout === 'story' ? 8 : 6, Math.floor((available - 36) / (rowH + 5))));
+    traits = traits.slice(0, maxTraitRows);
+    ctx.fillStyle = pal.traitLabel; ctx.font = `800 ${Math.round(17 * scale)}px Space Grotesk, Segoe UI, sans-serif`; ctx.fillText('TOP TRAITS', contentX, y); y += Math.round(36 * scale);
+    for(const t of traits){
       if(y + rowH > H - margin - 16) break;
       _roundRect(ctx, contentX, y - 25, contentW, rowH, 12); ctx.fillStyle = pal.traitRow; ctx.fill(); ctx.strokeStyle = pal.traitBorder; ctx.stroke();
       const pct = t.pct == null ? '' : (t.pct < .1 ? t.pct.toFixed(3) : t.pct.toFixed(1)) + '%';
-      ctx.textAlign = 'left'; ctx.font = '700 12px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitLabel; ctx.fillText(_ellipsizeCanvasText(ctx, String(t.trait).toUpperCase(), contentW*.56), contentX + 16, y - 6);
-      ctx.font = '700 19px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitValue; ctx.fillText(_ellipsizeCanvasText(ctx, String(t.value), contentW*.62), contentX + 16, y + 14);
-      ctx.textAlign = 'right'; ctx.font = '800 18px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitAccent; ctx.fillText(pct, contentX + contentW - 16, y + 4); ctx.textAlign = 'left';
+      ctx.textAlign = 'left'; ctx.font = `700 ${Math.round(12 * scale)}px Space Grotesk, Segoe UI, sans-serif`; ctx.fillStyle = pal.traitLabel; ctx.fillText(_ellipsizeCanvasText(ctx, String(t.trait).toUpperCase(), contentW*.56), contentX + 16, y - 6);
+      ctx.font = `700 ${Math.round(19 * scale)}px Space Grotesk, Segoe UI, sans-serif`; ctx.fillStyle = pal.traitValue; ctx.fillText(_ellipsizeCanvasText(ctx, String(t.value), contentW*.62), contentX + 16, y + 14);
+      ctx.textAlign = 'right'; ctx.font = `800 ${Math.round(18 * scale)}px Space Grotesk, Segoe UI, sans-serif`; ctx.fillStyle = pal.traitAccent; ctx.fillText(pct, contentX + contentW - 16, y + 4); ctx.textAlign = 'left';
       y += rowH + 5;
     }
   }
@@ -8318,13 +8393,15 @@ async function openTraitViewStudio(id){
   document.getElementById('studioModal')?.classList.add('open');
   const pal = document.getElementById('mShareCardPalette')?.value;
   if(pal) document.getElementById('studioPalette').value = pal;
+  syncStudioColorDefaults();
   const row = await fetchRow(STUDIO_TOKEN_ID);
   const list = document.getElementById('studioTraitList');
   if(list){
     list.innerHTML = _shareCardTraitRows(row, 99).map((t,idx)=>`<label class="studio-check"><input type="checkbox" value="${comboEsc(t.trait)}::${comboEsc(t.value)}" ${idx<5?'checked':''}>${comboEsc(t.trait)}: ${comboEsc(t.value)}</label>`).join('');
   }
   document.querySelectorAll('#studioModal select,#studioModal input').forEach(el => {
-    el.onchange = () => renderTraitViewStudioPreview();
+    el.oninput = () => scheduleTraitViewStudioPreview(el.id === 'studioPalette');
+    el.onchange = () => scheduleTraitViewStudioPreview(el.id === 'studioPalette');
   });
   renderTraitViewStudioPreview();
 }
@@ -8335,6 +8412,11 @@ async function renderTraitViewStudioPreview(){
   if(!STUDIO_TOKEN_ID) return;
   const canvas = document.getElementById('studioPreview');
   await renderStudioCanvas(STUDIO_TOKEN_ID, studioOptions(), canvas);
+}
+function scheduleTraitViewStudioPreview(resetColors){
+  if(resetColors) syncStudioColorDefaults();
+  clearTimeout(STUDIO_PREVIEW_TIMER);
+  STUDIO_PREVIEW_TIMER = setTimeout(()=>renderTraitViewStudioPreview(), 120);
 }
 async function exportTraitViewStudioPng(){
   if(!STUDIO_TOKEN_ID) return;
