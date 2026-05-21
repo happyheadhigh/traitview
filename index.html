@@ -80,6 +80,8 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid::-webkit-scrollbar-thumb{background:rgba(120,130,150,.35);border-radius:8px}
 #tokenGrid .token{position:relative;background:var(--card)!important;border:1px solid var(--chip-b);border-radius:12px;padding:8px;min-height:96px;display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:flex-start;cursor:pointer;box-shadow:var(--shadow);content-visibility:auto;contain-intrinsic-size:220px 220px;color:var(--text)!important}
 #tokenGrid .token:hover{outline:1px solid var(--accent)}
+#tokenGrid .token.owned-token{border-color:rgba(28,255,175,.36)!important;box-shadow:var(--shadow),0 0 0 1px rgba(28,255,175,.13) inset,0 0 22px rgba(28,255,175,.12)}
+#tokenGrid .owned-badge,.vs-owned-badge{position:absolute;right:7px;bottom:7px;z-index:4;pointer-events:none;border-radius:999px;border:1px solid rgba(28,255,175,.36);background:rgba(5,14,19,.82);color:#1CFFAF;font-size:10px;font-weight:900;line-height:1;padding:4px 7px;box-shadow:0 0 14px rgba(28,255,175,.14)}
 .thumb{width:94px;height:94px;border:1px solid var(--chip-b);border-radius:10px;background:var(--soft);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:contain}
 .thumb .svg-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
@@ -178,6 +180,24 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .holder-tag b{font-size:10.5px;line-height:1;color:var(--text)}
 .holder-tag span{font-size:10px;line-height:1.2;color:rgba(226,232,240,.78)}
 .holder-tag.grail b{color:#fde68a}.holder-tag.combo b{color:#67e8f9}.holder-tag.trait b{color:#f0abfc}.holder-tag.drip b{color:#1CFFAF}.holder-tag.cursed b{color:#fda4af}
+.wallet-connect-btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.wallet-connect-btn.connected{color:#1CFFAF!important;border-color:rgba(28,255,175,.35)!important;background:rgba(28,255,175,.08)!important}
+.connected-holder-panel{display:none;margin:0 0 10px;padding:10px;border:1px solid rgba(28,255,175,.16);border-radius:12px;background:linear-gradient(135deg,rgba(28,255,175,.075),rgba(124,77,255,.055));box-shadow:0 12px 30px rgba(0,0,0,.22);overflow:hidden}
+.connected-holder-panel.is-visible{display:block}
+.connected-holder-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.connected-holder-title{font-size:11px;color:var(--sub);letter-spacing:.08em;text-transform:uppercase;font-weight:900}
+.connected-holder-addr{font-family:monospace;color:var(--text);font-size:12px;font-weight:800}
+.connected-holder-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0}
+.connected-holder-stat{border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(255,255,255,.045);padding:7px 8px;min-width:0}
+.connected-holder-stat span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--sub);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.connected-holder-stat b{display:block;margin-top:2px;color:var(--text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.connected-holder-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.connected-holder-actions .mispriced-mode-btn.active{border-color:rgba(28,255,175,.42);color:#1CFFAF;background:rgba(28,255,175,.09)}
+@media(max-width:900px){
+  .connected-holder-panel{margin:8px 0 0;padding:9px}
+  .connected-holder-stats{grid-template-columns:1fr 1fr}
+  #mobileConnectedHolderPanel .holder-tags{margin-bottom:2px}
+}
 #modal .mbody{display:grid;grid-template-columns:280px 1fr;gap:14px}
 #modal .traits div span{color:var(--sub);font-size:12px}
 #modal .traits div b{color:var(--text);font-size:13px;font-weight:700}
@@ -2614,6 +2634,9 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
         </span>
         <span id="desktopThemeLabel">Slate</span>
       </button>
+      <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="connectTraitViewWallet()" aria-label="Connect wallet" title="Connect wallet">
+        <span>Connect</span>
+      </button>
       <button type="button" id="desktopFavoritesBtn" class="favbtn" aria-label="Toggle favorites view" title="Favorites">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg>
       </button>
@@ -2697,6 +2720,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 </div>
 
       <!-- Wallet View in left column — floating, no box -->
+      <div id="connectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
       <div id="walletPanel" style="margin-bottom:2px">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px;cursor:pointer;user-select:none" onclick="(function(el){el.classList.toggle('open');const b=document.getElementById('walletPanelBody');if(b){b.style.display=el.classList.contains('open')?'block':'none';}const ch=el.querySelector('.wallet-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
           <span class="section" style="opacity:.7;margin:0">Wallet View</span>
@@ -3130,6 +3154,12 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
       <span class="mobile-menu-arrow">↗</span>
     </a>
   </div>
+  <button type="button" id="mobileWalletConnectBtn" class="mobile-theme-cycle wallet-connect-btn" onclick="connectTraitViewWallet()" aria-label="Connect wallet">
+    <span class="mobile-menu-icon">◇</span>
+    <span class="mobile-menu-label">Connect Wallet</span>
+    <span class="mobile-menu-arrow">read only</span>
+  </button>
+  <div id="mobileConnectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
   <div id="mobileJumpSlot"></div>
   <button type="button" id="mobileFavoritesToggle" class="mobile-theme-cycle" aria-label="Toggle favorites view">
     <span class="mobile-menu-icon">★</span>
@@ -3248,6 +3278,270 @@ const LIVE_CONTRACT = '0x078be86f3104a32313a47815792230a3808642cc';
 
 const FAVORITES_KEY = 'traitview_favorites_ocas';
 const FAVORITES_VIEW_KEY = 'traitview_favorites_only';
+const CONNECTED_WALLET_KEY = 'traitview_connected_wallet_v1';
+const CONNECTED_WALLET_CACHE_TTL = 10 * 60 * 1000;
+let CONNECTED_WALLET = { address:null, chainId:null, tokenIds:[], tokenSet:new Set(), stats:null };
+let CONNECTED_WALLET_OWNED_ONLY = false;
+const TV_WALLET_PROVIDERS = [];
+
+window.addEventListener?.('eip6963:announceProvider', (event) => {
+  const provider = event?.detail?.provider;
+  if(provider && !TV_WALLET_PROVIDERS.includes(provider)) TV_WALLET_PROVIDERS.push(provider);
+});
+try{ window.dispatchEvent(new Event('eip6963:requestProvider')); }catch(_){}
+
+function shortAddr(addr){
+  const s = String(addr || '');
+  return s.length > 12 ? `${s.slice(0,6)}…${s.slice(-4)}` : s;
+}
+function getTraitViewProvider(){
+  if(TV_WALLET_PROVIDERS.length) return TV_WALLET_PROVIDERS[0];
+  if(window.ethereum?.providers?.length) return window.ethereum.providers[0];
+  return window.ethereum || null;
+}
+function connectedWalletAddress(){
+  return CONNECTED_WALLET?.address || '';
+}
+function connectedWalletOwns(id){
+  return !!(CONNECTED_WALLET?.tokenSet && CONNECTED_WALLET.tokenSet.has(+id));
+}
+function applyConnectedOwnedFilter(ids){
+  if(!CONNECTED_WALLET_OWNED_ONLY || !CONNECTED_WALLET?.tokenSet?.size) return ids;
+  return ids.filter(id => CONNECTED_WALLET.tokenSet.has(+id));
+}
+function connectedWalletCacheKey(addr){
+  return `traitview_wallet_tokens:${String(addr || '').toLowerCase()}`;
+}
+function walletChainLabel(chainId){
+  const n = typeof chainId === 'string' ? parseInt(chainId, 16) : Number(chainId || 0);
+  if(n === 1) return 'Ethereum';
+  if(n === 8453) return 'Base';
+  if(n === 137) return 'Polygon';
+  if(n === 42161) return 'Arbitrum';
+  return chainId ? `Chain ${n || chainId}` : '—';
+}
+function readConnectedWalletTokenCache(addr){
+  try{
+    const raw = localStorage.getItem(connectedWalletCacheKey(addr));
+    const data = raw ? JSON.parse(raw) : null;
+    if(!data || !Array.isArray(data.ids) || Date.now() - Number(data.ts || 0) > CONNECTED_WALLET_CACHE_TTL) return null;
+    return data.ids.map(Number).filter(Boolean);
+  }catch(_){ return null; }
+}
+function writeConnectedWalletTokenCache(addr, ids){
+  try{
+    localStorage.setItem(connectedWalletCacheKey(addr), JSON.stringify({ ts:Date.now(), ids:[...new Set(ids || [])] }));
+  }catch(_){}
+}
+async function fetchWalletTokenIdsForAddress(addr, useCache=true){
+  if(useCache){
+    const cached = readConnectedWalletTokenCache(addr);
+    if(cached) return cached;
+  }
+  const worker = typeof LIVE_ENDPOINT !== 'undefined' ? LIVE_ENDPOINT : 'https://nft-live-listings.jvweb3.workers.dev';
+  const contract = typeof LIVE_CONTRACT !== 'undefined' ? LIVE_CONTRACT : '0x078be86f3104a32313a47815792230a3808642cc';
+  const slug = typeof LIVE_SLUG !== 'undefined' ? LIVE_SLUG : 'on-chain-all-stars';
+  let tokenIds = [];
+  const alchemyUrl = `${worker}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(contract)}`;
+  const r = await fetch(alchemyUrl, { cache:'no-store' });
+  const j = r.ok ? await r.json() : null;
+  if(j?.ok && Array.isArray(j.tokenIds)) tokenIds = j.tokenIds;
+  if(!tokenIds.length){
+    let allNfts = [], cursor = null;
+    for(let page = 0; page < 3; page++){
+      const qs = new URLSearchParams({ address:addr, slug, contract });
+      if(cursor) qs.set('cursor', cursor);
+      const rr = await fetch(`${worker}/os/wallet?${qs}`, { cache:'no-store' });
+      if(!rr.ok) break;
+      const jj = await rr.json();
+      if(!jj.ok) break;
+      allNfts = allNfts.concat(jj.nfts || []);
+      cursor = jj.next || null;
+      if(!cursor) break;
+      await new Promise(resolve => setTimeout(resolve, 80));
+    }
+    tokenIds = allNfts.map(n => +n.identifier);
+  }
+  tokenIds = [...new Set(tokenIds.map(Number).filter(id => id >= 1 && id <= (TOKEN_COUNT || 10000)))];
+  writeConnectedWalletTokenCache(addr, tokenIds);
+  return tokenIds;
+}
+async function buildConnectedWalletStats(addr, ids){
+  const cleanIds = [...new Set((ids || []).map(Number).filter(Boolean))];
+  const ranks = cleanIds.map(id => Number(OS_RANK_MAP?.get(id) || RARITY_OBS_RANK?.get(id) || 0)).filter(Boolean);
+  const bestRank = ranks.length ? Math.min(...ranks) : null;
+  const typeCounts = new Map();
+  const categoryRareHits = new Map();
+  let rarestOwned = null;
+  for(const id of cleanIds.slice(0, 240)){
+    let row = null;
+    try{ row = (ROW_CACHE && ROW_CACHE.get(id)) || await fetchRow(id); }catch(_){}
+    const entries = keepEntries(row?.traits || {});
+    const visual = comboVisualTraits(entries);
+    if(visual.type?.value) typeCounts.set(visual.type.value, (typeCounts.get(visual.type.value) || 0) + 1);
+    for(const [name,value] of entries){
+      const count = (TRAIT_FREQ[name]?.[value]) || TOKEN_COUNT || 10000;
+      if(count <= Math.max(80, (TOKEN_COUNT || 10000) * 0.008)){
+        categoryRareHits.set(name, (categoryRareHits.get(name) || 0) + 1);
+        if(!rarestOwned || count < rarestOwned.count) rarestOwned = { id, name, value, count };
+      }
+    }
+  }
+  const dominantType = [...typeCounts.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+  const strongestCategory = [...categoryRareHits.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+  const tags = await computeHolderTags(addr, cleanIds);
+  const personality = tags[0]?.label || (dominantType ? `${dominantType[0]} Collector` : (cleanIds.length ? 'OCAS Holder' : 'Visitor'));
+  return { total:cleanIds.length, bestRank, dominantType, strongestCategory, rarestOwned, tags, personality };
+}
+function renderConnectedHolderPanel(host, stats){
+  if(!host || !stats) return;
+  const rank = stats.bestRank ? rankDiamondHtml(stats.bestRank, 'font-size:13px;font-weight:900;') : '—';
+  const type = stats.dominantType ? `${stats.dominantType[0]} (${stats.dominantType[1]})` : '—';
+  const strong = stats.strongestCategory ? `${stats.strongestCategory[0]}` : '—';
+  const rare = stats.rarestOwned ? `#${stats.rarestOwned.id} ${stats.rarestOwned.value}` : stats.personality;
+  host.innerHTML = `
+    <div class="connected-holder-top">
+      <div>
+        <div class="connected-holder-title">Connected holder</div>
+        <div class="connected-holder-addr">${shortAddr(CONNECTED_WALLET.address)}</div>
+      </div>
+      <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
+    </div>
+    <div class="connected-holder-stats">
+      <div class="connected-holder-stat"><span>Total owned</span><b>${stats.total}</b></div>
+      <div class="connected-holder-stat"><span>Network</span><b>${comboEsc(walletChainLabel(CONNECTED_WALLET.chainId))}</b></div>
+      <div class="connected-holder-stat"><span>Best rank</span><b>${rank}</b></div>
+      <div class="connected-holder-stat"><span>Dominant type</span><b>${comboEsc(type)}</b></div>
+      <div class="connected-holder-stat"><span>Strongest</span><b>${comboEsc(strong)}</b></div>
+      <div class="connected-holder-stat" style="grid-column:span 2"><span>Rarest owned signal</span><b>${comboEsc(rare)}</b></div>
+    </div>
+    <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
+    <div class="connected-holder-actions">
+      <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
+      <button type="button" class="mispriced-mode-btn" onclick="openConnectedWalletView()">Open Wallet View</button>
+    </div>`;
+  host.classList.add('is-visible');
+}
+function updateWalletConnectButtons(status){
+  const connected = !!CONNECTED_WALLET?.address;
+  const label = connected ? shortAddr(CONNECTED_WALLET.address) : (status || 'Connect');
+  ['walletConnectBtn','mobileWalletConnectBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    btn.classList.toggle('connected', connected);
+    if(id === 'mobileWalletConnectBtn'){
+      const text = btn.querySelector('.mobile-menu-label');
+      const arrow = btn.querySelector('.mobile-menu-arrow');
+      if(text) text.textContent = connected ? `Wallet ${label}` : 'Connect Wallet';
+      if(arrow) arrow.textContent = connected ? 'connected' : 'read only';
+    } else {
+      btn.innerHTML = `<span>${connected ? label : label}</span>`;
+    }
+  });
+}
+async function setConnectedWallet(addr, chainId, tokenIds){
+  const ids = [...new Set((tokenIds || []).map(Number).filter(Boolean))];
+  CONNECTED_WALLET = { address:addr, chainId, tokenIds:ids, tokenSet:new Set(ids), stats:null };
+  window.CONNECTED_WALLET = CONNECTED_WALLET;
+  window._walletTokenIds = ids;
+  window._mobileWalletIds = ids;
+  try{ localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({ address:addr, chainId })); }catch(_){}
+  updateWalletConnectButtons();
+  const desktopInput = document.getElementById('walletInput');
+  const mobileInput = document.getElementById('mobileWalletInput');
+  if(desktopInput) desktopInput.value = addr;
+  if(mobileInput) mobileInput.value = addr;
+  const stats = await buildConnectedWalletStats(addr, ids);
+  CONNECTED_WALLET.stats = stats;
+  renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
+  renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
+  if(VS?._nodeCache) VS._nodeCache.clear();
+  if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+}
+async function connectTraitViewWallet(){
+  const provider = getTraitViewProvider();
+  if(!provider){
+    alert('No wallet found. Install MetaMask, Coinbase Wallet, Rainbow, or open TraitView in a wallet browser.');
+    return;
+  }
+  updateWalletConnectButtons('Connecting...');
+  try{
+    const accounts = await provider.request({ method:'eth_requestAccounts' });
+    const address = accounts?.[0];
+    if(!address) throw new Error('No wallet address returned.');
+    const chainId = await provider.request({ method:'eth_chainId' }).catch(()=>null);
+    updateWalletConnectButtons('Loading...');
+    const tokenIds = await fetchWalletTokenIdsForAddress(address, true);
+    await setConnectedWallet(address, chainId, tokenIds);
+  }catch(e){
+    console.warn('[WalletConnect]', e);
+    updateWalletConnectButtons();
+    if(e?.code !== 4001) alert(e?.message || 'Wallet connection failed.');
+  }
+}
+function disconnectTraitViewWallet(){
+  CONNECTED_WALLET = { address:null, chainId:null, tokenIds:[], tokenSet:new Set(), stats:null };
+  window.CONNECTED_WALLET = CONNECTED_WALLET;
+  CONNECTED_WALLET_OWNED_ONLY = false;
+  try{ localStorage.removeItem(CONNECTED_WALLET_KEY); }catch(_){}
+  ['connectedHolderPanel','mobileConnectedHolderPanel'].forEach(id => {
+    const host = document.getElementById(id);
+    if(host){ host.innerHTML = ''; host.classList.remove('is-visible'); }
+  });
+  updateWalletConnectButtons();
+  if(VS?._nodeCache) VS._nodeCache.clear();
+  if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+}
+function toggleConnectedOwnedOnly(){
+  CONNECTED_WALLET_OWNED_ONLY = !CONNECTED_WALLET_OWNED_ONLY;
+  if(CONNECTED_WALLET.stats){
+    renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), CONNECTED_WALLET.stats);
+    renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), CONNECTED_WALLET.stats);
+  }
+  if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+}
+function openConnectedWalletView(){
+  const addr = CONNECTED_WALLET?.address;
+  if(!addr) return;
+  if(window.innerWidth <= 900 && typeof openMobileWalletDrawer === 'function'){
+    openMobileWalletDrawer(addr);
+    return;
+  }
+  const walletInput = document.getElementById('walletInput');
+  const walletBody = document.getElementById('walletPanelBody');
+  const walletPanel = document.getElementById('walletPanel');
+  if(walletInput) walletInput.value = addr;
+  if(walletBody) walletBody.style.display = 'block';
+  if(walletPanel) walletPanel.classList.add('open');
+  document.getElementById('walletLookupBtn')?.click();
+}
+function initTraitViewWallet(){
+  updateWalletConnectButtons();
+  const provider = getTraitViewProvider();
+  if(provider && !provider._traitViewBound){
+    provider._traitViewBound = true;
+    provider.on?.('accountsChanged', async accounts => {
+      if(!accounts?.length) disconnectTraitViewWallet();
+      else {
+        const chainId = await provider.request({ method:'eth_chainId' }).catch(()=>null);
+        const ids = await fetchWalletTokenIdsForAddress(accounts[0], true).catch(()=>[]);
+        await setConnectedWallet(accounts[0], chainId, ids);
+      }
+    });
+    provider.on?.('chainChanged', chainId => {
+      if(CONNECTED_WALLET?.address){ CONNECTED_WALLET.chainId = chainId; window.CONNECTED_WALLET = CONNECTED_WALLET; }
+    });
+  }
+  try{
+    const saved = JSON.parse(localStorage.getItem(CONNECTED_WALLET_KEY) || 'null');
+    if(saved?.address){
+      const cached = readConnectedWalletTokenCache(saved.address);
+      if(cached) setConnectedWallet(saved.address, saved.chainId || null, cached);
+      else updateWalletConnectButtons(shortAddr(saved.address));
+    }
+  }catch(_){}
+}
+document.addEventListener('DOMContentLoaded', initTraitViewWallet);
 
 function getFavorites(){
   try{
@@ -4053,6 +4347,7 @@ async function renderTokenGrid(ids, opts){
       const id=sliceIds[k]; const row=rows[k];
     const d=document.createElement('div');
     d.className='token';
+    if(connectedWalletOwns(id)) d.classList.add('owned-token');
     const obsRank=RARITY_OBS_RANK.get(id); const theoRank=RARITY_THEO_RANK.get(id);
     const theoVal = (RARITY_MODE==='theoretical' && RARITY_THEO_RANK.size) ? (theoRank||'') : (obsRank||'');
     const osRankVal = OS_RANK_MAP.get(id) || null;
@@ -4065,6 +4360,7 @@ async function renderTokenGrid(ids, opts){
 const osCardUrl=`https://opensea.io/assets/ethereum/${LIVE_CONTRACT}/${id}`;
 d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorite(id)?'active':''}" data-fav-id="${id}" title="${isFavorite(id)?'Remove favorite':'Add favorite'}" aria-pressed="${isFavorite(id)?'true':'false'}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg></button><button type="button" class="pinbtn" data-act="A" title="Pin to A">A</button><button type="button" class="pinbtn" data-act="B" title="Pin to B">B</button><button type="button" class="pinbtn" data-act="+" title="Add to pinned">＋</button></div>
       ${gridThumbHtml(id,row)}
+      ${connectedWalletOwns(id) ? '<span class="owned-badge">Owned</span>' : ''}
       <div class="tmeta">
         <div class="idline">#${id} ${rankBadge} ${priceBadgeHtml(id)} <a href="${osCardUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on OpenSea" style="margin-left:auto;opacity:.6;line-height:1;display:inline-flex;align-items:center"><img src="https://opensea.io/static/images/logos/opensea-logo.svg" style="width:13px;height:13px;border-radius:3px"></a></div>
         ${tg.classList.contains('list') ? listStatsRowHtml(id, rankVal, getListingEth(id) != null ? (getListingEth(id) >= 1 ? getListingEth(id).toFixed(3) : getListingEth(id).toFixed(4)) : null) : traitsMiniHtml(row)}
@@ -4118,6 +4414,7 @@ async function renderTokenGridFromState(){
   if(currentTraitCount!=null && CHART_ID_MAP[currentTraitCount]){
     let ids = [...CHART_ID_MAP[currentTraitCount]];
     if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
+    ids = applyConnectedOwnedFilter(ids);
     await renderTokenGrid(ids);
     return;
   }
@@ -4131,6 +4428,7 @@ async function renderTokenGridFromState(){
     const baseRankMap = getRankSystem() === 'os' && OS_RANK_MAP.size ? OS_RANK_MAP : getActiveRankMap();
     let ids = [...baseRankMap.keys()].map(Number).filter(Boolean);
     if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
+    ids = applyConnectedOwnedFilter(ids);
     await renderTokenGrid(ids);
     return;
   }
@@ -4143,7 +4441,8 @@ async function renderTokenGridFromState(){
       if(rowMatchesAll(row,id)) ids.push(id);
     }
   }
-  const finalIds = favoritesOnlyEnabled() ? ids.filter(id => isFavorite(id)) : ids;
+  let finalIds = favoritesOnlyEnabled() ? ids.filter(id => isFavorite(id)) : ids;
+  finalIds = applyConnectedOwnedFilter(finalIds);
   await renderTokenGrid(finalIds);
 }
 
@@ -4257,7 +4556,8 @@ async function openModal(id){
   const _tvR = RARITY_OBS_RANK.get(+id);
   const _osChip  = _osR ? `<span class='chip'>${rankDiamondHtml(_osR,'','os')}</span>` : '';
   const _tvChip  = _tvR ? `<span class='chip'>${rankDiamondHtml(_tvR,'','tv')}</span>` : '';
-  $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}`;
+  const _ownedChip = connectedWalletOwns(id) ? `<span class="chip" style="color:#1CFFAF;border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.08)">Owned</span>` : '';
+  $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}${_ownedChip}`;
   hydrateMarketPersonalityTags(id, row);
   const links = $('#mLinks'); links.innerHTML = '';
   const listing = (window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null;
@@ -7020,11 +7320,17 @@ const VS = {
     const d = document.createElement('div');
     d.dataset.id = id;
     d.style.cssText = 'position:relative;min-width:0;width:100%;max-width:100%;border-radius:10px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1;contain:layout paint style;box-sizing:border-box';
+    if(connectedWalletOwns(id)){
+      d.className = 'owned-token';
+      d.style.borderColor = 'rgba(28,255,175,.36)';
+      d.style.boxShadow = '0 0 0 1px rgba(28,255,175,.12) inset,0 0 18px rgba(28,255,175,.12)';
+    }
     d.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>') +
       (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
       `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');
+    if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
     d.addEventListener('click', () => openModal(id));
     return d;
   },
@@ -7038,6 +7344,7 @@ const VS = {
     }
     const d = document.createElement('div');
     d.className = 'token';
+    if(connectedWalletOwns(id)) d.classList.add('owned-token');
     const obsRank=RARITY_OBS_RANK.get(id); const theoRank=RARITY_THEO_RANK.get(id);
     const theoVal2 = (RARITY_MODE==='theoretical' && RARITY_THEO_RANK.size) ? (theoRank||'') : (obsRank||'');
     const osRankVal2 = OS_RANK_MAP.get(id) || null;
@@ -7050,6 +7357,7 @@ const VS = {
     const osCardUrl=`https://opensea.io/assets/ethereum/${LIVE_CONTRACT}/${id}`;
     d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorite(id)?'active':''}" data-fav-id="${id}" title="${isFavorite(id)?'Remove favorite':'Add favorite'}" aria-pressed="${isFavorite(id)?'true':'false'}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg></button><button type="button" class="pinbtn" data-act="A" title="Pin to A">A</button><button type="button" class="pinbtn" data-act="B" title="Pin to B">B</button><button type="button" class="pinbtn" data-act="+" title="Add to pinned">＋</button></div>
       ${gridThumbHtml(id,row)}
+      ${connectedWalletOwns(id) ? '<span class="owned-badge">Owned</span>' : ''}
       <div class="tmeta">
         <div class="idline">#${id} ${rankBadge} ${priceBadgeHtml(id)} <a href="${osCardUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on OpenSea" style="margin-left:auto;opacity:.6;line-height:1;display:inline-flex;align-items:center"><img src="https://opensea.io/static/images/logos/opensea-logo.svg" style="width:13px;height:13px;border-radius:3px"></a></div>
         ${document.getElementById('tokenGrid')?.classList.contains('list') ? listStatsRowHtml(id, rankVal, getListingEth(id) != null ? (getListingEth(id) >= 1 ? getListingEth(id).toFixed(3) : getListingEth(id).toFixed(4)) : null) : traitsMiniHtml(row)}
@@ -7070,6 +7378,11 @@ const VS = {
     const d = document.createElement('div');
     d.dataset.id = id;
     d.style.cssText = 'display:grid;grid-template-columns:60px 1fr;gap:8px 10px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);cursor:pointer;background:rgba(255,255,255,.03);flex-shrink:0;align-items:start;box-sizing:border-box';
+    if(connectedWalletOwns(id)){
+      d.className = 'owned-token';
+      d.style.borderColor = 'rgba(28,255,175,.36)';
+      d.style.boxShadow = '0 0 0 1px rgba(28,255,175,.10) inset,0 0 18px rgba(28,255,175,.10)';
+    }
     d.innerHTML =
       `<div style="width:60px;height:60px;min-width:60px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);flex-shrink:0">` +
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
@@ -7077,7 +7390,8 @@ const VS = {
       `<div style="min-width:0;overflow:visible;display:flex;flex-direction:column;gap:3px">` +
       `<div style="font-weight:700;font-size:13px;margin-bottom:2px;color:#e6edf7">#${id}</div>` +
       listStatsRowHtml(id, rank, priceStr) +
-      `</div>`;
+      `</div>` +
+      (connectedWalletOwns(id) ? '<span class="vs-owned-badge" style="top:8px;right:8px;bottom:auto">Owned</span>' : '');
     // Apply scroll styles directly to the datarow so it stays within the meta column
     const statsRow = d.querySelector('.vs-datarow');
     if(statsRow){
@@ -8169,6 +8483,20 @@ function studioOptions(){
     }
   };
 }
+function studioHolderContext(id, owner){
+  const connected = window.CONNECTED_WALLET || CONNECTED_WALLET || {};
+  const connectedAddr = String(connected.address || '').trim().toLowerCase();
+  const ownerKey = String(owner || '').trim().toLowerCase();
+  if(connectedAddr && Array.isArray(connected.tokenIds) && connected.tokenIds.length){
+    const ownsToken = connected.tokenSet ? connected.tokenSet.has(+id) : connected.tokenIds.map(Number).includes(+id);
+    if(ownsToken || (ownerKey && connectedAddr === ownerKey)){
+      return { address:connected.address, ids:connected.tokenIds, ownsToken };
+    }
+  }
+  const walletInput = (document.getElementById('walletInput')?.value || document.getElementById('mobileWalletInput')?.value || '').trim().toLowerCase();
+  const walletIds = ownerKey && walletInput === ownerKey ? (window._walletTokenIds || window._mobileWalletIds || []) : [];
+  return { address:owner || '', ids:walletIds, ownsToken:false };
+}
 function studioTraitSelection(row, opts){
   const rows = _shareCardTraitRows(row, opts.traitMode === 'top3' ? 3 : 6);
   if(opts.traitMode === 'top5') return rows.slice(0,5);
@@ -8361,20 +8689,26 @@ async function renderStudioStoryCanvas(id, row, opts, canvas, ctx, W, H, pal){
     }
     if(tags.length) y += 36;
   }
-  if(opts.toggles.owner && opts.toggles.holderTags && owner){
-    const walletInput = (document.getElementById('walletInput')?.value || document.getElementById('mobileWalletInput')?.value || '').trim().toLowerCase();
-    const walletIds = walletInput === String(owner).trim().toLowerCase() ? (window._walletTokenIds || window._mobileWalletIds || []) : [];
-    if(walletIds.length){
-      const htags = await computeHolderTags(owner, walletIds);
+  if(opts.toggles.holderTags){
+    const holderCtx = studioHolderContext(id, owner);
+    if(holderCtx.ids.length){
+      const htags = await computeHolderTags(holderCtx.address, holderCtx.ids);
       ctx.font = '800 21px Space Grotesk, Segoe UI, sans-serif';
       cx = contentX;
+      if(holderCtx.ownsToken){
+        const verified = 'Verified holder';
+        const vw = Math.ceil(ctx.measureText(verified).width) + 30;
+        _roundRect(ctx, cx, y - 28, vw, 34, 17); ctx.fillStyle = 'rgba(28,255,175,.095)'; ctx.fill(); ctx.strokeStyle = 'rgba(28,255,175,.28)'; ctx.stroke();
+        ctx.fillStyle = '#d7f7ef'; ctx.fillText(verified, cx + 14, y - 5);
+        cx += vw + 10;
+      }
       for(const tag of htags.slice(0,3)){
         const tw = Math.ceil(ctx.measureText(tag.label).width) + 28;
         _roundRect(ctx, cx, y - 28, tw, 34, 17); ctx.fillStyle = 'rgba(255,255,255,.055)'; ctx.fill(); ctx.strokeStyle = pal.border; ctx.stroke();
         ctx.fillStyle = '#f8fafc'; ctx.fillText(tag.label, cx + 14, y - 5);
         cx += tw + 10;
       }
-      if(htags.length) y += 34;
+      if(htags.length || holderCtx.ownsToken) y += 34;
     }
   }
   if(opts.toggles.comboInsight){
@@ -8525,14 +8859,19 @@ async function renderStudioCanvas(id, opts, targetCanvas){
     }
     if(tags.length) y += Math.round(30 * scale);
   }
-  if(opts.toggles.owner && opts.toggles.holderTags && owner){
-    const walletInput = (document.getElementById('walletInput')?.value || document.getElementById('mobileWalletInput')?.value || '').trim().toLowerCase();
-    const ownerKey = String(owner).trim().toLowerCase();
-    const walletIds = walletInput === ownerKey ? (window._walletTokenIds || window._mobileWalletIds || []) : [];
-    if(walletIds.length){
-      const holderTags = await computeHolderTags(owner, walletIds);
+  if(opts.toggles.holderTags){
+    const holderCtx = studioHolderContext(id, owner);
+    if(holderCtx.ids.length){
+      const holderTags = await computeHolderTags(holderCtx.address, holderCtx.ids);
       ctx.font = `800 ${Math.round(15 * scale)}px Space Grotesk, Segoe UI, sans-serif`;
       let hx = contentX;
+      if(holderCtx.ownsToken){
+        const label = 'Verified holder';
+        const w = Math.ceil(ctx.measureText(label).width) + 22;
+        _roundRect(ctx, hx, y - 20, w, 27, 14); ctx.fillStyle = 'rgba(28,255,175,.085)'; ctx.fill(); ctx.strokeStyle = 'rgba(28,255,175,.26)'; ctx.stroke();
+        ctx.fillStyle = '#d7f7ef'; ctx.fillText(label, hx + 11, y - 2);
+        hx += w + 8;
+      }
       for(const tag of holderTags.slice(0,3)){
         const label = tag.label;
         const w = Math.ceil(ctx.measureText(label).width) + 22;
@@ -8541,7 +8880,7 @@ async function renderStudioCanvas(id, opts, targetCanvas){
         ctx.fillStyle = '#f8fafc'; ctx.fillText(label, hx + 11, y - 2);
         hx += w + 8;
       }
-      if(holderTags.length) y += Math.round(30 * scale);
+      if(holderTags.length || holderCtx.ownsToken) y += Math.round(30 * scale);
     }
   }
 
