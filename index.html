@@ -173,6 +173,11 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .market-tag.weird,.market-tag.cursed{color:#fda4af;border-color:rgba(244,63,94,.30);background:rgba(244,63,94,.105)}
 .market-tag.drip,.market-tag.diamond{color:#1CFFAF;border-color:rgba(28,255,175,.30);background:rgba(28,255,175,.095)}
 .market-tag.trait{color:#f0abfc;border-color:rgba(240,171,252,.28);background:rgba(240,171,252,.095)}
+.holder-tags{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 8px}
+.holder-tag{display:inline-flex;flex-direction:column;gap:2px;max-width:100%;padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045)}
+.holder-tag b{font-size:10.5px;line-height:1;color:var(--text)}
+.holder-tag span{font-size:10px;line-height:1.2;color:rgba(226,232,240,.78)}
+.holder-tag.grail b{color:#fde68a}.holder-tag.combo b{color:#67e8f9}.holder-tag.trait b{color:#f0abfc}.holder-tag.drip b{color:#1CFFAF}.holder-tag.cursed b{color:#fda4af}
 #modal .mbody{display:grid;grid-template-columns:280px 1fr;gap:14px}
 #modal .traits div span{color:var(--sub);font-size:12px}
 #modal .traits div b{color:var(--text);font-size:13px;font-weight:700}
@@ -2679,6 +2684,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
             <button class="btn ghost" id="walletClearBtn" style="font-size:11px;padding:5px 8px">✕</button>
           </div>
           <div id="walletStatus" style="color:var(--sub);font-size:11px;margin-bottom:4px"></div>
+          <div id="walletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
           <div style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap" id="walletSortBtns">
             <button class="mispriced-mode-btn active" data-wsort="rank" onclick="setWalletSort('rank')">Rarest First</button>
             <button class="mispriced-mode-btn" data-wsort="listed" onclick="setWalletSort('listed')">Listed First</button>
@@ -2978,7 +2984,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   <div id="mobileWalletHeader">
     <span style="font-weight:700;font-size:15px;color:var(--text)">Wallet View</span>
     <div style="display:flex;gap:10px;align-items:center">
-      <button onclick="document.getElementById('mobileWalletInput').value='';document.getElementById('mobileWalletStatus').textContent='';document.getElementById('mobileWalletGrid').innerHTML='';window._mobileWalletIds=null;" style="background:none;border:none;color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;padding:0;font-family:'Space Grotesk',sans-serif">Clear</button>
+      <button onclick="document.getElementById('mobileWalletInput').value='';document.getElementById('mobileWalletStatus').textContent='';document.getElementById('mobileWalletGrid').innerHTML='';document.getElementById('mobileWalletHolderTags').innerHTML='';window._mobileWalletIds=null;" style="background:none;border:none;color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;padding:0;font-family:'Space Grotesk',sans-serif">Clear</button>
       <button onclick="closeMobileWalletDrawer()" style="background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer;padding:0;line-height:1">×</button>
     </div>
   </div>
@@ -2994,6 +3000,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
       <button class="mispriced-mode-btn" data-mwsort="id" onclick="mobileWalletSort('id')">Token ID</button>
     </div>
     <div id="mobileWalletStatus" style="font-size:12px;color:var(--sub);margin-bottom:8px"></div>
+    <div id="mobileWalletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
     <div id="mobileWalletGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
   </div>
 </div>
@@ -4649,11 +4656,9 @@ async function computeMarketPersonalityTags(id, row){
   if(rank && rank > 1000 && (comboNear || rareTraits.length >= 2)) marketTagAdd(tags, { label:'Lowkey Rare', cls:'lowkey', score:92 });
   if(nearFloor && ((rank && rank <= 1500) || hasRareCombo || rareTraits.length >= 2)) marketTagAdd(tags, { label: rank && rank <= 1000 ? 'Floor Flex' : 'Floor Gem', cls:'drip', score:90 });
   if(rank && rank > 1000 && nearFloor && (hasRareCombo || stylish)) marketTagAdd(tags, { label:'Sleeper', cls:'sleeper', score:88 });
-  if(stylish && jewelry) marketTagAdd(tags, { label: marketTagHas(text, ['diamond']) ? 'Diamond Hands' : 'Drip Check', cls:'drip', score:78 });
+  if(stylish && jewelry) marketTagAdd(tags, { label:'Drip Check', cls:'drip', score:78 });
   if(clean) marketTagAdd(tags, { label: traitCount <= 6 ? 'Minimalist' : 'Clean Build', cls:'clean', score:68 });
   if(weird && !clean) marketTagAdd(tags, { label:'Weird Build', cls:'weird', score:64 });
-  if(typeValue.includes('zombie') && ((rank && rank <= 1000) || hasRareCombo || rareTraits.length)) marketTagAdd(tags, { label:'Zombie King', cls:'cursed', score:86 });
-  if((typeValue.includes('alien') || typeValue.includes('radioactive')) && (hasRareCombo || rareTraits.length || stylish)) marketTagAdd(tags, { label:'Alien Energy', cls:'combo', score:84 });
   if((typeValue.includes('demonic') || text.includes('skeleton') || text.includes('skull')) && (hasRareCombo || rareTraits.length || weird)) marketTagAdd(tags, { label:'Cursed', cls:'cursed', score:82 });
   if(!tags.length && rareTraits.length) marketTagAdd(tags, { label:'Collector Piece', cls:'combo', score:62 });
 
@@ -4678,6 +4683,71 @@ async function hydrateMarketPersonalityTags(id, row){
     console.warn('[MarketTags] failed:', e);
     if(window._modalCurrentId === tokenId) host.style.display = 'none';
   }
+}
+
+const HOLDER_TAG_CACHE = new Map();
+function holderTagAdd(list, tag){
+  if(!tag || !tag.label) return;
+  if(list.some(t => t.label === tag.label)) return;
+  list.push(tag);
+}
+async function computeHolderTags(addr, ids){
+  const cleanIds = [...new Set((ids || []).map(Number).filter(id => id >= 1 && id <= (TOKEN_COUNT || 10000)))];
+  const key = `${String(addr || '').toLowerCase()}:${cleanIds.slice().sort((a,b)=>a-b).join(',')}`;
+  if(HOLDER_TAG_CACHE.has(key)) return HOLDER_TAG_CACHE.get(key);
+  if(!cleanIds.length) return [];
+
+  const typeCounts = new Map();
+  const valueCounts = new Map();
+  const traitNames = new Set();
+  let diamondTraits = 0, blindEyes = 0, topRanks = 0, rareTraitHits = 0, comboish = 0;
+  for(const id of cleanIds){
+    let row = null;
+    try{ row = (ROW_CACHE && ROW_CACHE.get(id)) || await fetchRow(id); }catch(_){ }
+    const entries = keepEntries(row?.traits || {});
+    const text = marketTagText(entries);
+    const visual = comboVisualTraits(entries);
+    let tokenRareHits = 0;
+    if(visual.type?.value) typeCounts.set(visual.type.value, (typeCounts.get(visual.type.value) || 0) + 1);
+    for(const [k,v] of entries){
+      traitNames.add(`${k}:${v}`);
+      valueCounts.set(String(v), (valueCounts.get(String(v)) || 0) + 1);
+      const count = (TRAIT_FREQ[k]?.[v]) || TOKEN_COUNT || 10000;
+      if(count <= Math.max(60, (TOKEN_COUNT || 10000) * 0.006)){ rareTraitHits++; tokenRareHits++; }
+    }
+    if(marketTagHas(text, ['diamond'])) diamondTraits++;
+    if(marketTagHas(text, ['blind eyes'])) blindEyes++;
+    const rank = Number(OS_RANK_MAP?.get(id) || RARITY_OBS_RANK?.get(id) || 0);
+    if(rank && rank <= 1000) topRanks++;
+    if(tokenRareHits >= 2 || entries.length >= 10) comboish++;
+  }
+
+  const tags = [];
+  const zombieCount = [...typeCounts.entries()].find(([k]) => /zombie/i.test(k))?.[1] || 0;
+  const apeCount = [...typeCounts.entries()].find(([k]) => /ape/i.test(k))?.[1] || 0;
+  if(zombieCount >= 3) holderTagAdd(tags, { label:'Zombie King', cls:'cursed', detail:`Holds ${zombieCount} Zombies`, score:90 + zombieCount });
+  if(apeCount >= 3) holderTagAdd(tags, { label:'Ape Lord', cls:'grail', detail:`Holds ${apeCount} Apes`, score:88 + apeCount });
+  if(blindEyes >= 2) holderTagAdd(tags, { label:'Blind Eyes Whale', cls:'combo', detail:`Owns ${blindEyes} Blind Eyes`, score:82 + blindEyes });
+  if(diamondTraits >= 3) holderTagAdd(tags, { label:'Diamond Baron', cls:'drip', detail:`Owns ${diamondTraits} Diamond traits`, score:84 + diamondTraits });
+  if(topRanks >= 2) holderTagAdd(tags, { label:'Grail Keeper', cls:'grail', detail:`Holds ${topRanks} top-ranked OCAS`, score:86 + topRanks });
+  if(traitNames.size >= Math.max(18, cleanIds.length * 5)) holderTagAdd(tags, { label:'Trait Hoarder', cls:'trait', detail:`${traitNames.size} unique trait values`, score:74 + traitNames.size / 10 });
+  if(comboish >= Math.max(2, Math.ceil(cleanIds.length * 0.18))) holderTagAdd(tags, { label:'Combo Collector', cls:'combo', detail:`${comboish} rare/combo-heavy tokens`, score:78 + comboish });
+  if(cleanIds.length >= 8 && rareTraitHits >= cleanIds.length * 2) holderTagAdd(tags, { label:'One-of-One Hunter', cls:'combo', detail:`${rareTraitHits} rare trait hits`, score:76 + rareTraitHits / 3 });
+
+  const result = tags.sort((a,b)=>b.score-a.score).slice(0, 5);
+  HOLDER_TAG_CACHE.set(key, result);
+  return result;
+}
+function renderHolderTags(tags){
+  return (tags || []).map(t => `<span class="holder-tag ${comboEsc(t.cls || '')}"><b>${comboEsc(t.label)}</b><span>${comboEsc(t.detail || '')}</span></span>`).join('');
+}
+async function hydrateHolderTags(addr, ids, hostId){
+  const host = document.getElementById(hostId);
+  if(!host) return;
+  host.innerHTML = '';
+  const tags = await computeHolderTags(addr, ids);
+  host.innerHTML = renderHolderTags(tags);
+  host.style.display = tags.length ? 'flex' : 'none';
 }
 
 function buildRarityBreakdown(id, row){
@@ -5947,8 +6017,10 @@ async function mobileWalletLookup(){
   if(!addr || addr.length < 10) return;
   const status = document.getElementById('mobileWalletStatus');
   const grid   = document.getElementById('mobileWalletGrid');
+  const holderTags = document.getElementById('mobileWalletHolderTags');
   if(status) status.textContent = 'Loading…';
   if(grid)   grid.innerHTML = '';
+  if(holderTags){ holderTags.innerHTML = ''; holderTags.style.display = 'none'; }
 
   try{
     const r = await fetch(`${LIVE_ENDPOINT}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(LIVE_CONTRACT)}`);
@@ -5980,6 +6052,7 @@ async function mobileWalletLookup(){
 
     // Store ids for sort and render
     window._mobileWalletIds = ids;
+    hydrateHolderTags(addr, ids, 'mobileWalletHolderTags');
     if(grid) _renderMobileWalletGrid(ids, grid);
 
   } catch(e){
@@ -9241,6 +9314,8 @@ async function runTwinFinderFromInput(id){
     const status = document.getElementById('walletStatus');
     const badge  = document.getElementById('walletCountBadge');
     grid.innerHTML = '';
+    const holderTagHost = document.getElementById('walletHolderTags');
+    if(holderTagHost){ holderTagHost.innerHTML = ''; holderTagHost.style.display = 'none'; }
     status.textContent = 'Fetching wallet tokens…';
     badge.textContent  = '–';
 
@@ -9284,6 +9359,7 @@ async function runTwinFinderFromInput(id){
       badge.textContent = tokenIds.length + ' token' + (tokenIds.length===1?'':'s');
       status.textContent = '';
       window._walletTokenIds = tokenIds; // cache for re-sort
+      hydrateHolderTags(addr, tokenIds, 'walletHolderTags');
 
       function sortWalletTokens(ids, mode){
         const items = ids.map(id => ({
