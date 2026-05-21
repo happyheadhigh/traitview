@@ -210,6 +210,20 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #jumpSpot .title{display:flex;align-items:center;justify-content:space-between;font-weight:600;color:#e6edf7;margin-bottom:8px}
 #jumpSpot .note{font-size:12px;color:#a8b3c9;margin-left:8px}
 #jumpSpot .close{background:#1b2230;border:1px solid #2b3240;color:#d7def0;border-radius:8px;padding:4px 8px;cursor:pointer}
+.wallet-launch-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.52);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:16px}
+.wallet-launch-modal.open{display:flex}
+.wallet-launch-box{width:min(420px,100%);border-radius:16px;border:1px solid rgba(255,255,255,.13);background:rgba(10,15,22,.96);box-shadow:0 24px 60px rgba(0,0,0,.55);padding:14px;color:var(--text)}
+.wallet-launch-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.wallet-launch-title{font-size:14px;font-weight:900;letter-spacing:.04em}
+.wallet-launch-copy{font-size:12px;color:var(--sub);line-height:1.35;margin:0 0 12px}
+.wallet-launch-actions{display:grid;grid-template-columns:1fr;gap:8px}
+.wallet-launch-actions a,.wallet-launch-actions button{display:flex;align-items:center;justify-content:space-between;gap:10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);color:var(--text)!important;text-decoration:none;padding:10px 12px;font-weight:800;font-size:13px;cursor:pointer}
+.wallet-launch-actions a:hover,.wallet-launch-actions button:hover{border-color:rgba(28,255,175,.32);background:rgba(28,255,175,.075)}
+.holder-tag-preview{position:fixed;z-index:100000;display:none;pointer-events:none;max-width:280px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(10,15,22,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 16px 38px rgba(0,0,0,.45);padding:9px}
+.holder-tag-preview-title{font-size:11px;color:var(--sub);font-weight:900;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
+.holder-tag-preview-grid{display:grid;grid-template-columns:repeat(4,54px);gap:5px}
+.holder-tag-preview-grid img{width:54px;height:54px;object-fit:contain;border-radius:7px;background:var(--soft);border:1px solid rgba(255,255,255,.10)}
+.holder-tag-preview-more{font-size:10px;color:var(--sub);margin-top:6px}
 .tt{position:relative;cursor:help}
 .tt:hover::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 8px);background:rgba(10,14,20,.96);color:#e6edf7;border:1px solid #2a2f3a;padding:8px 10px;border-radius:8px;white-space:normal;width:max-content;max-width:260px;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:1000}
 .tt:hover::before{content:'';position:absolute;left:12px;top:100%;border:6px solid transparent;border-top-color:#2a2f3a}
@@ -2647,9 +2661,6 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
         </span>
         <span id="desktopThemeLabel">Slate</span>
       </button>
-      <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="connectTraitViewWallet()" aria-label="Connect wallet" title="Connect wallet">
-        <span>Connect</span>
-      </button>
       <button type="button" id="desktopFavoritesBtn" class="favbtn" aria-label="Toggle favorites view" title="Favorites">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg>
       </button>
@@ -2693,6 +2704,9 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     <div class="spacer"></div>
     <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…" style="width:140px">
     <button id="btnJump" class="btn">Go</button>
+    <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="connectTraitViewWallet()" aria-label="Connect wallet" title="Connect wallet">
+      <span>Connect</span>
+    </button>
     <button id="btnClear" class="btn ghost">Clear</button>
 
   <div id="themePicker" style="display:flex;gap:8px;align-items:center;margin-left:12px;">
@@ -2707,8 +2721,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   <div class="bar">
     <div style="display:flex;flex-direction:column;gap:10px">
       <h3 class="section" style="margin-bottom:4px;padding:0 2px;opacity:.7">Filters</h3>
-      <div id="connectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
-<div id="panelRarity" style="margin-bottom:2px">
+<div id="panelRarity" style="margin-bottom:2px;order:2">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px;cursor:pointer;user-select:none" onclick="(function(el){el.classList.toggle('open');const b=document.getElementById('rarityPanelBody');if(b)b.style.display=el.classList.contains('open')?'block':'none';const ch=el.querySelector('.rarity-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
     <span class="section" style="opacity:.7;margin:0">Rarity Mode &amp; Rank</span>
     <span class="rarity-chev" style="color:var(--sub);font-size:16px;line-height:1;transition:transform .2s ease;display:inline-block">⌄</span>
@@ -2734,7 +2747,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 </div>
 
       <!-- Wallet View in left column — floating, no box -->
-      <div id="walletPanel" style="margin-bottom:2px">
+      <div id="walletPanel" style="margin-bottom:2px;order:1">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px;cursor:pointer;user-select:none" onclick="(function(el){el.classList.toggle('open');const b=document.getElementById('walletPanelBody');if(b){b.style.display=el.classList.contains('open')?'block':'none';}const ch=el.querySelector('.wallet-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
           <span class="section" style="opacity:.7;margin:0">Wallet View</span>
           <div style="display:flex;align-items:center;gap:6px">
@@ -2761,23 +2774,23 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
       </div>
 
       <!-- Jump to token — shown in filter drawer on mobile -->
-      <div id="mobileDrawerJump" style="display:none;gap:6px;margin:0 0 10px;align-items:center">
+      <div id="mobileDrawerJump" style="display:none;gap:6px;margin:0 0 10px;align-items:center;order:3">
         <input id="drawerJumpInput" class="input" type="text" inputmode="numeric" placeholder="Jump to Token ID…" style="flex:1;font-size:16px">
         <button id="drawerJumpBtn" class="btn" onclick="(function(){const v=document.getElementById('drawerJumpInput').value.trim();if(!v)return;document.getElementById('jump').value=v;closeMobileFilter();document.getElementById('btnJump').click();})()">Go</button>
       </div>
 
-      <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
+      <div style="display:flex;gap:8px;align-items:center;margin:8px 0;order:4">
         <input id="traitSearch" class="input" placeholder="Search trait or value…" style="flex:1">
         <label style="display:flex;align-items:center;gap:6px" title="Show only values present in current result set"><input type="checkbox" id="onlyPresent"> <span class="section" style="margin:0">Only show values present</span></label>
         <button id="btnClearFilters" class="btn" style="font-size:11px;padding:5px 10px">Clear</button>
       </div>
 
-      <div id="activeChips" class="chips" style="margin:6px 0 10px"></div>
-      <div id="accTraits"></div>
+      <div id="activeChips" class="chips" style="margin:6px 0 10px;order:5"></div>
+      <div id="accTraits" style="order:6"></div>
 
-      <h3 class="section" style="margin-top:14px">Trait Count</h3>
-      <div id="traitChips" class="chips" style="margin-bottom:8px"></div>
-      <div style="color:var(--muted);font-size:12px">Click a bar or a number to filter to exactly that many traits. Click again to remove.</div>
+      <h3 class="section" style="margin-top:14px;order:7">Trait Count</h3>
+      <div id="traitChips" class="chips" style="margin-bottom:8px;order:8"></div>
+      <div style="color:var(--muted);font-size:12px;order:9">Click a bar or a number to filter to exactly that many traits. Click again to remove.</div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:12px">
@@ -2921,6 +2934,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 </div>
 
 <div class="card panel">
+        <div id="connectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
         <!-- Active filter pills shown above grid -->
         <div id="activeMobilePills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;min-height:0"></div>
         <div id="twinFinderPanel" aria-label="Twin Finder">
@@ -3172,7 +3186,6 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     <span class="mobile-menu-label">Connect Wallet</span>
     <span class="mobile-menu-arrow">read only</span>
   </button>
-  <div id="mobileConnectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
   <div id="mobileJumpSlot"></div>
   <button type="button" id="mobileFavoritesToggle" class="mobile-theme-cycle" aria-label="Toggle favorites view">
     <span class="mobile-menu-icon">★</span>
@@ -3194,6 +3207,17 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 </div>
 
 <div id="tooltip"></div>
+<div id="walletLaunchModal" class="wallet-launch-modal" onclick="if(event.target===this) closeWalletLaunchModal()">
+  <div class="wallet-launch-box">
+    <div class="wallet-launch-head">
+      <div class="wallet-launch-title">Connect Wallet</div>
+      <button class="btn ghost" onclick="closeWalletLaunchModal()" style="width:32px;height:32px;padding:0;border-radius:999px">×</button>
+    </div>
+    <p class="wallet-launch-copy">Open TraitView in a mobile wallet browser, then tap Connect again. This stays read-only and never asks for a signature.</p>
+    <div class="wallet-launch-actions" id="walletLaunchActions"></div>
+  </div>
+</div>
+<div id="holderTagPreview" class="holder-tag-preview"></div>
 
 <!-- Modal -->
 <div id="modal" onclick="if(event.target===this) this.style.display='none'">
@@ -3311,6 +3335,31 @@ function getTraitViewProvider(){
   if(TV_WALLET_PROVIDERS.length) return TV_WALLET_PROVIDERS[0];
   if(window.ethereum?.providers?.length) return window.ethereum.providers[0];
   return window.ethereum || null;
+}
+function isMobileWalletContext(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') || window.innerWidth <= 900;
+}
+function walletLaunchLinks(){
+  const url = location.href;
+  const noProto = url.replace(/^https?:\/\//i, '');
+  const encoded = encodeURIComponent(url);
+  return [
+    { label:'Open in MetaMask', href:`https://metamask.app.link/dapp/${noProto}` },
+    { label:'Open in Coinbase Wallet', href:`https://go.cb-w.com/dapp?cb_url=${encoded}` },
+    { label:'Open in Rainbow', href:`https://rnbwapp.com/wc?uri=${encoded}` },
+    { label:'Open in Trust Wallet', href:`trust://browser_enable?url=${encoded}` }
+  ];
+}
+function openWalletLaunchModal(){
+  const modal = document.getElementById('walletLaunchModal');
+  const actions = document.getElementById('walletLaunchActions');
+  if(!modal || !actions) return;
+  actions.innerHTML = walletLaunchLinks().map(link => `<a href="${comboEsc(link.href)}" rel="noreferrer">${comboEsc(link.label)} <span>↗</span></a>`).join('') +
+    `<button type="button" onclick="closeWalletLaunchModal()">I'll open my wallet manually <span>OK</span></button>`;
+  modal.classList.add('open');
+}
+function closeWalletLaunchModal(){
+  document.getElementById('walletLaunchModal')?.classList.remove('open');
 }
 function connectedWalletAddress(){
   return CONNECTED_WALLET?.address || '';
@@ -3474,6 +3523,10 @@ async function setConnectedWallet(addr, chainId, tokenIds){
 async function connectTraitViewWallet(){
   const provider = getTraitViewProvider();
   if(!provider){
+    if(isMobileWalletContext()){
+      openWalletLaunchModal();
+      return;
+    }
     alert('No wallet found. Install MetaMask, Coinbase Wallet, Rainbow, or open TraitView in a wallet browser.');
     return;
   }
@@ -3997,6 +4050,7 @@ function chunkUrlByIndex(idx){
 const ipfsToHttp=u=>(typeof u==='string'&&u.startsWith('ipfs://'))?('https://ipfs.io/ipfs/'+u.slice(7)):u;
 function imgForId(id){ return IMAGE_PATTERN.replace('{id}', id); }
 function keepEntries(o){ const out=[]; for(const [k,v] of Object.entries(o||{})){ if(v!==undefined&&v!==null&&String(v).trim()!=='') out.push([k,String(v)]);} return out;}
+function traitDisplayLabel(k){ return String(k || '').trim().toLowerCase() === 'kind' ? 'Type' : String(k || ''); }
 function getTraitCount(row){ return Object.keys(row?.traits||{}).length; }
 function fmt(n){ return n.toLocaleString(); }
 function parseEthMaybeWei(v){
@@ -4511,7 +4565,7 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
       row.innerHTML=`<input type="checkbox" id="${id}"><span>${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}}
 
 /* tooltip + modal */
-function tipHtml(id,row){ const kv=keepEntries(row.traits); const traitsHtml=kv.length?kv.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join(''):'<div style="color:var(--muted)">No traits</div>'; let imgHtml='<div style="color:var(--muted)">No image</div>'; const mapVal=IMAGES_MAP && IMAGES_MAP.get(id); const src=mapVal || row.image || imgForId(id); if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgHtml=`<div class="svg-wrap">${s}</div>`; else if(/^data:image\//i.test(s)) imgHtml=`<img src="${s}" alt="#${id}">`; else imgHtml=`<img src="${ipfsToHttp(s)}" alt="#${id}">`; } const obsRank=RARITY_OBS_RANK.get(id); const theoRank=RARITY_THEO_RANK.get(id); const listing=(window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null; const ethVal = parseEthMaybeWei(listing?listing.price:null); const linkHtml=(listing&&listing.url&&ethVal!=null)?`<a class="linkpill" href="${listing.url}" target="_blank" rel="noopener">OpenSea (${formatEth(ethVal)})</a>`:''; const rankHtml=`${obsRank?`<span class="chip">Obs ${rankDiamondHtml(obsRank)}</span>`:''} ${theoRank?`<span class="chip">Theo ${rankDiamondHtml(theoRank)}</span>`:''}`; return `<div class="tip-title">#${id} • Traits: ${getTraitCount(row)} ${rankHtml}</div>${linkHtml?`<div style="margin:6px 0">${linkHtml}</div>`:''}<div class="tip-body"><div class="tip-img">${imgHtml}</div><div class="traits">${traitsHtml}</div></div>`; }
+function tipHtml(id,row){ const kv=keepEntries(row.traits); const traitsHtml=kv.length?kv.map(([k,v])=>`<div><span>${traitDisplayLabel(k)}</span><b>${v}</b></div>`).join(''):'<div style="color:var(--muted)">No traits</div>'; let imgHtml='<div style="color:var(--muted)">No image</div>'; const mapVal=IMAGES_MAP && IMAGES_MAP.get(id); const src=mapVal || row.image || imgForId(id); if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgHtml=`<div class="svg-wrap">${s}</div>`; else if(/^data:image\//i.test(s)) imgHtml=`<img src="${s}" alt="#${id}">`; else imgHtml=`<img src="${ipfsToHttp(s)}" alt="#${id}">`; } const obsRank=RARITY_OBS_RANK.get(id); const theoRank=RARITY_THEO_RANK.get(id); const listing=(window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null; const ethVal = parseEthMaybeWei(listing?listing.price:null); const linkHtml=(listing&&listing.url&&ethVal!=null)?`<a class="linkpill" href="${listing.url}" target="_blank" rel="noopener">OpenSea (${formatEth(ethVal)})</a>`:''; const rankHtml=`${obsRank?`<span class="chip">Obs ${rankDiamondHtml(obsRank)}</span>`:''} ${theoRank?`<span class="chip">Theo ${rankDiamondHtml(theoRank)}</span>`:''}`; return `<div class="tip-title">#${id} • Traits: ${getTraitCount(row)} ${rankHtml}</div>${linkHtml?`<div style="margin:6px 0">${linkHtml}</div>`:''}<div class="tip-body"><div class="tip-img">${imgHtml}</div><div class="traits">${traitsHtml}</div></div>`; }
 function attachPreviewHandlers(){
   const tip=$('#tooltip');
   if(!tip) return;
@@ -4714,7 +4768,7 @@ async function openModal(id){
 
   // ── Tab: Traits ──────────────────────────────────────────────
   const kv = keepEntries(row.traits);
-  $('#mTraits').innerHTML = kv.length ? kv.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('') : '<div style="color:var(--muted)">No traits</div>';
+  $('#mTraits').innerHTML = kv.length ? kv.map(([k,v])=>`<div><span>${traitDisplayLabel(k)}</span><b>${v}</b></div>`).join('') : '<div style="color:var(--muted)">No traits</div>';
 
   // ── Tab: Rarity Breakdown ────────────────────────────────────
   buildRarityBreakdown(id, row);
@@ -4858,7 +4912,7 @@ async function buildComboInsights(id, row){
         weight: 70 - t.count,
         label: comboTraitCountLabel(t.count),
         text: `${comboTraitPhrase(t)} appears on only ${t.count} OCAS.`,
-        meta: `${t.name} - ${comboPct(t.count)}% of collection`
+        meta: `${traitDisplayLabel(t.name)} - ${comboPct(t.count)}% of collection`
       });
     }
   }
@@ -4866,17 +4920,36 @@ async function buildComboInsights(id, row){
   if(type){
     for(const t of traitStats){
       if(comboPartKey(t) === comboPartKey(type)) continue;
-      if(t.count > Math.max(18, Math.floor(total * 0.018))) continue;
       const count = await comboCount([type, t]);
-      if(count > 0 && count <= Math.max(7, Math.floor(total * 0.007))){
+      if(count > 0 && count <= Math.max(5, Math.floor(total * 0.005))){
         pushComboInsight(insights, {
           count,
-          weight: 90 - count,
+          weight: 92 - count,
           label: count === 1 ? 'Type match' : 'Type combo',
           text: count === 1
             ? `This is the only ${type.value} with ${t.value}.`
             : `Only ${count} ${comboPluralType(type.value)} have ${t.value}.`,
-          meta: `${type.name} + ${t.name}`
+          meta: `${traitDisplayLabel(type.name)} + ${traitDisplayLabel(t.name)}`
+        });
+      }
+    }
+  }
+
+  const allTraitParts = traitStats.map(t => ({ name:t.name, value:t.value, count:t.count }));
+  for(let a = 0; a < allTraitParts.length; a++){
+    for(let b = a + 1; b < allTraitParts.length; b++){
+      const p1 = allTraitParts[a], p2 = allTraitParts[b];
+      if(comboPartKey(p1) === comboPartKey(p2)) continue;
+      const count = await comboCount([p1, p2]);
+      if(count > 0 && count <= Math.max(4, Math.floor(total * 0.004))){
+        pushComboInsight(insights, {
+          count,
+          weight: 84 - count,
+          label: count === 1 ? '1 of 1' : 'Rare combo',
+          text: count === 1
+            ? `No other OCAS shares this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`
+            : `Only ${count} OCAS share this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`,
+          meta: `${traitDisplayLabel(p1.name)}: ${p1.value} + ${traitDisplayLabel(p2.name)}: ${p2.value}`
         });
       }
     }
@@ -4906,7 +4979,7 @@ async function buildComboInsights(id, row){
         text: count === 1
           ? `No other OCAS shares this ${def.name} combo.`
           : `Only ${count} OCAS share this ${def.name} combo.`,
-        meta: parts.map(p => `${p.name}: ${p.value}`).join(' + ')
+        meta: parts.map(p => `${traitDisplayLabel(p.name)}: ${p.value}`).join(' + ')
       });
     }
   }
@@ -4922,7 +4995,7 @@ async function buildComboInsights(id, row){
         text: count === 1
           ? 'No other OCAS shares this high-impact face combo.'
           : `Only ${count} OCAS share this high-impact face combo.`,
-        meta: faceParts.map(p => p.name).join(' + ')
+        meta: faceParts.map(p => traitDisplayLabel(p.name)).join(' + ')
       });
     }
   }
@@ -4945,7 +5018,7 @@ async function buildComboInsights(id, row){
           weight: 68 - exceptionCount,
           label: 'Trait exception',
           text: `Only ${exceptionCount} ${t.value} OCAS are not ${top.value}.`,
-          meta: `${t.name} exception within ${type.name}`
+          meta: `${traitDisplayLabel(t.name)} exception within ${traitDisplayLabel(type.name)}`
         });
         break;
       }
@@ -5048,11 +5121,13 @@ async function computeMarketPersonalityTags(id, row){
   const comboInsights = comboData?.insights || [];
   const comboOne = comboInsights.filter(i => i.count === 1).length;
   const comboNear = comboInsights.filter(i => i.count > 0 && i.count <= 3).length;
-  const bestCombo = comboInsights
+  const comboEvidence = comboInsights.filter(i => /\+|combo|face|type/i.test(`${i.label || ''} ${i.meta || ''}`));
+  const bestCombo = comboEvidence
     .filter(i => Number.isFinite(+i.count) && +i.count > 0)
     .sort((a,b) => (+a.count - +b.count) || (String(b.label||'').length - String(a.label||'').length))[0] || null;
   const bestComboWhy = bestCombo ? `${bestCombo.text || bestCombo.label} ${bestCombo.meta ? '- ' + bestCombo.meta : ''}` : '';
-  const hasRareCombo = !!(bestCombo && bestCombo.count <= 3);
+  const hasRareCombo = !!(bestCombo && bestCombo.count <= 2);
+  const hasExceptionalCombo = !!(bestCombo && bestCombo.count === 1);
 
   const listing = window.LISTINGS?.[id]?.opensea || null;
   const price = Number(listing?.price_eth);
@@ -5069,7 +5144,7 @@ async function computeMarketPersonalityTags(id, row){
   const tags = [];
 
   if(rank && rank <= 100) marketTagAdd(tags, { label:'Grail', cls:'grail', score:140, why:`Top ${rank} rarity rank.` });
-  if(comboOne >= 2 || (comboOne && extremeTraits.length >= 1)) marketTagAdd(tags, { label:'One-of-One Feel', cls:'combo', score:124, why:bestComboWhy || 'Multiple unique or near-unique combo signals.' });
+  if(hasExceptionalCombo && (extremeTraits.length >= 1 || strongRareTraits.length >= 2 || (rank && rank <= 1500))) marketTagAdd(tags, { label:'One-of-One Feel', cls:'combo', score:124, why:bestComboWhy || 'Unique combo plus meaningful rarity context.' });
   if(hasRareCombo) marketTagAdd(tags, { label:'Rare Combo', cls:'combo', score:112 + comboNear, why:bestComboWhy || `Best combo appears on ${bestCombo.count} tokens.` });
   if(extremeTraits.length >= 2 || strongRareTraits.length >= 3 || (traitCount >= 11 && rareTraits.length >= 2)) marketTagAdd(tags, { label:'Trait Monster', cls:'trait', score:104 + strongRareTraits.length, why:`${strongRareTraits.length} very rare traits across ${traitCount} total traits.` });
   if(rank && rank > 1200 && (hasRareCombo || strongRareTraits.length >= 2)) marketTagAdd(tags, { label:'Lowkey Rare', cls:'lowkey', score:98, why:`Rank ${rank}, but hidden rarity from ${hasRareCombo ? 'a low-count combo' : strongRareTraits.length + ' very rare traits'}.` });
@@ -5081,7 +5156,9 @@ async function computeMarketPersonalityTags(id, row){
   if((typeValue.includes('demonic') || text.includes('skeleton') || text.includes('skull')) && (hasRareCombo || strongRareTraits.length)) marketTagAdd(tags, { label:'Cursed', cls:'cursed', score:88, why:`Dark type/visual traits plus rare combo or trait evidence.` });
   if(!tags.length && (rank && rank <= 500 || strongRareTraits.length >= 2 || hasRareCombo)) marketTagAdd(tags, { label:'Collector Piece', cls:'combo', score:70, why:'Strong rank, trait, or combo signal without a louder personality tag.' });
 
-  const result = tags.sort((a,b) => b.score - a.score).slice(0, 3);
+  const sorted = tags.sort((a,b) => b.score - a.score);
+  const limit = sorted.length >= 3 && ((rank && rank <= 100) || (hasExceptionalCombo && strongRareTraits.length >= 2)) ? 3 : 2;
+  const result = sorted.slice(0, limit);
   MARKET_TAG_CACHE.set(cacheKey, result);
   return result;
 }
@@ -5119,8 +5196,10 @@ async function computeHolderTags(addr, ids){
   if(!cleanIds.length) return [];
 
   const typeCounts = new Map();
+  const typeIds = new Map();
   const valueCounts = new Map();
   const traitNames = new Set();
+  const diamondIds = [], blindIds = [], topRankIds = [], comboIds = [], rareIds = [];
   let diamondTraits = 0, blindEyes = 0, topRanks = 0, rareTraitHits = 0, comboish = 0;
   for(const id of cleanIds){
     let row = null;
@@ -5129,38 +5208,42 @@ async function computeHolderTags(addr, ids){
     const text = marketTagText(entries);
     const visual = comboVisualTraits(entries);
     let tokenRareHits = 0;
-    if(visual.type?.value) typeCounts.set(visual.type.value, (typeCounts.get(visual.type.value) || 0) + 1);
+    if(visual.type?.value){
+      typeCounts.set(visual.type.value, (typeCounts.get(visual.type.value) || 0) + 1);
+      if(!typeIds.has(visual.type.value)) typeIds.set(visual.type.value, []);
+      typeIds.get(visual.type.value).push(id);
+    }
     for(const [k,v] of entries){
       traitNames.add(`${k}:${v}`);
       valueCounts.set(String(v), (valueCounts.get(String(v)) || 0) + 1);
       const count = (TRAIT_FREQ[k]?.[v]) || TOKEN_COUNT || 10000;
-      if(count <= Math.max(60, (TOKEN_COUNT || 10000) * 0.006)){ rareTraitHits++; tokenRareHits++; }
+      if(count <= Math.max(60, (TOKEN_COUNT || 10000) * 0.006)){ rareTraitHits++; tokenRareHits++; rareIds.push(id); }
     }
-    if(marketTagHas(text, ['diamond'])) diamondTraits++;
-    if(marketTagHas(text, ['blind eyes'])) blindEyes++;
+    if(marketTagHas(text, ['diamond'])){ diamondTraits++; diamondIds.push(id); }
+    if(marketTagHas(text, ['blind eyes'])){ blindEyes++; blindIds.push(id); }
     const rank = Number(OS_RANK_MAP?.get(id) || RARITY_OBS_RANK?.get(id) || 0);
-    if(rank && rank <= 1000) topRanks++;
-    if(tokenRareHits >= 2 || entries.length >= 10) comboish++;
+    if(rank && rank <= 1000){ topRanks++; topRankIds.push(id); }
+    if(tokenRareHits >= 2 || entries.length >= 10){ comboish++; comboIds.push(id); }
   }
 
   const tags = [];
   const zombieCount = [...typeCounts.entries()].find(([k]) => /zombie/i.test(k))?.[1] || 0;
   const apeCount = [...typeCounts.entries()].find(([k]) => /ape/i.test(k))?.[1] || 0;
-  if(zombieCount >= 3) holderTagAdd(tags, { label:'Zombie King', cls:'cursed', detail:`Holds ${zombieCount} Zombies`, score:90 + zombieCount });
-  if(apeCount >= 3) holderTagAdd(tags, { label:'Ape Lord', cls:'grail', detail:`Holds ${apeCount} Apes`, score:88 + apeCount });
-  if(blindEyes >= 2) holderTagAdd(tags, { label:'Blind Eyes Whale', cls:'combo', detail:`Owns ${blindEyes} Blind Eyes`, score:82 + blindEyes });
-  if(diamondTraits >= 3) holderTagAdd(tags, { label:'Diamond Baron', cls:'drip', detail:`Owns ${diamondTraits} Diamond traits`, score:84 + diamondTraits });
-  if(topRanks >= 2) holderTagAdd(tags, { label:'Grail Keeper', cls:'grail', detail:`Holds ${topRanks} top-ranked OCAS`, score:86 + topRanks });
-  if(traitNames.size >= Math.max(18, cleanIds.length * 5)) holderTagAdd(tags, { label:'Trait Hoarder', cls:'trait', detail:`${traitNames.size} unique trait values`, score:74 + traitNames.size / 10 });
-  if(comboish >= Math.max(2, Math.ceil(cleanIds.length * 0.18))) holderTagAdd(tags, { label:'Combo Collector', cls:'combo', detail:`${comboish} rare/combo-heavy tokens`, score:78 + comboish });
-  if(cleanIds.length >= 8 && rareTraitHits >= cleanIds.length * 2) holderTagAdd(tags, { label:'One-of-One Hunter', cls:'combo', detail:`${rareTraitHits} rare trait hits`, score:76 + rareTraitHits / 3 });
+  if(zombieCount >= 3) holderTagAdd(tags, { label:'Zombie King', cls:'cursed', detail:`Holds ${zombieCount} Zombies`, ids:typeIds.get([...typeCounts.keys()].find(k => /zombie/i.test(k))) || [], score:90 + zombieCount });
+  if(apeCount >= 3) holderTagAdd(tags, { label:'Ape Lord', cls:'grail', detail:`Holds ${apeCount} Apes`, ids:typeIds.get([...typeCounts.keys()].find(k => /ape/i.test(k))) || [], score:88 + apeCount });
+  if(blindEyes >= 2) holderTagAdd(tags, { label:'Blind Eyes Whale', cls:'combo', detail:`Owns ${blindEyes} Blind Eyes`, ids:blindIds, score:82 + blindEyes });
+  if(diamondTraits >= 3) holderTagAdd(tags, { label:'Diamond Baron', cls:'drip', detail:`Owns ${diamondTraits} Diamond traits`, ids:diamondIds, score:84 + diamondTraits });
+  if(topRanks >= 2) holderTagAdd(tags, { label:'Grail Keeper', cls:'grail', detail:`Holds ${topRanks} top-ranked OCAS`, ids:topRankIds, score:86 + topRanks });
+  if(traitNames.size >= Math.max(18, cleanIds.length * 5)) holderTagAdd(tags, { label:'Trait Hoarder', cls:'trait', detail:`${traitNames.size} unique trait values`, ids:cleanIds, score:74 + traitNames.size / 10 });
+  if(comboish >= Math.max(2, Math.ceil(cleanIds.length * 0.18))) holderTagAdd(tags, { label:'Combo Collector', cls:'combo', detail:`${comboish} rare/combo-heavy tokens`, ids:comboIds, score:78 + comboish });
+  if(cleanIds.length >= 8 && rareTraitHits >= cleanIds.length * 2) holderTagAdd(tags, { label:'One-of-One Hunter', cls:'combo', detail:`${rareTraitHits} rare trait hits`, ids:rareIds, score:76 + rareTraitHits / 3 });
 
   const result = tags.sort((a,b)=>b.score-a.score).slice(0, 5);
   HOLDER_TAG_CACHE.set(key, result);
   return result;
 }
 function renderHolderTags(tags){
-  return (tags || []).map(t => `<span class="holder-tag ${comboEsc(t.cls || '')}"><b>${comboEsc(t.label)}</b><span>${comboEsc(t.detail || '')}</span></span>`).join('');
+  return (tags || []).map(t => `<span class="holder-tag ${comboEsc(t.cls || '')}" data-holder-tag="${comboEsc(t.label)}" data-holder-ids="${comboEsc((t.ids || []).slice(0,16).join(','))}"><b>${comboEsc(t.label)}</b><span>${comboEsc(t.detail || '')}</span></span>`).join('');
 }
 async function hydrateHolderTags(addr, ids, hostId){
   const host = document.getElementById(hostId);
@@ -5170,6 +5253,40 @@ async function hydrateHolderTags(addr, ids, hostId){
   host.innerHTML = renderHolderTags(tags);
   host.style.display = tags.length ? 'flex' : 'none';
 }
+
+function initHolderTagPreview(){
+  const tip = document.getElementById('holderTagPreview');
+  if(!tip || tip.dataset.bound) return;
+  tip.dataset.bound = '1';
+  const isTouch = () => window.matchMedia('(hover: none)').matches || window.innerWidth <= 900;
+  const hide = () => { tip.style.display = 'none'; };
+  const move = (x,y) => {
+    const pad = 12;
+    const rect = tip.getBoundingClientRect();
+    let left = x + 14, top = y + 14;
+    if(left + rect.width > window.innerWidth - pad) left = x - rect.width - 14;
+    if(top + rect.height > window.innerHeight - pad) top = window.innerHeight - rect.height - pad;
+    tip.style.left = Math.max(pad, left) + 'px';
+    tip.style.top = Math.max(pad, top) + 'px';
+  };
+  document.addEventListener('pointerover', e => {
+    if(isTouch()) return;
+    const tag = e.target.closest?.('.holder-tag[data-holder-ids]');
+    if(!tag) return;
+    const rawIds = String(tag.dataset.holderIds || '').split(',').map(Number).filter(Boolean);
+    const ids = rawIds.slice(0,8);
+    if(!ids.length) return;
+    tip.innerHTML = `<div class="holder-tag-preview-title">${comboEsc(tag.dataset.holderTag || 'Holder tag')}</div><div class="holder-tag-preview-grid">${ids.slice(0,8).map(id => {
+      const src = typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : (typeof imgForId === 'function' ? imgForId(id) : '');
+      return src ? `<img src="${comboEsc(src)}" alt="#${id}" title="#${id}">` : '';
+    }).join('')}</div>${rawIds.length > 8 ? `<div class="holder-tag-preview-more">+${rawIds.length - 8} more</div>` : ''}`;
+    tip.style.display = 'block';
+    move(e.clientX, e.clientY);
+  }, { passive:true });
+  document.addEventListener('pointermove', e => { if(tip.style.display === 'block') move(e.clientX, e.clientY); }, { passive:true });
+  document.addEventListener('pointerout', e => { if(e.target.closest?.('.holder-tag[data-holder-ids]')) hide(); }, { passive:true });
+}
+document.addEventListener('DOMContentLoaded', initHolderTagPreview);
 
 function buildRarityBreakdown(id, row){
   const host = document.getElementById('mRarityBreakdown');
