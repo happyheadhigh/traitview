@@ -164,6 +164,15 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #mOwner:hover{border-color:var(--accent);color:var(--text)}
 #mOwner .owner-addr{font-family:monospace;font-size:11px}
 #mPrice{font-size:13px;font-weight:700;color:var(--good)}
+.market-tags{display:flex;align-items:center;gap:5px;flex-wrap:wrap;max-width:100%;margin-top:2px}
+.market-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);color:var(--text);font-size:10.5px;font-weight:800;line-height:1;white-space:nowrap}
+.market-tag.grail{color:#fde68a;border-color:rgba(250,204,21,.34);background:rgba(250,204,21,.105)}
+.market-tag.sleeper,.market-tag.lowkey{color:#d8b4fe;border-color:rgba(216,180,254,.30);background:rgba(167,139,250,.105)}
+.market-tag.combo{color:#67e8f9;border-color:rgba(103,232,249,.30);background:rgba(103,232,249,.105)}
+.market-tag.clean,.market-tag.minimal{color:#bfdbfe;border-color:rgba(147,197,253,.28);background:rgba(147,197,253,.090)}
+.market-tag.weird,.market-tag.cursed{color:#fda4af;border-color:rgba(244,63,94,.30);background:rgba(244,63,94,.105)}
+.market-tag.drip,.market-tag.diamond{color:#1CFFAF;border-color:rgba(28,255,175,.30);background:rgba(28,255,175,.095)}
+.market-tag.trait{color:#f0abfc;border-color:rgba(240,171,252,.28);background:rgba(240,171,252,.095)}
 #modal .mbody{display:grid;grid-template-columns:280px 1fr;gap:14px}
 #modal .traits div span{color:var(--sub);font-size:12px}
 #modal .traits div b{color:var(--text);font-size:13px;font-weight:700}
@@ -801,6 +810,8 @@ a{color:var(--accent)!important}
     margin:0!important;
     min-width:0!important;
   }
+  #mPersonalityTags{margin-top:1px!important;gap:4px!important}
+  #mPersonalityTags .market-tag{font-size:10px!important;padding:3px 6px!important}
   #modal .mhead > div:first-child > div{
     display:flex!important;
     align-items:center!important;
@@ -3051,6 +3062,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     <div class="mhead">
       <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
         <div id="mTitle" class="section" style="font-size:16px"></div>
+        <div id="mPersonalityTags" class="market-tags" aria-label="Market personality tags"></div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span id="mPrice" style="display:none"></span>
           <span id="mOwner" style="display:none" title="View wallet">
@@ -4147,6 +4159,7 @@ async function openModal(id){
   const _osChip  = _osR ? `<span class='chip'>${rankDiamondHtml(_osR,'','os')}</span>` : '';
   const _tvChip  = _tvR ? `<span class='chip'>${rankDiamondHtml(_tvR,'','tv')}</span>` : '';
   $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}`;
+  hydrateMarketPersonalityTags(id, row);
   const links = $('#mLinks'); links.innerHTML = '';
   const listing = (window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null;
   const ethVal  = parseEthMaybeWei(listing?listing.price:null);
@@ -4565,6 +4578,106 @@ function toggleComboInsights(){
   if(!panel) return;
   const collapsed = panel.classList.toggle('is-collapsed');
   if(btn) btn.textContent = collapsed ? 'Show' : 'Hide';
+}
+
+const MARKET_TAG_CACHE = new Map();
+let MARKET_FLOOR_CACHE = null;
+function marketTagFloor(){
+  if(MARKET_FLOOR_CACHE && Date.now() - MARKET_FLOOR_CACHE.ts < 60000) return MARKET_FLOOR_CACHE.floor;
+  const prices = Object.values(window.LISTINGS || {})
+    .map(v => v?.opensea?.price_eth ?? v?.price_eth ?? null)
+    .map(v => Number(v))
+    .filter(v => Number.isFinite(v) && v > 0)
+    .sort((a,b) => a - b);
+  const floor = prices.length ? prices[0] : null;
+  MARKET_FLOOR_CACHE = { floor, ts:Date.now() };
+  return floor;
+}
+function marketTagAdd(list, tag){
+  if(!tag || !tag.label) return;
+  if(list.some(t => t.label === tag.label)) return;
+  list.push(tag);
+}
+function marketTagText(entries){
+  return entries.map(([k,v]) => `${k} ${v}`).join(' ').toLowerCase();
+}
+function marketTagHas(text, words){
+  return words.some(w => text.includes(w));
+}
+async function computeMarketPersonalityTags(id, row){
+  id = +id;
+  const listingKey = window.LISTINGS?.[id]?.opensea?.price_eth ?? '';
+  const cacheKey = `${id}:${listingKey}:${OS_RANK_MAP?.get(id) || ''}:${RARITY_OBS_RANK?.get(id) || ''}`;
+  if(MARKET_TAG_CACHE.has(cacheKey)) return MARKET_TAG_CACHE.get(cacheKey);
+
+  const entries = keepEntries(row.traits);
+  const text = marketTagText(entries);
+  const total = TOKEN_COUNT || 10000;
+  const osRank = Number(OS_RANK_MAP?.get(id) || OS_RANK_MAP?.get(String(id)) || 0);
+  const tvRank = Number(RARITY_OBS_RANK?.get(id) || 0);
+  const rank = osRank || tvRank || null;
+  const traitCount = typeof getTraitCount === 'function' ? getTraitCount(row) : entries.length;
+  const visual = comboVisualTraits(entries);
+  const typeValue = String(visual.type?.value || '').toLowerCase();
+  const traitStats = entries.map(([name,value]) => {
+    const count = (TRAIT_FREQ[name]?.[value]) || total;
+    return { name, value, count, pct: total ? (count / total * 100) : 100 };
+  }).sort((a,b) => a.count - b.count);
+  const rareTraits = traitStats.filter(t => t.count <= Math.max(60, total * 0.006));
+  const extremeTraits = traitStats.filter(t => t.count <= Math.max(12, total * 0.0012));
+  let comboData = null;
+  try{ comboData = Object.keys(TRAIT_FREQ || {}).length ? await buildComboInsights(id, row) : null; }catch(_){ }
+  const comboInsights = comboData?.insights || [];
+  const comboOne = comboInsights.filter(i => i.count === 1).length;
+  const comboNear = comboInsights.filter(i => i.count > 0 && i.count <= 4).length;
+  const hasRareCombo = comboNear > 0 || comboInsights.some(i => /combo|face|type/i.test(i.label || '') && i.count <= 8);
+
+  const listing = window.LISTINGS?.[id]?.opensea || null;
+  const price = Number(listing?.price_eth);
+  const floor = marketTagFloor();
+  const nearFloor = Number.isFinite(price) && floor && price <= floor * 1.18;
+  const stylish = marketTagHas(text, ['hat','cap','crown','helmet','shade','glasses','jacket','chain','earring','bracelet','watch','diamond','gold','golden','grill']);
+  const jewelry = marketTagHas(text, ['chain','earring','bracelet','watch','diamond','gold','golden','grill','jewellery','jewelry']);
+  const weird = marketTagHas(text, ['weird','zombie','alien','skeleton','skull','demonic','radioactive','rainbow','laser','blood','bones','fang','cursed']);
+  const clean = traitCount <= 8 && !weird && !marketTagHas(text, ['rainbow','laser','blood','bones']);
+  const tags = [];
+
+  if(rank && rank <= 100) marketTagAdd(tags, { label:'Grail', cls:'grail', score:130 });
+  if(comboOne >= 2 || (comboOne && extremeTraits.length)) marketTagAdd(tags, { label:'One-of-One Feel', cls:'combo', score:116 });
+  if(hasRareCombo) marketTagAdd(tags, { label:'Rare Combo', cls:'combo', score:105 + comboNear });
+  if(extremeTraits.length >= 2 || rareTraits.length >= 4 || traitCount >= 11) marketTagAdd(tags, { label:'Trait Monster', cls:'trait', score:98 + rareTraits.length });
+  if(rank && rank > 1000 && (comboNear || rareTraits.length >= 2)) marketTagAdd(tags, { label:'Lowkey Rare', cls:'lowkey', score:92 });
+  if(nearFloor && ((rank && rank <= 1500) || hasRareCombo || rareTraits.length >= 2)) marketTagAdd(tags, { label: rank && rank <= 1000 ? 'Floor Flex' : 'Floor Gem', cls:'drip', score:90 });
+  if(rank && rank > 1000 && nearFloor && (hasRareCombo || stylish)) marketTagAdd(tags, { label:'Sleeper', cls:'sleeper', score:88 });
+  if(stylish && jewelry) marketTagAdd(tags, { label: marketTagHas(text, ['diamond']) ? 'Diamond Hands' : 'Drip Check', cls:'drip', score:78 });
+  if(clean) marketTagAdd(tags, { label: traitCount <= 6 ? 'Minimalist' : 'Clean Build', cls:'clean', score:68 });
+  if(weird && !clean) marketTagAdd(tags, { label:'Weird Build', cls:'weird', score:64 });
+  if(typeValue.includes('zombie') && ((rank && rank <= 1000) || hasRareCombo || rareTraits.length)) marketTagAdd(tags, { label:'Zombie King', cls:'cursed', score:86 });
+  if((typeValue.includes('alien') || typeValue.includes('radioactive')) && (hasRareCombo || rareTraits.length || stylish)) marketTagAdd(tags, { label:'Alien Energy', cls:'combo', score:84 });
+  if((typeValue.includes('demonic') || text.includes('skeleton') || text.includes('skull')) && (hasRareCombo || rareTraits.length || weird)) marketTagAdd(tags, { label:'Cursed', cls:'cursed', score:82 });
+  if(!tags.length && rareTraits.length) marketTagAdd(tags, { label:'Collector Piece', cls:'combo', score:62 });
+
+  const result = tags.sort((a,b) => b.score - a.score).slice(0, 4);
+  MARKET_TAG_CACHE.set(cacheKey, result);
+  return result;
+}
+function renderMarketPersonalityTags(tags){
+  return (tags || []).map(t => `<span class="market-tag ${comboEsc(t.cls || '')}" title="Grounded in this token's rank, traits, combos, and listing data">${comboEsc(t.label)}</span>`).join('');
+}
+async function hydrateMarketPersonalityTags(id, row){
+  const host = document.getElementById('mPersonalityTags');
+  if(!host) return;
+  const tokenId = +id;
+  host.innerHTML = '';
+  try{
+    const tags = await computeMarketPersonalityTags(tokenId, row);
+    if(window._modalCurrentId !== tokenId) return;
+    host.innerHTML = renderMarketPersonalityTags(tags);
+    host.style.display = tags.length ? 'flex' : 'none';
+  }catch(e){
+    console.warn('[MarketTags] failed:', e);
+    if(window._modalCurrentId === tokenId) host.style.display = 'none';
+  }
 }
 
 function buildRarityBreakdown(id, row){
