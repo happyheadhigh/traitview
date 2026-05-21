@@ -8259,6 +8259,193 @@ function drawStudioCollection(ctx, x, y){
   ctx.fillStyle = '#1CFFAF';
   ctx.fillText('ALL-STARS', x + 140, y);
 }
+function studioTraitProfile(count, layout){
+  if(layout === 'story'){
+    if(count <= 2) return { rowH:108, gap:18, label:20, value:36, pct:32, pad:28 };
+    if(count <= 5) return { rowH:84, gap:13, label:17, value:29, pct:26, pad:24 };
+    if(count <= 8) return { rowH:66, gap:10, label:14, value:23, pct:22, pad:20 };
+    return { rowH:54, gap:8, label:12, value:19, pct:18, pad:17 };
+  }
+  if(layout === 'square') return { rowH:58, gap:10, label:13, value:21, pct:20, pad:18 };
+  return { rowH:43, gap:5, label:12, value:19, pct:18, pad:16 };
+}
+function drawStudioTraitRows(ctx, traits, x, y, w, bottom, pal, layout){
+  const profile = studioTraitProfile(traits.length, layout);
+  const maxRows = Math.max(0, Math.floor((bottom - y) / (profile.rowH + profile.gap)));
+  const visible = traits.slice(0, maxRows || traits.length);
+  if(!visible.length) return y;
+  ctx.fillStyle = pal.traitLabel;
+  ctx.font = `800 ${Math.max(16, profile.label + 2)}px Space Grotesk, Segoe UI, sans-serif`;
+  ctx.fillText('TOP TRAITS', x, y);
+  y += profile.rowH > 80 ? 48 : 36;
+  for(const t of visible){
+    if(y + profile.rowH > bottom) break;
+    _roundRect(ctx, x, y, w, profile.rowH, 14);
+    ctx.fillStyle = pal.traitRow;
+    ctx.fill();
+    ctx.strokeStyle = pal.traitBorder;
+    ctx.stroke();
+    const pct = t.pct == null ? '' : (t.pct < .1 ? t.pct.toFixed(3) : t.pct.toFixed(1)) + '%';
+    const tx = x + profile.pad;
+    const right = x + w - profile.pad;
+    ctx.textAlign = 'left';
+    ctx.font = `700 ${profile.label}px Space Grotesk, Segoe UI, sans-serif`;
+    ctx.fillStyle = pal.traitLabel;
+    ctx.fillText(_ellipsizeCanvasText(ctx, String(t.trait).toUpperCase(), w * .56), tx, y + profile.pad);
+    ctx.font = `800 ${profile.value}px Space Grotesk, Segoe UI, sans-serif`;
+    ctx.fillStyle = pal.traitValue;
+    ctx.fillText(_ellipsizeCanvasText(ctx, String(t.value), w * .64), tx, y + profile.pad + profile.value + 5);
+    ctx.textAlign = 'right';
+    ctx.font = `900 ${profile.pct}px Space Grotesk, Segoe UI, sans-serif`;
+    ctx.fillStyle = pal.traitAccent;
+    ctx.fillText(pct, right, y + profile.rowH / 2 + profile.pct / 3);
+    ctx.textAlign = 'left';
+    y += profile.rowH + profile.gap;
+  }
+  return y;
+}
+async function renderStudioStoryCanvas(id, row, opts, canvas, ctx, W, H, pal){
+  fillStudioBackground(ctx, W, H, pal, opts.background);
+  const margin = 70;
+  _roundRect(ctx, margin, margin, W - margin*2, H - margin*2, 42);
+  ctx.fillStyle = opts.background === 'frosted' ? 'rgba(255,255,255,.035)' : pal.glass;
+  ctx.shadowColor = pal.glow; ctx.shadowBlur = 34; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.strokeStyle = pal.border; ctx.lineWidth = 2; ctx.stroke();
+  let y = 118;
+  if(opts.toggles.collection){ drawStudioCollection(ctx, margin + 44, y); y += 82; }
+  const osRank = OS_RANK_MAP?.get(id) || OS_RANK_MAP?.get(String(id)) || null;
+  if(opts.toggles.tokenId){
+    ctx.fillStyle = contrastTextFor(pal.bg?.[0] || '#08111a');
+    ctx.font = '900 82px Space Grotesk, Segoe UI, sans-serif';
+    const title = '#' + id;
+    ctx.fillText(title, margin + 44, y);
+    if(opts.toggles.rank && osRank) _drawShareCardRank(ctx, osRank, margin + 70 + ctx.measureText(title).width, y - 18);
+  }
+  const artSize = 790;
+  const artX = Math.round((W - artSize) / 2);
+  const artY = 278;
+  const artCanvas = await _tokenCanvasWithBackground(id, 960);
+  ctx.shadowColor = pal.glow; ctx.shadowBlur = 32;
+  _roundRect(ctx, artX - 16, artY - 16, artSize + 32, artSize + 32, 32);
+  ctx.fillStyle = pal.artFill; ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = pal.border; ctx.stroke();
+  ctx.save(); _roundRect(ctx, artX, artY, artSize, artSize, 24); ctx.clip(); ctx.imageSmoothingEnabled = false; ctx.drawImage(artCanvas, artX, artY, artSize, artSize); ctx.restore(); ctx.imageSmoothingEnabled = true;
+
+  const contentX = margin + 46;
+  const contentW = W - margin*2 - 92;
+  y = artY + artSize + 74;
+  const owner = window.OWNER_CACHE?.[id] || document.getElementById('mOwner')?.dataset?.address || '';
+  const traitCount = typeof getTraitCount === 'function' ? getTraitCount(row) : keepEntries(row.traits).length;
+  const chips = [];
+  if(opts.toggles.traitCount) chips.push('Traits: ' + traitCount);
+  if(opts.toggles.owner && owner) chips.push('Owner ' + _shareCardShortAddr(owner));
+  ctx.font = '800 28px Space Grotesk, Segoe UI, sans-serif';
+  let cx = contentX;
+  for(const chip of chips){
+    const cw = Math.min(contentW, Math.ceil(ctx.measureText(chip).width) + 34);
+    _roundRect(ctx, cx, y, cw, 48, 14); ctx.fillStyle = pal.statBg; ctx.fill(); ctx.strokeStyle = pal.statBorder; ctx.stroke();
+    ctx.fillStyle = pal.stat; ctx.fillText(_ellipsizeCanvasText(ctx, chip, cw - 30), cx + 17, y + 33);
+    cx += cw + 14;
+  }
+  if(chips.length) y += 76;
+  if(opts.toggles.tokenTags){
+    const tags = await computeMarketPersonalityTags(id, row);
+    ctx.font = '900 23px Space Grotesk, Segoe UI, sans-serif';
+    cx = contentX;
+    for(const tag of tags.slice(0,4)){
+      const label = tag.label;
+      const tw = Math.ceil(ctx.measureText(label).width) + 30;
+      if(cx + tw > contentX + contentW){ cx = contentX; y += 42; }
+      _roundRect(ctx, cx, y - 31, tw, 38, 19); ctx.fillStyle = 'rgba(28,255,175,.09)'; ctx.fill(); ctx.strokeStyle = 'rgba(28,255,175,.24)'; ctx.stroke();
+      ctx.fillStyle = '#d7f7ef'; ctx.fillText(label, cx + 15, y - 5);
+      cx += tw + 10;
+    }
+    if(tags.length) y += 36;
+  }
+  if(opts.toggles.owner && opts.toggles.holderTags && owner){
+    const walletInput = (document.getElementById('walletInput')?.value || document.getElementById('mobileWalletInput')?.value || '').trim().toLowerCase();
+    const walletIds = walletInput === String(owner).trim().toLowerCase() ? (window._walletTokenIds || window._mobileWalletIds || []) : [];
+    if(walletIds.length){
+      const htags = await computeHolderTags(owner, walletIds);
+      ctx.font = '800 21px Space Grotesk, Segoe UI, sans-serif';
+      cx = contentX;
+      for(const tag of htags.slice(0,3)){
+        const tw = Math.ceil(ctx.measureText(tag.label).width) + 28;
+        _roundRect(ctx, cx, y - 28, tw, 34, 17); ctx.fillStyle = 'rgba(255,255,255,.055)'; ctx.fill(); ctx.strokeStyle = pal.border; ctx.stroke();
+        ctx.fillStyle = '#f8fafc'; ctx.fillText(tag.label, cx + 14, y - 5);
+        cx += tw + 10;
+      }
+      if(htags.length) y += 34;
+    }
+  }
+  if(opts.toggles.comboInsight){
+    try{
+      const combo = await buildComboInsights(id, row);
+      const insight = combo?.insights?.[0]?.text;
+      if(insight){
+        ctx.font = '800 25px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitAccent;
+        ctx.fillText(_ellipsizeCanvasText(ctx, insight, contentW), contentX, y);
+        y += 54;
+      }
+    }catch(_){}
+  }
+  if(opts.toggles.topTraits){
+    const traits = studioTraitSelection(row, opts);
+    drawStudioTraitRows(ctx, traits.slice(0, 10), contentX, y, contentW, H - margin - 40, pal, 'story');
+  }
+  return canvas;
+}
+async function renderStudioSquareCanvas(id, row, opts, canvas, ctx, W, H, pal){
+  fillStudioBackground(ctx, W, H, pal, opts.background);
+  const margin = 58;
+  _roundRect(ctx, margin, margin, W - margin*2, H - margin*2, 38);
+  ctx.fillStyle = opts.background === 'frosted' ? 'rgba(255,255,255,.035)' : pal.glass;
+  ctx.shadowColor = pal.glow; ctx.shadowBlur = 24; ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = pal.border; ctx.stroke();
+  const osRank = OS_RANK_MAP?.get(id) || OS_RANK_MAP?.get(String(id)) || null;
+  if(opts.toggles.collection) drawStudioCollection(ctx, margin + 34, 116);
+  const artSize = 610;
+  const artX = Math.round((W - artSize) / 2);
+  const artY = 158;
+  const artCanvas = await _tokenCanvasWithBackground(id, 960);
+  ctx.shadowColor = pal.glow; ctx.shadowBlur = 24; _roundRect(ctx, artX - 12, artY - 12, artSize + 24, artSize + 24, 28); ctx.fillStyle = pal.artFill; ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = pal.border; ctx.stroke();
+  ctx.save(); _roundRect(ctx, artX, artY, artSize, artSize, 22); ctx.clip(); ctx.imageSmoothingEnabled = false; ctx.drawImage(artCanvas, artX, artY, artSize, artSize); ctx.restore(); ctx.imageSmoothingEnabled = true;
+  let y = artY + artSize + 76;
+  const x = margin + 44;
+  const w = W - margin*2 - 88;
+  if(opts.toggles.tokenId){
+    ctx.font = '900 70px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = contrastTextFor(pal.bg?.[0] || '#08111a');
+    const title = '#' + id; ctx.fillText(title, x, y);
+    if(opts.toggles.rank && osRank) _drawShareCardRank(ctx, osRank, x + ctx.measureText(title).width + 22, y - 16);
+    y += 58;
+  }
+  if(opts.toggles.tokenTags){
+    const tags = await computeMarketPersonalityTags(id, row);
+    ctx.font = '900 21px Space Grotesk, Segoe UI, sans-serif';
+    let tx = x;
+    for(const tag of tags.slice(0,2)){
+      const tw = Math.ceil(ctx.measureText(tag.label).width) + 28;
+      _roundRect(ctx, tx, y - 28, tw, 36, 18); ctx.fillStyle = 'rgba(28,255,175,.09)'; ctx.fill(); ctx.strokeStyle = 'rgba(28,255,175,.24)'; ctx.stroke();
+      ctx.fillStyle = '#d7f7ef'; ctx.fillText(tag.label, tx + 14, y - 4);
+      tx += tw + 10;
+    }
+    if(tags.length) y += 40;
+  }
+  if(opts.toggles.comboInsight){
+    try{
+      const combo = await buildComboInsights(id, row);
+      const insight = combo?.insights?.[0]?.text;
+      if(insight){
+        ctx.font = '800 25px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitAccent;
+        ctx.fillText(_ellipsizeCanvasText(ctx, insight, w), x, y);
+        return canvas;
+      }
+    }catch(_){}
+  }
+  if(opts.toggles.topTraits){
+    const traits = studioTraitSelection(row, opts).slice(0,2);
+    drawStudioTraitRows(ctx, traits, x, y, w, H - margin - 28, pal, 'square');
+  }
+  return canvas;
+}
 async function renderStudioCanvas(id, opts, targetCanvas){
   id = Number(id);
   const row = (ROW_CACHE && ROW_CACHE.get(id)) || await fetchRow(id);
@@ -8268,6 +8455,8 @@ async function renderStudioCanvas(id, opts, targetCanvas){
   const ctx = canvas.getContext('2d', { alpha:false });
   ctx.imageSmoothingEnabled = true;
   const pal = applyStudioColorsToPalette(_getShareCardPalette(opts.palette), opts);
+  if(opts.layout === 'story') return await renderStudioStoryCanvas(id, row, opts, canvas, ctx, W, H, pal);
+  if(opts.layout === 'square') return await renderStudioSquareCanvas(id, row, opts, canvas, ctx, W, H, pal);
   fillStudioBackground(ctx, W, H, pal, opts.background);
 
   const margin = Math.round(Math.min(W,H) * .055);
