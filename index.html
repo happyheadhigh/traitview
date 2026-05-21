@@ -1391,6 +1391,31 @@ a{color:var(--accent)!important}
 }
 .share-card-palette-row select:hover,.share-card-palette-row select:focus{border-color:rgba(167,139,250,.45);box-shadow:0 0 0 2px rgba(167,139,250,.16);outline:none}
 .share-card-palette-row select option{background:#101522;color:#f8fafc}
+.studio-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:16px}
+.studio-modal.open{display:flex}
+.studio-box{width:min(1120px,96vw);max-height:92vh;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(8,14,23,.96);box-shadow:0 24px 80px rgba(0,0,0,.7);padding:14px;color:var(--text)}
+.studio-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.studio-title{font-size:14px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+.studio-grid{display:grid;grid-template-columns:340px 1fr;gap:14px}
+.studio-controls{display:grid;gap:10px;align-content:start}
+.studio-panel{border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(255,255,255,.04);padding:10px}
+.studio-label{font-size:10px;color:rgba(226,232,240,.78);letter-spacing:.07em;text-transform:uppercase;font-weight:800;margin-bottom:6px}
+.studio-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.studio-select,.studio-panel select{width:100%;min-height:34px;border-radius:9px;background:rgba(9,14,22,.96);border:1px solid rgba(255,255,255,.16);color:#f8fafc;font:700 12px/1 var(--font);padding:7px 9px;color-scheme:dark}
+.studio-checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.studio-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--sub)}
+.studio-check input{accent-color:#1CFFAF}
+.studio-trait-list{display:grid;gap:5px;max-height:150px;overflow:auto;padding-right:2px}
+.studio-preview-wrap{display:grid;place-items:center;min-height:420px;border:1px solid rgba(255,255,255,.10);border-radius:14px;background:radial-gradient(circle at 20% 10%,rgba(28,255,175,.08),transparent 34%),rgba(0,0,0,.22);padding:12px;overflow:hidden}
+#studioPreview{max-width:100%;max-height:68vh;width:auto;height:auto;border-radius:10px;box-shadow:0 16px 50px rgba(0,0,0,.45)}
+.studio-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap}
+@media(max-width:900px){
+  .studio-modal{padding:8px;align-items:flex-start}
+  .studio-box{width:100%;max-height:96vh;padding:10px;border-radius:14px}
+  .studio-grid{grid-template-columns:1fr}
+  .studio-preview-wrap{min-height:260px}
+  .studio-row,.studio-checks{grid-template-columns:1fr}
+}
 @media (max-width:900px){
   .render-tools-pill{display:none}
 }
@@ -3005,6 +3030,56 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   </div>
 </div>
 
+<div id="studioModal" class="studio-modal" onclick="if(event.target===this) closeTraitViewStudio()">
+  <div class="studio-box">
+    <div class="studio-head">
+      <div>
+        <div class="studio-title">TraitView Studio</div>
+        <div style="font-size:11px;color:var(--sub)">Opinionated OCAS share-card builder</div>
+      </div>
+      <button class="btn ghost" onclick="closeTraitViewStudio()" style="width:34px;height:34px;padding:0;border-radius:999px">×</button>
+    </div>
+    <div class="studio-grid">
+      <div class="studio-controls">
+        <div class="studio-panel">
+          <div class="studio-label">Layout & Style</div>
+          <div class="studio-row">
+            <select id="studioLayout" class="studio-select"><option value="wide">Wide 1200x630</option><option value="square">Square 1:1</option><option value="story">Story 9:16</option></select>
+            <select id="studioPalette" class="studio-select"><option value="default">Default</option><option value="dark">Dark</option><option value="glow">Neon / Glow</option><option value="minimal">Clean / Minimal</option></select>
+          </div>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Background</div>
+          <select id="studioBackground" class="studio-select"><option value="gradient">Current gradient</option><option value="glass">Dark glass</option><option value="token">Token-matched accent</option><option value="solid">Solid dark</option><option value="frosted">Transparent/frosted look</option></select>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Display</div>
+          <div class="studio-checks" id="studioToggles">
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="tokenId" checked>Token ID</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="collection" checked>Collection</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="rank" checked>Rank</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="traitCount" checked>Trait count</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="topTraits" checked>Top traits</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="tokenTags" checked>Token tags</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="comboInsight" checked>Combo insight</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="owner">Owner</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="holderTags">Holder tags</label>
+          </div>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Traits</div>
+          <select id="studioTraitMode" class="studio-select" style="margin-bottom:8px"><option value="auto">Auto: rarest traits</option><option value="top3">Top 3 rarest</option><option value="top5">Top 5 rarest</option><option value="custom">Custom selected traits</option></select>
+          <div id="studioTraitList" class="studio-trait-list"></div>
+        </div>
+      </div>
+      <div>
+        <div class="studio-preview-wrap"><canvas id="studioPreview" width="1200" height="630"></canvas></div>
+        <div class="studio-actions"><button class="btn ghost" onclick="renderTraitViewStudioPreview()">Refresh Preview</button><button class="btn" id="studioExportBtn" onclick="exportTraitViewStudioPng()">Export PNG</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Mobile analytics bottom sheet ── -->
 <div id="mobileAnalyticsOverlay" onclick="closeMobileAnalytics()"></div>
 <div id="mobileAnalyticsSheet">
@@ -3112,6 +3187,9 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
               </div>
               <button id="mShareCardBtn" class="export-menu-btn">
                 <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 10l2-2 2 2 2-3 2 3"/></svg>Share Card PNG
+              </button>
+              <button id="mCustomizeCardBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h10"/><path d="M4 10l6-6 2 2-6 6H4z"/></svg>Customize Card
               </button>
             </div>
           </div>
@@ -4197,6 +4275,7 @@ async function openModal(id){
   const dlBgBtn  = document.getElementById('mDownloadBgBtn');
   const dlNoBgBtn = document.getElementById('mDownloadNoBgBtn');
   const shareCardBtn = document.getElementById('mShareCardBtn');
+  const customizeCardBtn = document.getElementById('mCustomizeCardBtn');
   if(dlBtn && dlMenu){
     dlBtn.onclick = (e) => {
       e.stopPropagation();
@@ -4214,6 +4293,7 @@ async function openModal(id){
   if(dlBgBtn)  dlBgBtn.onclick  = () => { if(dlMenu) dlMenu.style.display='none'; downloadTokenPng(id, true);  };
   if(dlNoBgBtn) dlNoBgBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; downloadTokenPng(id, false); };
   if(shareCardBtn) shareCardBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; downloadShareCardPng(id); };
+  if(customizeCardBtn) customizeCardBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; openTraitViewStudio(id); };
   if(favBtn){
     favBtn.setAttribute('data-fav-id', String(id));
     favBtn.classList.toggle('active', isFavorite(id));
@@ -7853,8 +7933,8 @@ async function _tokenCanvasWithBackground(id, size){
   return canvas;
 }
 
-function _getShareCardPalette(){
-  const style = document.getElementById('mShareCardPalette')?.value || 'default';
+function _getShareCardPalette(styleOverride){
+  const style = styleOverride || document.getElementById('mShareCardPalette')?.value || 'default';
   const palettes = {
     default: {
       bg:['#08111a','#0d1d24','#10162a','#070b12'],
@@ -8045,6 +8125,229 @@ async function downloadShareCardPng(id){
     alert('Share card error: ' + (e?.message || String(e)));
   }finally{
     _setDownloadBtnState(btn, 'Share Card PNG', false);
+  }
+}
+
+let STUDIO_TOKEN_ID = null;
+function studioDims(layout){
+  if(layout === 'square') return { W:1080, H:1080 };
+  if(layout === 'story') return { W:1080, H:1920 };
+  return { W:1200, H:630 };
+}
+function studioOptions(){
+  const toggles = {};
+  document.querySelectorAll('[data-studio-toggle]').forEach(el => { toggles[el.dataset.studioToggle] = !!el.checked; });
+  return {
+    layout: document.getElementById('studioLayout')?.value || 'wide',
+    palette: document.getElementById('studioPalette')?.value || 'default',
+    background: document.getElementById('studioBackground')?.value || 'gradient',
+    traitMode: document.getElementById('studioTraitMode')?.value || 'auto',
+    toggles
+  };
+}
+function studioTraitSelection(row, opts){
+  const rows = _shareCardTraitRows(row, opts.traitMode === 'top3' ? 3 : 6);
+  if(opts.traitMode === 'top5') return rows.slice(0,5);
+  if(opts.traitMode !== 'custom') return rows;
+  const selected = new Set([...document.querySelectorAll('#studioTraitList input:checked')].map(i => i.value));
+  const all = _shareCardTraitRows(row, 99);
+  return all.filter(t => selected.has(`${t.trait}::${t.value}`)).slice(0,6);
+}
+function fillStudioBackground(ctx, W, H, pal, mode){
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  if(mode === 'solid'){
+    ctx.fillStyle = pal.bg[3];
+    ctx.fillRect(0,0,W,H);
+    return;
+  }
+  const colors = mode === 'glass' ? ['#03060a','#07101a','#090b12','#020304'] : pal.bg;
+  bg.addColorStop(0, colors[0]); bg.addColorStop(.42, colors[1]); bg.addColorStop(.72, colors[2]); bg.addColorStop(1, colors[3]);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+  const a = mode === 'frosted' ? .055 : 1;
+  const wash = ctx.createRadialGradient(W*.18, H*.16, 20, W*.18, H*.16, Math.max(W,H)*.55);
+  wash.addColorStop(0, mode === 'token' ? 'rgba(28,255,175,.34)' : pal.wash);
+  wash.addColorStop(.58, mode === 'token' ? 'rgba(103,232,249,.075)' : pal.washMid);
+  wash.addColorStop(1, `rgba(0,0,0,0)`);
+  ctx.globalAlpha = a;
+  ctx.fillStyle = wash;
+  ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha = 1;
+  if(mode !== 'frosted'){
+    const violet = ctx.createRadialGradient(W*.84, H*.82, 30, W*.84, H*.82, Math.max(W,H)*.55);
+    violet.addColorStop(0, pal.wash2);
+    violet.addColorStop(.58, pal.wash2Mid);
+    violet.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = violet;
+    ctx.fillRect(0,0,W,H);
+  }
+}
+function drawStudioCollection(ctx, x, y){
+  ctx.font = '800 24px Space Grotesk, Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillText('ON-CHAIN', x, y);
+  ctx.fillStyle = '#1CFFAF';
+  ctx.fillText('ALL-STARS', x + 140, y);
+}
+async function renderStudioCanvas(id, opts, targetCanvas){
+  id = Number(id);
+  const row = (ROW_CACHE && ROW_CACHE.get(id)) || await fetchRow(id);
+  const { W, H } = studioDims(opts.layout);
+  const canvas = targetCanvas || document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d', { alpha:false });
+  ctx.imageSmoothingEnabled = true;
+  const pal = _getShareCardPalette(opts.palette);
+  fillStudioBackground(ctx, W, H, pal, opts.background);
+
+  const margin = Math.round(Math.min(W,H) * .055);
+  ctx.shadowColor = pal.glow;
+  ctx.shadowBlur = opts.background === 'frosted' ? 14 : 30;
+  _roundRect(ctx, margin, margin, W - margin*2, H - margin*2, Math.max(24, margin*.65));
+  ctx.fillStyle = opts.background === 'frosted' ? 'rgba(255,255,255,.035)' : pal.glass;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = pal.border;
+  ctx.lineWidth = Math.max(1, W/700);
+  ctx.stroke();
+
+  const isWide = opts.layout === 'wide';
+  const artSize = isWide ? Math.min(430, H - margin*3) : Math.min(W - margin*4, opts.layout === 'story' ? 720 : 520);
+  const artX = isWide ? margin + 34 : Math.round((W - artSize) / 2);
+  const artY = isWide ? Math.round((H - artSize) / 2) : margin + 62;
+  const artCanvas = await _tokenCanvasWithBackground(id, 960);
+  ctx.shadowColor = pal.glow; ctx.shadowBlur = 22;
+  _roundRect(ctx, artX - 12, artY - 12, artSize + 24, artSize + 24, 24);
+  ctx.fillStyle = pal.artFill; ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = pal.border; ctx.stroke();
+  ctx.save(); _roundRect(ctx, artX, artY, artSize, artSize, 18); ctx.clip(); ctx.imageSmoothingEnabled = false; ctx.drawImage(artCanvas, artX, artY, artSize, artSize); ctx.restore(); ctx.imageSmoothingEnabled = true;
+
+  const contentX = isWide ? artX + artSize + 44 : margin + 36;
+  const contentW = isWide ? W - contentX - margin - 36 : W - margin*2 - 72;
+  let y = isWide ? artY + 2 : artY + artSize + 54;
+  const osRank = OS_RANK_MAP?.get(id) || OS_RANK_MAP?.get(String(id)) || null;
+  const traitCount = typeof getTraitCount === 'function' ? getTraitCount(row) : keepEntries(row.traits).length;
+  const owner = window.OWNER_CACHE?.[id] || document.getElementById('mOwner')?.dataset?.address || '';
+
+  if(opts.toggles.collection){ drawStudioCollection(ctx, contentX, y); y += 58; }
+  if(opts.toggles.tokenId){
+    ctx.fillStyle = '#f8fafc'; ctx.font = `800 ${isWide ? 60 : 70}px Space Grotesk, Segoe UI, sans-serif`; ctx.textAlign = 'left';
+    const title = '#' + id; ctx.fillText(title, contentX, y);
+    if(opts.toggles.rank && osRank) _drawShareCardRank(ctx, osRank, contentX + ctx.measureText(title).width + 22, y - 14);
+    y += isWide ? 52 : 64;
+  }
+  const chips = [];
+  if(opts.toggles.traitCount) chips.push('Traits: ' + traitCount);
+  if(opts.toggles.owner && owner) chips.push('Owner ' + _shareCardShortAddr(owner));
+  ctx.font = '700 20px Space Grotesk, Segoe UI, sans-serif';
+  let chipX = contentX;
+  for(const chip of chips){
+    const w = Math.min(contentW, Math.ceil(ctx.measureText(chip).width) + 24);
+    _roundRect(ctx, chipX, y, w, 34, 10); ctx.fillStyle = pal.statBg; ctx.fill(); ctx.strokeStyle = pal.statBorder; ctx.stroke();
+    ctx.fillStyle = pal.stat; ctx.fillText(_ellipsizeCanvasText(ctx, chip, w - 22), chipX + 12, y + 23);
+    chipX += w + 10;
+    if(chipX > contentX + contentW - 110){ chipX = contentX; y += 42; }
+  }
+  if(chips.length) y += 54;
+
+  if(opts.toggles.tokenTags){
+    const tags = await computeMarketPersonalityTags(id, row);
+    ctx.font = '800 16px Space Grotesk, Segoe UI, sans-serif';
+    let tagX = contentX;
+    for(const tag of tags.slice(0,3)){
+      const label = tag.label;
+      const w = Math.ceil(ctx.measureText(label).width) + 22;
+      if(tagX + w > contentX + contentW){ tagX = contentX; y += 32; }
+      _roundRect(ctx, tagX, y - 22, w, 28, 14); ctx.fillStyle = 'rgba(28,255,175,.08)'; ctx.fill(); ctx.strokeStyle = 'rgba(28,255,175,.22)'; ctx.stroke();
+      ctx.fillStyle = '#d7f7ef'; ctx.fillText(label, tagX + 11, y - 3);
+      tagX += w + 8;
+    }
+    if(tags.length) y += 30;
+  }
+  if(opts.toggles.holderTags && owner){
+    const walletInput = (document.getElementById('walletInput')?.value || document.getElementById('mobileWalletInput')?.value || '').trim().toLowerCase();
+    const ownerKey = String(owner).trim().toLowerCase();
+    const walletIds = walletInput === ownerKey ? (window._walletTokenIds || window._mobileWalletIds || []) : [];
+    if(walletIds.length){
+      const holderTags = await computeHolderTags(owner, walletIds);
+      ctx.font = '800 15px Space Grotesk, Segoe UI, sans-serif';
+      let hx = contentX;
+      for(const tag of holderTags.slice(0,3)){
+        const label = tag.label;
+        const w = Math.ceil(ctx.measureText(label).width) + 22;
+        if(hx + w > contentX + contentW){ hx = contentX; y += 30; }
+        _roundRect(ctx, hx, y - 20, w, 27, 14); ctx.fillStyle = 'rgba(255,255,255,.055)'; ctx.fill(); ctx.strokeStyle = pal.border; ctx.stroke();
+        ctx.fillStyle = '#f8fafc'; ctx.fillText(label, hx + 11, y - 2);
+        hx += w + 8;
+      }
+      if(holderTags.length) y += 30;
+    }
+  }
+
+  if(opts.toggles.comboInsight){
+    try{
+      const combo = await buildComboInsights(id, row);
+      const insight = combo?.insights?.[0]?.text;
+      if(insight){
+        ctx.font = '700 17px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitAccent;
+        ctx.fillText(_ellipsizeCanvasText(ctx, insight, contentW), contentX, y);
+        y += 38;
+      }
+    }catch(_){}
+  }
+
+  if(opts.toggles.topTraits){
+    const traits = studioTraitSelection(row, opts);
+    ctx.fillStyle = pal.traitLabel; ctx.font = '800 17px Space Grotesk, Segoe UI, sans-serif'; ctx.fillText('TOP TRAITS', contentX, y); y += 36;
+    const rowH = isWide ? 43 : 54;
+    for(const t of traits.slice(0, opts.layout === 'story' ? 8 : 6)){
+      if(y + rowH > H - margin - 16) break;
+      _roundRect(ctx, contentX, y - 25, contentW, rowH, 12); ctx.fillStyle = pal.traitRow; ctx.fill(); ctx.strokeStyle = pal.traitBorder; ctx.stroke();
+      const pct = t.pct == null ? '' : (t.pct < .1 ? t.pct.toFixed(3) : t.pct.toFixed(1)) + '%';
+      ctx.textAlign = 'left'; ctx.font = '700 12px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitLabel; ctx.fillText(_ellipsizeCanvasText(ctx, String(t.trait).toUpperCase(), contentW*.56), contentX + 16, y - 6);
+      ctx.font = '700 19px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitValue; ctx.fillText(_ellipsizeCanvasText(ctx, String(t.value), contentW*.62), contentX + 16, y + 14);
+      ctx.textAlign = 'right'; ctx.font = '800 18px Space Grotesk, Segoe UI, sans-serif'; ctx.fillStyle = pal.traitAccent; ctx.fillText(pct, contentX + contentW - 16, y + 4); ctx.textAlign = 'left';
+      y += rowH + 5;
+    }
+  }
+  return canvas;
+}
+async function openTraitViewStudio(id){
+  STUDIO_TOKEN_ID = Number(id || window._modalCurrentId || 0);
+  if(!STUDIO_TOKEN_ID) return;
+  document.getElementById('studioModal')?.classList.add('open');
+  const pal = document.getElementById('mShareCardPalette')?.value;
+  if(pal) document.getElementById('studioPalette').value = pal;
+  const row = await fetchRow(STUDIO_TOKEN_ID);
+  const list = document.getElementById('studioTraitList');
+  if(list){
+    list.innerHTML = _shareCardTraitRows(row, 99).map((t,idx)=>`<label class="studio-check"><input type="checkbox" value="${comboEsc(t.trait)}::${comboEsc(t.value)}" ${idx<5?'checked':''}>${comboEsc(t.trait)}: ${comboEsc(t.value)}</label>`).join('');
+  }
+  document.querySelectorAll('#studioModal select,#studioModal input').forEach(el => {
+    el.onchange = () => renderTraitViewStudioPreview();
+  });
+  renderTraitViewStudioPreview();
+}
+function closeTraitViewStudio(){
+  document.getElementById('studioModal')?.classList.remove('open');
+}
+async function renderTraitViewStudioPreview(){
+  if(!STUDIO_TOKEN_ID) return;
+  const canvas = document.getElementById('studioPreview');
+  await renderStudioCanvas(STUDIO_TOKEN_ID, studioOptions(), canvas);
+}
+async function exportTraitViewStudioPng(){
+  if(!STUDIO_TOKEN_ID) return;
+  const btn = document.getElementById('studioExportBtn');
+  _setDownloadBtnState(btn, 'Exporting...', true);
+  try{
+    const canvas = await renderStudioCanvas(STUDIO_TOKEN_ID, studioOptions());
+    await _downloadCanvasAsPng(canvas, `ocas-${STUDIO_TOKEN_ID}-studio-card.png`);
+  }catch(e){
+    console.error('TraitView Studio export:', e);
+    alert('Studio export error: ' + (e?.message || String(e)));
+  }finally{
+    _setDownloadBtnState(btn, 'Export PNG', false);
   }
 }
 
