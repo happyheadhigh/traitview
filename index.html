@@ -1542,6 +1542,45 @@ a{color:var(--accent)!important}
 .wallet-rank { color: var(--sub, #9ab0c8); font-size: 9px; }
 .wallet-count { font-size: 10px; color: var(--accent); font-weight: 700; }
 
+/* Wallet Analytics */
+.wallet-analytics{display:flex;flex-direction:column;gap:10px;max-width:100%;overflow:hidden}
+.wallet-analytics-card{border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.065),rgba(28,255,175,.035));box-shadow:0 12px 28px rgba(0,0,0,.20);padding:10px;max-width:100%;overflow:hidden}
+.wallet-analytics-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.wallet-analytics-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text)}
+.wallet-analytics-sub{font-size:11px;color:var(--sub);line-height:1.35}
+.wallet-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.wallet-stat-chip{min-width:0;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(255,255,255,.045);padding:8px}
+.wallet-stat-chip span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-stat-chip b{display:block;margin-top:4px;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-top-token-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px}
+.wallet-top-token{cursor:pointer;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(255,255,255,.045);overflow:hidden;min-width:0}
+.wallet-top-token:hover{border-color:rgba(28,255,175,.38);box-shadow:0 0 0 1px rgba(28,255,175,.12)}
+.wallet-top-token-img{aspect-ratio:1/1;background:rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center}
+.wallet-top-token-img img{width:100%;height:100%;object-fit:contain;display:block}
+.wallet-top-token-body{padding:6px;display:flex;flex-direction:column;gap:3px}
+.wallet-token-id{font-size:11px;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-token-meta{font-size:10px;color:var(--sub);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-trait-bars{display:flex;flex-direction:column;gap:6px}
+.wallet-trait-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:7px;background:rgba(0,0,0,.10)}
+.wallet-trait-label{min-width:0}
+.wallet-trait-label b{display:block;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-trait-label span{display:block;font-size:10px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-trait-count{font-size:12px;font-weight:900;color:#1CFFAF}
+.wallet-history-bars{display:flex;align-items:end;gap:3px;height:72px;padding:8px;border-radius:10px;background:rgba(0,0,0,.14);border:1px solid rgba(255,255,255,.08);overflow:hidden}
+.wallet-history-bar{flex:1;min-width:4px;border-radius:999px 999px 0 0;background:linear-gradient(180deg,#1CFFAF,#7c4dff);opacity:.9}
+.wallet-transfer-list{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow:auto;padding-right:4px}
+.wallet-transfer-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.035);padding:7px}
+.wallet-transfer-kind{font-size:10px;font-weight:900;color:#1CFFAF;text-transform:uppercase;letter-spacing:.05em}
+.wallet-transfer-main{min-width:0;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-transfer-date{font-size:10px;color:var(--sub);white-space:nowrap}
+.wallet-empty-state{border:1px dashed rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.03);color:var(--sub);font-size:12px;line-height:1.4;padding:10px}
+.token-history-section{margin-top:12px;border-top:1px solid rgba(255,255,255,.10);padding-top:10px}
+@media (max-width:900px){
+  .wallet-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wallet-top-token-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wallet-analytics-card{padding:9px}
+}
+
 /* ═══════════════════════════════════════════════════════════════
    FONTS — Space Grotesk headings + DM Sans body
 ═══════════════════════════════════════════════════════════════ */
@@ -2855,6 +2894,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
           <button class="top-tab" data-ttab="scatter" onclick="switchTopTab('scatter')">Price vs Rank</button>
           <button class="top-tab" data-ttab="floor" onclick="switchTopTab('floor')">Floor Trend <span id="floorReadyDot" style="display:none;width:6px;height:6px;border-radius:50%;background:#2dd4bf;display:inline-block;margin-left:3px;vertical-align:middle"></span></button>
           <button class="top-tab" data-ttab="holders" onclick="switchTopTab('holders')">Holders</button>
+          <button class="top-tab" data-ttab="wallet" onclick="switchTopTab('wallet')">Wallet</button>
           <div class="sales-view-toggle" id="mispricedViewToggle" style="display:none;margin-left:auto">
             <button class="sales-view-btn active" data-mpview="list" onclick="setMispricedView('list')" title="List view">☰</button>
             <button class="sales-view-btn" data-mpview="grid" onclick="setMispricedView('grid')" title="Grid view">▦</button>
@@ -2956,6 +2996,13 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
             </div>
             <div id="holdersDistHost" style="display:none"></div>
             <div id="holdersConcentration" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- Wallet Analytics tab -->
+        <div class="top-tab-panel" id="ttab-wallet">
+          <div id="walletAnalyticsHost" class="wallet-analytics">
+            <div class="wallet-empty-state">Connect a wallet to load real wallet analytics from Railway.</div>
           </div>
         </div>
 
@@ -3137,6 +3184,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   <div id="mobileHolderBody" style="padding:10px 14px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
     <div id="mobileConnectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
     <div id="mobileHolderEmpty" style="font-size:12px;color:var(--sub);line-height:1.4;padding:4px 0">Connect a wallet from the menu to see holder stats and tags here.</div>
+    <div id="mobileWalletAnalyticsHost" class="wallet-analytics" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -3569,6 +3617,7 @@ async function setConnectedWallet(addr, chainId, tokenIds){
   CONNECTED_WALLET.stats = stats;
   renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
   renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
+  loadWalletAnalytics(addr).catch(e => console.warn('[WalletAnalytics]', e.message));
   if(VS?._nodeCache) VS._nodeCache.clear();
   if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
 }
@@ -3608,6 +3657,11 @@ function disconnectTraitViewWallet(){
   });
   const empty = document.getElementById('mobileHolderEmpty');
   if(empty) empty.style.display = 'block';
+  WALLET_ANALYTICS_CACHE.clear();
+  ['walletAnalyticsHost','mobileWalletAnalyticsHost'].forEach(id => {
+    const h = document.getElementById(id);
+    if(h) h.innerHTML = '<div class="wallet-empty-state">Connect a wallet to load real wallet analytics from Railway.</div>';
+  });
   updateWalletConnectButtons();
   if(VS?._nodeCache) VS._nodeCache.clear();
   if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
@@ -3745,6 +3799,155 @@ async function dbFetch(path, params = {}) {
   const ct = r.headers.get('content-type') || '';
   if (!ct.includes('application/json')) throw new Error(`DB ${path} returned non-JSON`);
   return r.json();
+}
+const WALLET_ANALYTICS_CACHE = new Map();
+function walletMetric(v, fallback='-'){
+  if(v === null || v === undefined || v === '') return fallback;
+  const n = Number(v);
+  if(Number.isFinite(n)){
+    if(Math.abs(n) >= 1000) return n.toLocaleString(undefined,{maximumFractionDigits:2});
+    if(Math.abs(n) < 1 && n !== 0) return n.toFixed(4);
+    return n.toLocaleString(undefined,{maximumFractionDigits:2});
+  }
+  return String(v);
+}
+function walletEth(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? `Ξ ${n.toFixed(n >= 1 ? 3 : 4)}` : '-';
+}
+function walletDate(v){
+  if(!v) return '';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+function walletTokenId(t){
+  return Number(t?.token_id ?? t?.id ?? t?.tokenId ?? t?.identifier ?? 0);
+}
+function walletTopTokenCard(t){
+  const id = walletTokenId(t);
+  if(!id) return '';
+  const osRank = t.os_rank ?? t.rank ?? t.best_rank ?? getRankLabel(id, 'os');
+  const tvRank = t.obs_rank ?? t.tv_rank ?? getRankLabel(id, 'tv');
+  const price = t.price_eth ?? t.listed_price ?? t.listing_price ?? null;
+  const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
+  return `<div class="wallet-top-token" onclick="openModal(${id})">
+    <div class="wallet-top-token-img"><img src="${comboEsc(src)}" alt="#${id}" loading="lazy"></div>
+    <div class="wallet-top-token-body">
+      <div class="wallet-token-id">#${id}</div>
+      <div class="wallet-token-meta">${osRank ? `OS ${walletMetric(osRank)}` : 'OS -'}${tvRank ? ` · TV ${walletMetric(tvRank)}` : ''}</div>
+      <div class="wallet-token-meta">${price != null ? walletEth(price) : 'Not listed'}</div>
+    </div>
+  </div>`;
+}
+function normalizeWalletTraits(data){
+  const raw = data?.traits || data?.trait_exposure || data?.categories || data?.summary?.traits || [];
+  if(Array.isArray(raw)){
+    return raw.map(x => ({
+      category:x.category || x.trait_type || x.trait_name || x.name || 'Trait',
+      value:x.value || x.trait_value || x.top_value || x.label || '',
+      count:Number(x.count || x.token_count || x.owned_count || x.total || 0)
+    })).filter(x => x.category && x.count);
+  }
+  if(raw && typeof raw === 'object'){
+    return Object.entries(raw).map(([category, val]) => {
+      if(val && typeof val === 'object'){
+        const entries = Object.entries(val).sort((a,b)=>Number(b[1])-Number(a[1]));
+        const top = entries[0] || ['',0];
+        return { category, value:top[0], count:Number(top[1] || val.count || 0) };
+      }
+      return { category, value:'', count:Number(val || 0) };
+    }).filter(x => x.count);
+  }
+  return [];
+}
+function normalizeWalletHistory(data){
+  return data?.history || data?.snapshots || data?.daily || data?.rows || [];
+}
+function normalizeWalletTransfers(data){
+  return data?.transfers || data?.events || data?.rows || [];
+}
+async function loadWalletAnalytics(address, opts={}){
+  const addr = String(address || CONNECTED_WALLET?.address || '').trim();
+  const desktopHost = document.getElementById('walletAnalyticsHost');
+  const mobileHost = document.getElementById('mobileWalletAnalyticsHost');
+  const hosts = [desktopHost, mobileHost].filter(Boolean);
+  if(!addr){
+    hosts.forEach(h => h.innerHTML = '<div class="wallet-empty-state">Connect a wallet to load real wallet analytics from Railway.</div>');
+    return null;
+  }
+  hosts.forEach(h => {
+    if(!h.innerHTML.trim() || opts.force) h.innerHTML = '<div class="wallet-empty-state">Loading wallet analytics...</div>';
+  });
+  const key = addr.toLowerCase();
+  if(WALLET_ANALYTICS_CACHE.has(key) && !opts.force){
+    const cached = WALLET_ANALYTICS_CACHE.get(key);
+    renderWalletAnalytics(cached);
+    return cached;
+  }
+  try{
+    const enc = encodeURIComponent(addr);
+    const [summary, traits, history, transfers] = await Promise.all([
+      dbFetch(`/db/wallet/${enc}/summary`),
+      dbFetch(`/db/wallet/${enc}/traits`).catch(e => ({ ok:false, error:e.message })),
+      dbFetch(`/db/wallet/${enc}/history`).catch(e => ({ ok:false, error:e.message })),
+      dbFetch(`/db/wallet/${enc}/transfers`, { limit: 12 }).catch(e => ({ ok:false, error:e.message }))
+    ]);
+    const data = { address:addr, summary, traits, history, transfers, loadedAt:Date.now() };
+    WALLET_ANALYTICS_CACHE.set(key, data);
+    renderWalletAnalytics(data);
+    return data;
+  }catch(e){
+    hosts.forEach(h => h.innerHTML = `<div class="wallet-empty-state">Wallet analytics failed to load: ${comboEsc(e.message || 'API error')}</div>`);
+    return null;
+  }
+}
+function renderWalletAnalytics(data){
+  const hosts = [document.getElementById('walletAnalyticsHost'), document.getElementById('mobileWalletAnalyticsHost')].filter(Boolean);
+  const summary = data?.summary?.summary || data?.summary || {};
+  const synced = data?.summary?.synced;
+  const topTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens.slice(0, 8) : [];
+  const traitRows = normalizeWalletTraits(data?.traits).sort((a,b)=>b.count-a.count).slice(0, 8);
+  const historyRows = normalizeWalletHistory(data?.history);
+  const transferRows = normalizeWalletTransfers(data?.transfers).slice(0, 12);
+  const maxHist = Math.max(1, ...historyRows.map(x => Number(x.owned_count || x.count || 0)));
+  const html = `
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head">
+        <div><div class="wallet-analytics-title">Wallet Summary</div><div class="wallet-analytics-sub">${comboEsc(shortAddr(data.address))}${synced === false ? ' · sync pending' : ''}</div></div>
+        <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="loadWalletAnalytics('${comboEsc(data.address)}',{force:true})">Refresh</button>
+      </div>
+      <div class="wallet-stats-grid">
+        <div class="wallet-stat-chip"><span>Total Owned</span><b>${walletMetric(summary.owned_count)}</b></div>
+        <div class="wallet-stat-chip"><span>Best Rank</span><b>${walletMetric(summary.best_rank)}</b></div>
+        <div class="wallet-stat-chip"><span>Listed</span><b>${walletMetric(summary.listed_count)}</b></div>
+        <div class="wallet-stat-chip"><span>Est. Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
+        <div class="wallet-stat-chip"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
+      </div>
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Top Owned Tokens</div></div>
+      ${topTokens.length ? `<div class="wallet-top-token-grid">${topTokens.map(walletTopTokenCard).join('')}</div>` : '<div class="wallet-empty-state">Top owned tokens will appear after wallet summary sync completes.</div>'}
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Trait Exposure</div></div>
+      ${traitRows.length ? `<div class="wallet-trait-bars">${traitRows.map(t => `<div class="wallet-trait-row"><div class="wallet-trait-label"><b>${comboEsc(t.category)}</b><span>${comboEsc(t.value || 'Mixed')}</span></div><div class="wallet-trait-count">${walletMetric(t.count)}</div></div>`).join('')}</div>` : '<div class="wallet-empty-state">Trait analytics will appear after sync/derive completes.</div>'}
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Wallet History</div></div>
+      ${historyRows.length ? `<div class="wallet-history-bars">${historyRows.slice(-32).map(x => `<div class="wallet-history-bar" title="${comboEsc(walletDate(x.snapshot_date || x.date || x.block_ts))}: ${walletMetric(x.owned_count || x.count || 0)}" style="height:${Math.max(8, Math.round((Number(x.owned_count || x.count || 0)/maxHist)*64))}px"></div>`).join('')}</div>` : '<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>'}
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Recent Transfers</div></div>
+      ${transferRows.length ? `<div class="wallet-transfer-list">${transferRows.map(t => {
+        const id = walletTokenId(t);
+        const tx = t.tx_hash || t.transaction_hash || '';
+        const kind = t.event_type || t.direction || (String(t.to_address || '').toLowerCase() === data.address.toLowerCase() ? 'received' : 'sent');
+        const date = walletDate(t.block_ts || t.timestamp || t.created_at);
+        const link = tx ? `https://etherscan.io/tx/${tx}` : '';
+        return `<div class="wallet-transfer-row"><div class="wallet-transfer-kind">${comboEsc(kind)}</div><div class="wallet-transfer-main">#${id || '-'}${link ? ` · <a href="${comboEsc(link)}" target="_blank" rel="noopener">tx</a>` : ''}</div><div class="wallet-transfer-date">${comboEsc(date)}</div></div>`;
+      }).join('')}</div>` : '<div class="wallet-empty-state">No transfer rows yet. Summary data is available now.</div>'}
+    </div>`;
+  hosts.forEach(h => { h.innerHTML = html; });
 }
 // Optional: drop your OpenSea API key here (or leave empty). You can also set it later via localStorage.setItem('OPENSEA_KEY','...').
 const OPENSEA_API_KEY = (localStorage.getItem('OPENSEA_KEY') || '').trim();
@@ -5406,6 +5609,7 @@ function buildRarityBreakdown(id, row){
 
 // Price history cache: tokenId → { sales, lastFetched }
 const priceHistoryCache = new Map();
+const tokenHistoryCache = new Map();
 
 async function buildPriceHistory(id, row){
   const host = document.getElementById('mPriceHistory');
@@ -5416,6 +5620,7 @@ async function buildPriceHistory(id, row){
     const cached = priceHistoryCache.get(id);
     if(cached && Date.now() - cached.lastFetched < 300000){
       renderPriceChart(id, cached.sales, host);
+      appendTokenChainHistory(id, host).catch(e => console.warn('[TokenHistory] failed:', e.message));
       return;
     }
 
@@ -5458,8 +5663,47 @@ async function buildPriceHistory(id, row){
 
     priceHistoryCache.set(id, { sales: merged, lastFetched: Date.now() });
     renderPriceChart(id, merged, host);
+    appendTokenChainHistory(id, host).catch(e => console.warn('[TokenHistory] failed:', e.message));
   }catch(e){
     host.innerHTML = `<div class="price-history-empty">Could not load price history: ${e.message}</div>`;
+  }
+}
+
+async function appendTokenChainHistory(id, host){
+  if(!host) return;
+  const section = document.createElement('div');
+  section.className = 'token-history-section';
+  section.innerHTML = '<div class="price-history-title">Token Movement</div><div class="wallet-empty-state">Loading token movement...</div>';
+  host.appendChild(section);
+
+  try{
+    let rows;
+    const cached = tokenHistoryCache.get(id);
+    if(cached && Date.now() - cached.lastFetched < 300000){
+      rows = cached.rows;
+    }else{
+      const data = await dbFetch(`/db/token/${encodeURIComponent(id)}/history`, { limit: 12 });
+      rows = data?.history || data?.transfers || data?.events || data?.rows || [];
+      tokenHistoryCache.set(id, { rows, lastFetched:Date.now() });
+    }
+
+    if(!rows.length){
+      section.innerHTML = '<div class="price-history-title">Token Movement</div><div class="wallet-empty-state">Ownership history is still building. Sale history is available now.</div>';
+      return;
+    }
+
+    section.innerHTML = `<div class="price-history-title">Token Movement</div><div class="wallet-transfer-list">${rows.slice(0,12).map(t => {
+      const tx = t.tx_hash || t.transaction_hash || '';
+      const link = tx ? `https://etherscan.io/tx/${tx}` : '';
+      const kind = t.event_type || t.direction || 'transfer';
+      const date = walletDate(t.block_ts || t.timestamp || t.created_at);
+      const from = t.from_address ? shortAddr(t.from_address) : '';
+      const to = t.to_address ? shortAddr(t.to_address) : '';
+      const route = from || to ? `${from || 'mint'} -> ${to || 'burn'}` : `#${id}`;
+      return `<div class="wallet-transfer-row"><div class="wallet-transfer-kind">${comboEsc(kind)}</div><div class="wallet-transfer-main">${comboEsc(route)}${link ? ` · <a href="${comboEsc(link)}" target="_blank" rel="noopener">tx</a>` : ''}</div><div class="wallet-transfer-date">${comboEsc(date)}</div></div>`;
+    }).join('')}</div>`;
+  }catch(e){
+    section.innerHTML = '<div class="price-history-title">Token Movement</div><div class="wallet-empty-state">Token history is not available yet.</div>';
   }
 }
 
@@ -6215,6 +6459,7 @@ function switchTopTab(name){
     if(!window._holdersLoaded) loadHolders(false);
     else _applyHoldersTraitFilter(); // apply current trait filter if already loaded
   }
+  if(name === 'wallet') loadWalletAnalytics(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   // Show/hide view toggles
   const vt = document.getElementById('salesViewToggle');
@@ -6315,9 +6560,9 @@ function openMobileAnalytics(){
   // Build lightweight tab UI — no DOM moves, no large elements
   const isMob = window.innerWidth <= 900;
   const tabs = isMob
-    ? ['chart','sales','mispriced','floor','holders']
-    : ['chart','sales','mispriced','scatter','floor','holders'];
-  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders'};
+    ? ['chart','sales','mispriced','floor','holders','wallet']
+    : ['chart','sales','mispriced','scatter','floor','holders','wallet'];
+  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet'};
   const curActive = document.querySelector('.top-tab.active')?.dataset?.ttab || 'chart';
 
   // Reset inner to just the skeleton — no panel content yet
@@ -6357,7 +6602,7 @@ function switchAnalyticsSheetTab(name){
   const body = document.getElementById('analyticsSheetBody');
   if(!body) return;
 
-  const tabs = ['chart','sales','mispriced','scatter','floor','holders'];
+  const tabs = ['chart','sales','mispriced','scatter','floor','holders','wallet'];
   const topTabPanel = document.getElementById('topTabPanel');
 
   // First: return any currently shown panel back to topTabPanel
@@ -6405,6 +6650,7 @@ function switchAnalyticsSheetTab(name){
   }
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
   else if(name === 'holders' && window._holdersLoaded) renderHolders();
+  if(name === 'wallet') loadWalletAnalytics(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   if(name === 'mispriced'){
     // Auto-trigger listings fetch for mispriced tab
@@ -6436,7 +6682,7 @@ function closeMobileAnalytics(){
   const tabPanel = document.getElementById('topTabPanel');
   const body = document.getElementById('analyticsSheetBody');
   if(tabPanel){
-    ['chart','sales','mispriced','scatter','floor','holders'].forEach(name => {
+    ['chart','sales','mispriced','scatter','floor','holders','wallet'].forEach(name => {
       const p = document.getElementById('ttab-' + name);
       if(p && (!tabPanel.contains(p))){
         const inner = tabPanel.querySelector('.c-body-inner');
@@ -6465,6 +6711,7 @@ function switchTopTabInSheet(name){
   // Trigger data load for the active tab
   if(name === 'floor' && (!window._floorLoaded || !window._floorEvents?.length)) loadFloorTrend(false);
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
+  if(name === 'wallet') loadWalletAnalytics(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'scatter'){
     const hasListings = window.LISTINGS && Object.keys(window.LISTINGS).length > 0;
     if(hasListings) setTimeout(renderScatter, 100);
@@ -6616,6 +6863,7 @@ function openMobileHolderDrawer(){
   if(CONNECTED_WALLET?.stats){
     renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), CONNECTED_WALLET.stats);
   }
+  if(CONNECTED_WALLET?.address) loadWalletAnalytics(CONNECTED_WALLET.address).catch(()=>{});
 }
 
 function closeMobileHolderDrawer(){
