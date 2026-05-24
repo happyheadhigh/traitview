@@ -183,6 +183,14 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .holder-tag.grail b{color:#fde68a}.holder-tag.combo b{color:#67e8f9}.holder-tag.trait b{color:#f0abfc}.holder-tag.drip b{color:#1CFFAF}.holder-tag.cursed b{color:#fda4af}
 .wallet-connect-btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .wallet-connect-btn.connected{color:#1CFFAF!important;border-color:rgba(28,255,175,.35)!important;background:rgba(28,255,175,.08)!important}
+#desktopJumpWallet{display:flex;flex-direction:column;gap:5px;align-items:stretch;position:relative}
+#desktopJumpRow{display:flex;gap:8px;align-items:center}
+#walletConnectBtn{justify-content:center;font-size:11px;padding:5px 10px;border-radius:999px;min-height:28px}
+#walletConnectBtn.connected::after{content:"▼";font-size:9px;opacity:.75;margin-left:2px}
+#walletConnectMenu{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:1000;min-width:148px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(10,15,22,.96);box-shadow:0 14px 32px rgba(0,0,0,.42);padding:4px}
+#walletConnectMenu.open{display:block}
+#walletConnectMenu button{display:block;width:100%;border:0;background:transparent;color:var(--text);text-align:left;font:700 11px/1.2 'Space Grotesk',system-ui,sans-serif;padding:8px 9px;border-radius:7px;cursor:pointer}
+#walletConnectMenu button:hover{background:rgba(28,255,175,.08);color:#1CFFAF}
 .connected-holder-panel{display:none;margin:0 0 8px;padding:7px 9px;border:1px solid rgba(28,255,175,.16);border-radius:12px;background:linear-gradient(135deg,rgba(28,255,175,.075),rgba(124,77,255,.055));box-shadow:0 10px 24px rgba(0,0,0,.18);overflow:hidden}
 .connected-holder-panel.is-visible{display:block}
 .connected-holder-inner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
@@ -1575,7 +1583,26 @@ a{color:var(--accent)!important}
 .wallet-transfer-date{font-size:10px;color:var(--sub);white-space:nowrap}
 .wallet-empty-state{border:1px dashed rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.03);color:var(--sub);font-size:12px;line-height:1.4;padding:10px}
 .token-history-section{margin-top:12px;border-top:1px solid rgba(255,255,255,.10);padding-top:10px}
+.wallet-analytics-compact{display:flex;flex-direction:column;gap:8px}
+.wallet-stat-row{display:flex;gap:6px;align-items:center;overflow-x:auto;max-width:100%;padding-bottom:2px;scrollbar-width:none}
+.wallet-stat-row::-webkit-scrollbar{display:none}
+.wallet-stat-pill{flex:1 1 0;min-width:92px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:rgba(255,255,255,.045);padding:6px 9px;display:flex;align-items:center;justify-content:space-between;gap:7px}
+.wallet-stat-pill span{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);font-weight:900;white-space:nowrap}
+.wallet-stat-pill b{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-activity-filters{display:flex;gap:5px;flex-wrap:wrap;margin:2px 0 6px}
+.wallet-activity-filter{border:1px solid rgba(255,255,255,.10);border-radius:999px;background:rgba(255,255,255,.04);color:var(--sub);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:5px 8px;cursor:pointer}
+.wallet-activity-filter.active{border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.09);color:#1CFFAF}
+.wallet-activity-chart{position:relative;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(0,0,0,.13);overflow:hidden}
+.wallet-activity-chart svg{display:block;width:100%;height:190px}
+.wallet-activity-dot{cursor:pointer;transition:opacity .12s,transform .12s}
+.wallet-activity-dot:hover{opacity:1;transform:scale(1.35)}
+.wallet-activity-tooltip{position:fixed;z-index:100000;display:none;pointer-events:none;width:190px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:rgba(10,15,22,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 16px 34px rgba(0,0,0,.46);padding:8px;color:var(--text)}
+.wallet-activity-tooltip img{width:54px;height:54px;object-fit:contain;border-radius:7px;background:var(--soft);border:1px solid rgba(255,255,255,.10);float:left;margin:0 8px 5px 0}
+.wallet-activity-tooltip b{display:block;font-size:12px;margin-bottom:2px}.wallet-activity-tooltip span{display:block;font-size:10px;color:var(--sub);line-height:1.35}
 @media (max-width:900px){
+  #desktopJumpWallet{display:contents}
+  #walletConnectMenu{display:none!important}
+  #walletConnectBtn{display:none!important}
   .wallet-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .wallet-top-token-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .wallet-analytics-card{padding:9px}
@@ -2781,11 +2808,19 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     </div>
 
     <div class="spacer"></div>
-    <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…" style="width:140px">
-    <button id="btnJump" class="btn">Go</button>
-    <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="connectTraitViewWallet()" aria-label="Connect wallet" title="Connect wallet">
-      <span>Connect</span>
-    </button>
+    <div id="desktopJumpWallet">
+      <div id="desktopJumpRow">
+        <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…" style="width:140px">
+        <button id="btnJump" class="btn">Go</button>
+      </div>
+      <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
+        <span>Connect</span>
+      </button>
+      <div id="walletConnectMenu">
+        <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
+        <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
+      </div>
+    </div>
     <button id="btnClear" class="btn ghost">Clear</button>
 
   <div id="themePicker" style="display:flex;gap:8px;align-items:center;margin-left:12px;">
@@ -3601,6 +3636,23 @@ function updateWalletConnectButtons(status){
     }
   });
 }
+function closeWalletConnectMenu(){
+  document.getElementById('walletConnectMenu')?.classList.remove('open');
+}
+function handleWalletConnectButton(event){
+  if(!CONNECTED_WALLET?.address){
+    closeWalletConnectMenu();
+    connectTraitViewWallet();
+    return;
+  }
+  event?.stopPropagation?.();
+  document.getElementById('walletConnectMenu')?.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('walletConnectMenu');
+  const wrap = document.getElementById('desktopJumpWallet');
+  if(menu?.classList.contains('open') && wrap && !wrap.contains(e.target)) closeWalletConnectMenu();
+});
 async function setConnectedWallet(addr, chainId, tokenIds){
   const ids = [...new Set((tokenIds || []).map(Number).filter(Boolean))];
   CONNECTED_WALLET = { address:addr, chainId, tokenIds:ids, tokenSet:new Set(ids), stats:null };
@@ -3890,7 +3942,7 @@ async function loadWalletAnalytics(address, opts={}){
       dbFetch(`/db/wallet/${enc}/summary`),
       dbFetch(`/db/wallet/${enc}/traits`).catch(e => ({ ok:false, error:e.message })),
       dbFetch(`/db/wallet/${enc}/history`).catch(e => ({ ok:false, error:e.message })),
-      dbFetch(`/db/wallet/${enc}/transfers`, { limit: 12 }).catch(e => ({ ok:false, error:e.message }))
+      dbFetch(`/db/wallet/${enc}/transfers`, { limit: 100 }).catch(e => ({ ok:false, error:e.message }))
     ]);
     const data = { address:addr, summary, traits, history, transfers, loadedAt:Date.now() };
     WALLET_ANALYTICS_CACHE.set(key, data);
@@ -3901,8 +3953,105 @@ async function loadWalletAnalytics(address, opts={}){
     return null;
   }
 }
-function renderWalletAnalytics(data){
-  const hosts = [document.getElementById('walletAnalyticsHost'), document.getElementById('mobileWalletAnalyticsHost')].filter(Boolean);
+const WALLET_ACTIVITY_FILTERS = new Set(['mint','sale','listing','burn','transfer']);
+function walletActivityKind(row, address){
+  const raw = String(row?.event_type || row?.type || row?.direction || row?.kind || '').toLowerCase();
+  if(raw.includes('mint')) return 'mint';
+  if(raw.includes('sale') || raw.includes('sold') || raw.includes('buy') || raw.includes('bought')) return 'sale';
+  if(raw.includes('list')) return 'listing';
+  if(raw.includes('burn')) return 'burn';
+  if(raw.includes('transfer') || raw.includes('sent') || raw.includes('receive')) return 'transfer';
+  const from = String(row?.from_address || '').toLowerCase();
+  const to = String(row?.to_address || '').toLowerCase();
+  const addr = String(address || '').toLowerCase();
+  if(/^0x0{40}$/.test(from)) return 'mint';
+  if(/^0x0{40}$/.test(to)) return 'burn';
+  if(addr && (from === addr || to === addr)) return 'transfer';
+  return 'transfer';
+}
+function walletActivityPrice(row){
+  const val = row?.price_eth ?? row?.eth_price ?? row?.price ?? row?.listing_price ?? row?.floor_eth ?? row?.estimated_floor_value ?? row?.value_eth;
+  const n = Number(val);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+function walletActivityTimestamp(row){
+  const raw = row?.block_ts || row?.timestamp || row?.created_at || row?.sale_ts || row?.snapshot_date || row?.date;
+  const n = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+function walletActivityEvents(data){
+  const address = data?.address || '';
+  const transfers = normalizeWalletTransfers(data?.transfers).map(row => ({
+    row,
+    source:'transfer',
+    id:walletTokenId(row),
+    kind:walletActivityKind(row, address),
+    ts:walletActivityTimestamp(row),
+    price:walletActivityPrice(row)
+  })).filter(e => e.ts);
+  const history = normalizeWalletHistory(data?.history).map(row => ({
+    row,
+    source:'history',
+    id:walletTokenId(row),
+    kind:walletActivityKind(row, address),
+    ts:walletActivityTimestamp(row),
+    price:walletActivityPrice(row)
+  })).filter(e => e.ts && (e.id || e.price));
+  return [...transfers, ...history].sort((a,b)=>a.ts-b.ts).slice(-140);
+}
+function walletActivityColor(kind){
+  return { mint:'#1CFFAF', sale:'#7dd3fc', listing:'#c084fc', burn:'#fb7185', transfer:'#94a3b8' }[kind] || '#94a3b8';
+}
+function toggleWalletActivityFilter(kind){
+  if(WALLET_ACTIVITY_FILTERS.has(kind) && WALLET_ACTIVITY_FILTERS.size > 1) WALLET_ACTIVITY_FILTERS.delete(kind);
+  else WALLET_ACTIVITY_FILTERS.add(kind);
+  const addr = CONNECTED_WALLET?.address?.toLowerCase();
+  const data = addr ? WALLET_ANALYTICS_CACHE.get(addr) : null;
+  if(data) renderWalletAnalytics(data);
+}
+function showWalletActivityTooltip(ev, encoded){
+  const tip = document.getElementById('walletActivityTooltip') || document.body.appendChild(Object.assign(document.createElement('div'), { id:'walletActivityTooltip', className:'wallet-activity-tooltip' }));
+  let item = {};
+  try{ item = JSON.parse(decodeURIComponent(encoded)); }catch(_){}
+  const img = item.id ? `<img src="${comboEsc((typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(item.id) : imgForId(item.id))}" alt="#${item.id}">` : '';
+  tip.innerHTML = `${img}<b>${item.id ? `#${item.id}` : 'Wallet Event'}</b><span>${comboEsc(item.kind || 'transfer')}</span><span>${item.eth ? walletEth(item.eth) : 'No ETH price'}</span><span>${comboEsc(item.date || '')}</span>`;
+  tip.style.display = 'block';
+  const x = Math.min(window.innerWidth - 210, ev.clientX + 14);
+  const y = Math.min(window.innerHeight - 120, ev.clientY + 14);
+  tip.style.left = `${Math.max(8,x)}px`;
+  tip.style.top = `${Math.max(8,y)}px`;
+}
+function hideWalletActivityTooltip(){
+  const tip = document.getElementById('walletActivityTooltip');
+  if(tip) tip.style.display = 'none';
+}
+function walletActivityChartHtml(data){
+  const eventsAll = walletActivityEvents(data);
+  const kinds = ['mint','sale','listing','burn','transfer'];
+  const filters = `<div class="wallet-activity-filters">${kinds.map(k => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_FILTERS.has(k)?'active':''}" onclick="toggleWalletActivityFilter('${k}')">${k}</button>`).join('')}</div>`;
+  const events = eventsAll.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));
+  if(!eventsAll.length) return `${filters}<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>`;
+  if(!events.length) return `${filters}<div class="wallet-empty-state">No events match the selected activity filters.</div>`;
+  const W = 760, H = 190, px = 44, py = 26;
+  const minTs = Math.min(...events.map(e=>e.ts));
+  const maxTs = Math.max(...events.map(e=>e.ts)) || minTs + 1;
+  const maxPrice = Math.max(0.01, ...events.map(e=>e.price));
+  const xFor = ts => px + ((ts - minTs) / (maxTs - minTs || 1)) * (W - px * 1.55);
+  const yFor = eth => H - py - (Math.max(eth, 0) / maxPrice) * (H - py * 2);
+  const gridY = [0,.25,.5,.75,1].map(p => H - py - p * (H - py * 2));
+  const dots = events.map(e => {
+    const id = e.id || 0;
+    const payload = encodeURIComponent(JSON.stringify({ id, kind:e.kind, eth:e.price, date:new Date(e.ts).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric'}) }));
+    return `<circle class="wallet-activity-dot" cx="${xFor(e.ts).toFixed(1)}" cy="${yFor(e.price).toFixed(1)}" r="5.3" fill="${walletActivityColor(e.kind)}" opacity=".88" onclick="${id ? `openModal(${id})` : ''}" onmouseenter="showWalletActivityTooltip(event,'${payload}')" onmousemove="showWalletActivityTooltip(event,'${payload}')" onmouseleave="hideWalletActivityTooltip()"></circle>`;
+  }).join('');
+  const labels = `<text x="${px}" y="17" fill="var(--sub)" font-size="10">${walletEth(maxPrice)}</text><text x="${px}" y="${H-7}" fill="var(--sub)" font-size="10">0 ETH</text>`;
+  return `${filters}<div class="wallet-activity-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wallet activity timeline">
+    ${gridY.map(y => `<line x1="${px}" x2="${W-18}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.12)" stroke-dasharray="2 7"/>`).join('')}
+    ${labels}
+    ${dots}
+  </svg></div>`;
+}
+function walletMobileAnalyticsHtml(data){
   const summary = data?.summary?.summary || data?.summary || {};
   const synced = data?.summary?.synced;
   const topTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens.slice(0, 8) : [];
@@ -3947,7 +4096,48 @@ function renderWalletAnalytics(data){
         return `<div class="wallet-transfer-row"><div class="wallet-transfer-kind">${comboEsc(kind)}</div><div class="wallet-transfer-main">#${id || '-'}${link ? ` · <a href="${comboEsc(link)}" target="_blank" rel="noopener">tx</a>` : ''}</div><div class="wallet-transfer-date">${comboEsc(date)}</div></div>`;
       }).join('')}</div>` : '<div class="wallet-empty-state">No transfer rows yet. Summary data is available now.</div>'}
     </div>`;
-  hosts.forEach(h => { h.innerHTML = html; });
+  return html;
+}
+function walletDesktopAnalyticsHtml(data){
+  const summary = data?.summary?.summary || data?.summary || {};
+  const synced = data?.summary?.synced;
+  const topTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens.slice(0, 6) : [];
+  const traitRows = normalizeWalletTraits(data?.traits).sort((a,b)=>b.count-a.count).slice(0, 6);
+  return `<div class="wallet-analytics-compact">
+    <div class="wallet-analytics-card" style="padding:8px 9px">
+      <div class="wallet-analytics-head" style="margin-bottom:6px">
+        <div><div class="wallet-analytics-title">Wallet Analytics</div><div class="wallet-analytics-sub">${comboEsc(shortAddr(data.address))}${synced === false ? ' · sync pending' : ''}</div></div>
+        <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="loadWalletAnalytics('${comboEsc(data.address)}',{force:true})">Refresh</button>
+      </div>
+      <div class="wallet-stat-row">
+        <div class="wallet-stat-pill"><span>Owned</span><b>${walletMetric(summary.owned_count)}</b></div>
+        <div class="wallet-stat-pill"><span>Best Rank</span><b>${walletMetric(summary.best_rank)}</b></div>
+        <div class="wallet-stat-pill"><span>Listed</span><b>${walletMetric(summary.listed_count)}</b></div>
+        <div class="wallet-stat-pill"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
+        <div class="wallet-stat-pill"><span>Est Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
+      </div>
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Wallet Activity Timeline</div><div class="wallet-analytics-sub">Real history + transfer rows</div></div>
+      ${walletActivityChartHtml(data)}
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:8px">
+      <div class="wallet-analytics-card">
+        <div class="wallet-analytics-head"><div class="wallet-analytics-title">Top Owned Tokens</div></div>
+        ${topTokens.length ? `<div class="wallet-top-token-grid">${topTokens.map(walletTopTokenCard).join('')}</div>` : '<div class="wallet-empty-state">Top owned tokens will appear after wallet summary sync completes.</div>'}
+      </div>
+      <div class="wallet-analytics-card">
+        <div class="wallet-analytics-head"><div class="wallet-analytics-title">Trait Exposure</div></div>
+        ${traitRows.length ? `<div class="wallet-trait-bars">${traitRows.map(t => `<div class="wallet-trait-row"><div class="wallet-trait-label"><b>${comboEsc(t.category)}</b><span>${comboEsc(t.value || 'Mixed')}</span></div><div class="wallet-trait-count">${walletMetric(t.count)}</div></div>`).join('')}</div>` : '<div class="wallet-empty-state">Trait analytics will appear after sync/derive completes.</div>'}
+      </div>
+    </div>
+  </div>`;
+}
+function renderWalletAnalytics(data){
+  const desktopHost = document.getElementById('walletAnalyticsHost');
+  const mobileHost = document.getElementById('mobileWalletAnalyticsHost');
+  if(desktopHost) desktopHost.innerHTML = walletDesktopAnalyticsHtml(data);
+  if(mobileHost) mobileHost.innerHTML = walletMobileAnalyticsHtml(data);
 }
 // Optional: drop your OpenSea API key here (or leave empty). You can also set it later via localStorage.setItem('OPENSEA_KEY','...').
 const OPENSEA_API_KEY = (localStorage.getItem('OPENSEA_KEY') || '').trim();
