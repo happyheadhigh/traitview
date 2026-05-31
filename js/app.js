@@ -3,10 +3,6 @@
    Classic script on purpose so existing inline onclick handlers still work. */
 
 /* live settings */
-let CONNECTED_WALLET = { address:null, chainId:null, tokenIds:[], tokenSet:new Set(), stats:null };
-let CONNECTED_WALLET_OWNED_ONLY = false;
-const TV_WALLET_PROVIDERS = [];
-
 window.addEventListener?.('eip6963:announceProvider', (event) => {
   const provider = event?.detail?.provider;
   if(provider && !TV_WALLET_PROVIDERS.includes(provider)) TV_WALLET_PROVIDERS.push(provider);
