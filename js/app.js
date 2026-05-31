@@ -3,14 +3,6 @@
    Classic script on purpose so existing inline onclick handlers still work. */
 
 /* live settings */
-const LIVE_ENDPOINT = 'https://nft-live-listings.jvweb3.workers.dev';
-const LIVE_SLUG = 'on-chain-all-stars';
-const LIVE_CONTRACT = '0x078be86f3104a32313a47815792230a3808642cc';
-
-const FAVORITES_KEY = 'traitview_favorites_ocas';
-const FAVORITES_VIEW_KEY = 'traitview_favorites_only';
-const CONNECTED_WALLET_KEY = 'traitview_connected_wallet_v1';
-const CONNECTED_WALLET_CACHE_TTL = 10 * 60 * 1000;
 let CONNECTED_WALLET = { address:null, chainId:null, tokenIds:[], tokenSet:new Set(), stats:null };
 let CONNECTED_WALLET_OWNED_ONLY = false;
 const TV_WALLET_PROVIDERS = [];
