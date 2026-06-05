@@ -4,23 +4,6 @@
 
 /* live settings */
 
-// Optional: drop your OpenSea API key here (or leave empty). You can also set it later via localStorage.setItem('OPENSEA_KEY','...').
-const OPENSEA_API_KEY = (localStorage.getItem('OPENSEA_KEY') || '').trim();
-// --- tiny preference helper (saves to browser) ---
-const PREF = {
-  get: (k, d='') => (localStorage.getItem(k) ?? d),
-  set: (k, v) => localStorage.setItem(k, String(v)),
-};
-
-/* data conf */
-const DATA_DIR='./data';
-const MANIFEST_URL=`${DATA_DIR}/traits_manifest.json`;
-const IMAGES_MANIFEST_URL = `${DATA_DIR}/token_images_manifest.json`;
-const IMAGES_URL = `${DATA_DIR}/token_images.json`;
-const IMAGE_PATTERN=`${DATA_DIR}/images/{id}.png`;
-const PROB_URL=`${DATA_DIR}/ocas_probabilities.json`;
-window.LISTINGS={};
-let LIVE_OK=false;
 
 /* caches + state */
 let MANIFEST=null, CHUNK_SIZE=1000, CHUNKS_DIR='traits_chunks', TOKEN_COUNT=0;
