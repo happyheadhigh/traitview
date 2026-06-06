@@ -1,4 +1,49 @@
 const WALLET_ANALYTICS_CACHE = new Map();
+let WALLET_ACTIVITY_PLOT_PENDING = null;
+
+function walletAnalyticsAreaIsVisible(){
+  const walletTab = document.getElementById('ttab-wallet');
+  const mobileHolder = document.getElementById('mobileHolderDrawer');
+  const mobileWallet = document.getElementById('mobileWalletDrawer');
+  const mobileSheet = document.getElementById('mobileAnalyticsSheet');
+  return !!(
+    (walletTab && walletTab.classList.contains('active')) ||
+    (mobileHolder && mobileHolder.classList.contains('open')) ||
+    (mobileWallet && mobileWallet.classList.contains('open')) ||
+    (mobileSheet && mobileSheet.classList.contains('open') && walletTab && walletTab.style.display !== 'none')
+  );
+}
+
+function walletAnalyticsElementIsVisible(el){
+  if(!el) return false;
+  const rect = el.getBoundingClientRect?.();
+  if(rect && (rect.width <= 0 || rect.height <= 0)) return false;
+  return !!(el.offsetParent || el.getClientRects?.().length);
+}
+
+function flushWalletActivityPlot(){
+  const pending = WALLET_ACTIVITY_PLOT_PENDING;
+  if(!pending) return;
+  const host = document.getElementById(pending.hostId);
+  if(!walletAnalyticsElementIsVisible(host)) return;
+  WALLET_ACTIVITY_PLOT_PENDING = null;
+  pending.render();
+}
+
+function requestWalletAnalyticsLoad(address, opts={}){
+  const addr = String(address || CONNECTED_WALLET?.address || '').trim();
+  if(!addr || opts.force) return loadWalletAnalytics(addr, opts);
+  const visible = walletAnalyticsAreaIsVisible();
+  const key = addr.toLowerCase();
+  if(!visible && !opts.allowHiddenFetch){
+    return Promise.resolve(WALLET_ANALYTICS_CACHE.get(key) || null);
+  }
+  return loadWalletAnalytics(addr, opts).then(data => {
+    setTimeout(flushWalletActivityPlot, 80);
+    return data;
+  });
+}
+
 function walletMetric(v, fallback='-'){
   if(v === null || v === undefined || v === '') return fallback;
   const n = Number(v);
@@ -80,6 +125,7 @@ async function loadWalletAnalytics(address, opts={}){
   if(WALLET_ANALYTICS_CACHE.has(key) && !opts.force){
     const cached = WALLET_ANALYTICS_CACHE.get(key);
     renderWalletAnalytics(cached);
+    setTimeout(flushWalletActivityPlot, 80);
     return cached;
   }
   try{
@@ -214,17 +260,26 @@ function walletActivityChartHtml(data){
     hovermode:'closest',
     hoverlabel:{bgcolor:'rgba(10,15,22,.92)',bordercolor:'rgba(255,255,255,.13)',font:{color:textColor,size:11}}
   };
-  // Defer Plotly render until host div is in DOM
+  // Defer Plotly render until host div is in DOM and visible.
   setTimeout(()=>{
     const host = document.getElementById(hostId);
     if(!host || typeof Plotly === 'undefined') return;
-    Plotly.newPlot(host, traces, layout, {responsive:true,displayModeBar:false});
-    host.on('plotly_click', function(eventData){
-      const pt = eventData.points?.[0];
-      if(!pt) return;
-      const id = pt.customdata;
-      if(id) openModal(id);
-    });
+    const render = () => {
+      const currentHost = document.getElementById(hostId);
+      if(!currentHost || typeof Plotly === 'undefined') return;
+      Plotly.newPlot(currentHost, traces, layout, {responsive:true,displayModeBar:false});
+      currentHost.on('plotly_click', function(eventData){
+        const pt = eventData.points?.[0];
+        if(!pt) return;
+        const id = pt.customdata;
+        if(id) openModal(id);
+      });
+    };
+    if(!walletAnalyticsElementIsVisible(host)){
+      WALLET_ACTIVITY_PLOT_PENDING = { hostId, render };
+      return;
+    }
+    render();
   }, 60);
   return `${filters}<div id="${hostId}" style="width:100%;min-height:220px"></div>`;
 }
@@ -413,4 +468,5 @@ function renderWalletAnalytics(data){
   _walletOwnedAll = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
   if(desktopHost) desktopHost.innerHTML = walletDesktopAnalyticsHtml(data);
   if(mobileHost) mobileHost.innerHTML = walletMobileAnalyticsHtml(data);
+  setTimeout(flushWalletActivityPlot, 80);
 }

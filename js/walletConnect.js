@@ -94,7 +94,7 @@ document.addEventListener('click', e => {
   const wrap = document.getElementById('desktopJumpWallet');
   if(menu?.classList.contains('open') && wrap && !wrap.contains(e.target)) closeWalletConnectMenu();
 });
-async function setConnectedWallet(addr, chainId, tokenIds){
+async function setConnectedWallet(addr, chainId, tokenIds, opts={}){
   const ids = [...new Set((tokenIds || []).map(Number).filter(Boolean))];
   CONNECTED_WALLET = { address:addr, chainId, tokenIds:ids, tokenSet:new Set(ids), stats:null };
   window.CONNECTED_WALLET = CONNECTED_WALLET;
@@ -110,7 +110,9 @@ async function setConnectedWallet(addr, chainId, tokenIds){
   CONNECTED_WALLET.stats = stats;
   renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
   renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
-  loadWalletAnalytics(addr).catch(e => console.warn('[WalletAnalytics]', e.message));
+  if(typeof requestWalletAnalyticsLoad === 'function'){
+    requestWalletAnalyticsLoad(addr, { allowHiddenFetch: !!opts.allowHiddenAnalyticsFetch }).catch(e => console.warn('[WalletAnalytics]', e.message));
+  }
   if(VS?._nodeCache) VS._nodeCache.clear();
   if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
 }
@@ -132,7 +134,7 @@ async function connectTraitViewWallet(){
     const chainId = await provider.request({ method:'eth_chainId' }).catch(()=>null);
     updateWalletConnectButtons('Loading...');
     const tokenIds = await fetchWalletTokenIdsForAddress(address, true);
-    await setConnectedWallet(address, chainId, tokenIds);
+    await setConnectedWallet(address, chainId, tokenIds, { allowHiddenAnalyticsFetch:true });
   }catch(e){
     console.warn('[WalletConnect]', e);
     updateWalletConnectButtons();
@@ -192,7 +194,7 @@ function initTraitViewWallet(){
       else {
         const chainId = await provider.request({ method:'eth_chainId' }).catch(()=>null);
         const ids = await fetchWalletTokenIdsForAddress(accounts[0], true).catch(()=>[]);
-        await setConnectedWallet(accounts[0], chainId, ids);
+        await setConnectedWallet(accounts[0], chainId, ids, { allowHiddenAnalyticsFetch:true });
       }
     });
     provider.on?.('chainChanged', chainId => {

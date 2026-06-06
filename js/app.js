@@ -1766,7 +1766,7 @@ function switchTopTab(name){
     if(!window._holdersLoaded) loadHolders(false);
     else _applyHoldersTraitFilter(); // apply current trait filter if already loaded
   }
-  if(name === 'wallet') loadWalletAnalytics(CONNECTED_WALLET?.address).catch(()=>{});
+  if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   // Show/hide view toggles
   const vt = document.getElementById('salesViewToggle');
@@ -1957,7 +1957,7 @@ function switchAnalyticsSheetTab(name){
   }
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
   else if(name === 'holders' && window._holdersLoaded) renderHolders();
-  if(name === 'wallet') loadWalletAnalytics(CONNECTED_WALLET?.address).catch(()=>{});
+  if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   if(name === 'mispriced'){
     // Auto-trigger listings fetch for mispriced tab
@@ -2018,7 +2018,7 @@ function switchTopTabInSheet(name){
   // Trigger data load for the active tab
   if(name === 'floor' && (!window._floorLoaded || !window._floorEvents?.length)) loadFloorTrend(false);
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
-  if(name === 'wallet') loadWalletAnalytics(CONNECTED_WALLET?.address).catch(()=>{});
+  if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'scatter'){
     const hasListings = window.LISTINGS && Object.keys(window.LISTINGS).length > 0;
     if(hasListings) setTimeout(renderScatter, 100);
@@ -2147,6 +2147,7 @@ function openMobileWalletDrawer(addr){
     if(inp) inp.value = addr;
     setTimeout(mobileWalletLookup, 100);
   }
+  if(CONNECTED_WALLET?.address) requestWalletAnalyticsLoad(CONNECTED_WALLET.address, { allowHiddenFetch:true }).catch(()=>{});
 }
 
 function closeMobileWalletDrawer(){
@@ -2170,7 +2171,7 @@ function openMobileHolderDrawer(){
   if(CONNECTED_WALLET?.stats){
     renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), CONNECTED_WALLET.stats);
   }
-  if(CONNECTED_WALLET?.address) loadWalletAnalytics(CONNECTED_WALLET.address).catch(()=>{});
+  if(CONNECTED_WALLET?.address) requestWalletAnalyticsLoad(CONNECTED_WALLET.address).catch(()=>{});
 }
 
 function closeMobileHolderDrawer(){
