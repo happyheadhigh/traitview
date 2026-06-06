@@ -58,11 +58,6 @@ function chunkUrlByIndex(idx){
   if(file) return `${DATA_DIR}/${CHUNKS_DIR}/${file}`;
   return `${DATA_DIR}/${CHUNKS_DIR}/traits_${pad4(idx*CHUNK_SIZE+1)}_${pad4((idx+1)*CHUNK_SIZE)}.json`;
 }
-function keepEntries(o){ const out=[]; for(const [k,v] of Object.entries(o||{})){ if(v!==undefined&&v!==null&&String(v).trim()!=='') out.push([k,String(v)]);} return out;}
-function traitDisplayLabel(k){ return String(k || '').trim().toLowerCase() === 'kind' ? 'Type' : String(k || ''); }
-function getTraitCount(row){ return Object.keys(row?.traits||{}).length; }
-function fmt(n){ return n.toLocaleString(); 
-}
 
 
 /* IO */

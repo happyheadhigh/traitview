@@ -26,3 +26,6 @@ function formatEth(v){
   const x = (n >= 1) ? n.toFixed(3) : n.toFixed(4);
   return 'Ξ' + x.replace(/0+$/,'').replace(/\.$/,'');
 }
+
+function fmt(n){ return n.toLocaleString();
+}
