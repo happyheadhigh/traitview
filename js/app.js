@@ -520,7 +520,14 @@ async function openModal(id){
   if(dlBgBtn)  dlBgBtn.onclick  = () => { if(dlMenu) dlMenu.style.display='none'; downloadTokenPng(id, true);  };
   if(dlNoBgBtn) dlNoBgBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; downloadTokenPng(id, false); };
   if(shareCardBtn) shareCardBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; downloadShareCardPng(id); };
-  if(customizeCardBtn) customizeCardBtn.onclick = () => { if(dlMenu) dlMenu.style.display='none'; openTraitViewStudio(id); };
+  if(customizeCardBtn) customizeCardBtn.onclick = () => {
+    if(dlMenu) dlMenu.style.display='none';
+    if(typeof ensureTraitViewDownloadsLoaded === 'function'){
+      ensureTraitViewDownloadsLoaded().then(()=>openTraitViewStudio(id)).catch(()=>{});
+    } else {
+      openTraitViewStudio(id);
+    }
+  };
   if(favBtn){
     favBtn.setAttribute('data-fav-id', String(id));
     favBtn.classList.toggle('active', isFavorite(id));
@@ -3764,15 +3771,16 @@ function scheduleTraitViewStudioPreview(resetColors){
 async function exportTraitViewStudioPng(){
   if(!STUDIO_TOKEN_ID) return;
   const btn = document.getElementById('studioExportBtn');
-  _setDownloadBtnState(btn, 'Exporting...', true);
   try{
+    if(typeof ensureTraitViewDownloadsLoaded === 'function') await ensureTraitViewDownloadsLoaded();
+    _setDownloadBtnState(btn, 'Exporting...', true);
     const canvas = await renderStudioCanvas(STUDIO_TOKEN_ID, studioOptions());
     await _downloadCanvasAsPng(canvas, `ocas-${STUDIO_TOKEN_ID}-studio-card.png`);
   }catch(e){
     console.error('TraitView Studio export:', e);
     alert('Studio export error: ' + (e?.message || String(e)));
   }finally{
-    _setDownloadBtnState(btn, 'Export PNG', false);
+    if(typeof _setDownloadBtnState === 'function') _setDownloadBtnState(btn, 'Export PNG', false);
   }
 }
 
