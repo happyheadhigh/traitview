@@ -2730,3 +2730,266 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 #mobileFavoritesToggle{ width:100%; justify-content:flex-start; }
 #mobileFavoritesToggle .mobile-menu-arrow{ margin-left:auto; }
 #mobileFavoritesCount, #desktopFavoritesCount{ opacity:.78; font-weight:700; font-size:11px; }
+
+/* === Desktop header + Matching Token jump placement fix === */
+@media (min-width:901px){
+  .topbar{
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px 14px;
+  }
+
+  #mobileHeaderIdentity{
+    flex:0 0 auto;
+  }
+
+  #mobileTopRow{
+    margin-left:auto;
+  }
+
+  #desktopJumpWallet{
+    order:20;
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-left:0;
+    margin-right:auto;
+  }
+
+  #desktopJumpWallet #desktopJumpRow{
+    display:none!important;
+  }
+
+  #desktopLinkRow{
+    order:21;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:8px;
+    margin-left:auto;
+  }
+
+  #themePicker{
+    display:none!important;
+  }
+
+  .matching-panel-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:6px;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .matching-panel-left{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    min-width:0;
+  }
+
+  .matching-panel-right{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:flex-end;
+    margin-left:auto;
+    flex-wrap:wrap;
+  }
+
+  .matching-jump-row{
+    display:flex;
+    gap:6px;
+    align-items:center;
+  }
+
+  .matching-jump-row #jump{
+    width:140px;
+    height:34px;
+  }
+
+  .matching-jump-row #btnJump{
+    height:34px;
+    padding:6px 10px;
+  }
+}
+
+@media (max-width:900px){
+  .matching-jump-row{
+    display:none!important;
+  }
+}
+
+/* === Final desktop header wallet + jump sizing/placement tweak === */
+@media (min-width:901px){
+  /* Put wallet connect alone on its own bottom-right header row */
+  #desktopJumpWallet{
+    order:99!important;
+    flex:0 0 100%!important;
+    width:100%!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    margin-top:-2px!important;
+    pointer-events:auto!important;
+  }
+
+  #walletConnectBtn{
+    min-height:32px!important;
+    height:32px!important;
+    padding:5px 12px!important;
+    font-size:12px!important;
+    border-radius:999px!important;
+  }
+
+  #walletConnectMenu{
+    right:0!important;
+    left:auto!important;
+  }
+
+  /* Make Matching Token right-side controls stack cleaner */
+  .matching-panel-right{
+    display:grid!important;
+    grid-template-columns:auto auto auto!important;
+    grid-template-areas:
+      "fetch status clear"
+      ". . jump"!important;
+    align-items:center!important;
+    justify-content:end!important;
+    justify-items:end!important;
+    gap:5px 6px!important;
+    margin-left:auto!important;
+  }
+
+  .matching-panel-right #btnFetch{
+    grid-area:fetch!important;
+  }
+
+  .matching-panel-right #listingsStatus{
+    grid-area:status!important;
+    white-space:nowrap!important;
+  }
+
+  .matching-panel-right #btnClear{
+    grid-area:clear!important;
+  }
+
+  .matching-panel-right #desktopJumpRow,
+  .matching-panel-right .matching-jump-row{
+    grid-area:jump!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:5px!important;
+    margin-top:-1px!important;
+  }
+
+  .matching-jump-row #jump{
+    width:118px!important;
+    height:28px!important;
+    min-height:28px!important;
+    padding:4px 8px!important;
+    font-size:12px!important;
+    border-radius:8px!important;
+  }
+
+  .matching-jump-row #btnJump{
+    height:28px!important;
+    min-height:28px!important;
+    padding:4px 8px!important;
+    font-size:12px!important;
+    border-radius:8px!important;
+  }
+}
+
+/* === Tighten final wallet/jump placement without expanding layout === */
+@media (min-width:901px){
+  /* Wallet stays bottom-right visually, but no longer creates a full extra header row */
+  .topbar{
+    position:sticky;
+    min-height:104px;
+    padding-bottom:10px!important;
+  }
+
+  #desktopJumpWallet{
+    position:absolute!important;
+    right:24px!important;
+    bottom:14px!important;
+    width:auto!important;
+    flex:0 0 auto!important;
+    order:unset!important;
+    margin:0!important;
+    display:flex!important;
+    justify-content:flex-end!important;
+    align-items:center!important;
+    z-index:5!important;
+  }
+
+  /* Keep Matching panel header compact */
+  .matching-panel-head{
+    position:relative!important;
+    margin-bottom:4px!important;
+    min-height:32px!important;
+    padding-right:208px!important;
+  }
+
+  .matching-panel-right{
+    position:absolute!important;
+    right:0!important;
+    top:0!important;
+    display:flex!important;
+    align-items:flex-start!important;
+    justify-content:flex-end!important;
+    gap:6px!important;
+    margin:0!important;
+  }
+
+  .matching-panel-right #btnFetch{
+    display:none!important;
+  }
+
+  .matching-panel-right #listingsStatus{
+    white-space:nowrap!important;
+    margin-top:6px!important;
+  }
+
+  .matching-panel-right #btnClear{
+    margin-top:0!important;
+  }
+
+  .matching-panel-right #desktopJumpRow,
+  .matching-panel-right .matching-jump-row{
+    position:absolute!important;
+    right:0!important;
+    top:34px!important;
+    display:flex!important;
+    gap:5px!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    margin:0!important;
+  }
+
+  .matching-jump-row #jump{
+    width:112px!important;
+    height:26px!important;
+    min-height:26px!important;
+    padding:3px 7px!important;
+    font-size:11px!important;
+  }
+
+  .matching-jump-row #btnJump{
+    height:26px!important;
+    min-height:26px!important;
+    padding:3px 8px!important;
+    font-size:11px!important;
+  }
+
+  /* Pull the view/sort row back up so the panel doesn't feel taller */
+  .matching-panel-head + div{
+    margin-top:2px!important;
+  }
+}
