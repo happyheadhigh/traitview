@@ -83,19 +83,14 @@
 
     <div class="spacer"></div>
     <div id="desktopJumpWallet">
-      <div id="desktopJumpRow">
-        <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…" style="width:140px">
-        <button id="btnJump" class="btn">Go</button>
-      </div>
-      <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
-        <span>Connect</span>
-      </button>
-      <div id="walletConnectMenu">
-        <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
-        <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
-      </div>
-    </div>
-    <button id="btnClear" class="btn ghost">Clear</button>
+  <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
+    <span>Connect</span>
+  </button>
+  <div id="walletConnectMenu">
+    <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
+    <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
+  </div>
+</div>
 
   <div id="themePicker" style="display:flex;gap:8px;align-items:center;margin-left:12px;">
     <button type="button" data-theme="slate" class="tbtn">Slate</button>
@@ -360,22 +355,29 @@
           <div id="twinFinderResults"><div class="price-history-empty">Enter a token ID to find visual twins.</div></div>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;flex-wrap:wrap">
-          <div style="display:flex;gap:10px;align-items:center">
-            <h3 class="section" style="margin:0">Matching Token IDs</h3>
-            <button type="button" class="btn ghost" onclick="toggleTwinFinder()" style="font-size:11px;padding:5px 10px">Twin Finder</button>
-            <button id="onlyListedPill" onclick="toggleLiveListingsMode()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:'Space Grotesk',sans-serif">
-              <span style="width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0" id="onlyListedDot"></span>
-              Live Listings
-            </button>
-            <input type="checkbox" id="onlyListed" style="display:none">
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button id="btnFetch" class="btn">Fetch listings</button>
-            <div class="statusline" id="listingsStatus"></div>
-          </div>
-          <button onclick="clearFilters()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--sub);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Space Grotesk',sans-serif" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='rgba(255,255,255,.15)'">✕ Clear</button>
-        </div>
+        <div class="matching-panel-head">
+  <div class="matching-panel-left">
+    <h3 class="section" style="margin:0">Matching Token IDs</h3>
+    <button type="button" class="btn ghost" onclick="toggleTwinFinder()" style="font-size:11px;padding:5px 10px">Twin Finder</button>
+    <button id="onlyListedPill" onclick="toggleLiveListingsMode()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:'Space Grotesk',sans-serif">
+      <span style="width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0" id="onlyListedDot"></span>
+      Live Listings
+    </button>
+    <input type="checkbox" id="onlyListed" style="display:none">
+  </div>
+
+  <div class="matching-panel-right">
+    <button id="btnFetch" class="btn">Fetch listings</button>
+    <div class="statusline" id="listingsStatus"></div>
+
+    <div id="desktopJumpRow" class="matching-jump-row">
+      <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…">
+      <button id="btnJump" class="btn">Go</button>
+    </div>
+
+    <button id="btnClear" onclick="clearFilters()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--sub);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Space Grotesk',sans-serif" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='rgba(255,255,255,.15)'">✕ Clear</button>
+  </div>
+</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
   
 <div class="view-switch" id="viewSwitch">
@@ -731,6 +733,8 @@
     </div>
   </div>
 </div>
+
+
 
 
 
