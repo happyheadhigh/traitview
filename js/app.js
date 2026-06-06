@@ -58,19 +58,12 @@ function chunkUrlByIndex(idx){
   if(file) return `${DATA_DIR}/${CHUNKS_DIR}/${file}`;
   return `${DATA_DIR}/${CHUNKS_DIR}/traits_${pad4(idx*CHUNK_SIZE+1)}_${pad4((idx+1)*CHUNK_SIZE)}.json`;
 }
-const ipfsToHttp=u=>(typeof u==='string'&&u.startsWith('ipfs://'))?('https://ipfs.io/ipfs/'+u.slice(7)):u;
-function imgForId(id){ return IMAGE_PATTERN.replace('{id}', id); }
 function keepEntries(o){ const out=[]; for(const [k,v] of Object.entries(o||{})){ if(v!==undefined&&v!==null&&String(v).trim()!=='') out.push([k,String(v)]);} return out;}
 function traitDisplayLabel(k){ return String(k || '').trim().toLowerCase() === 'kind' ? 'Type' : String(k || ''); }
 function getTraitCount(row){ return Object.keys(row?.traits||{}).length; }
-function fmt(n){ return n.toLocaleString(); }
-function parseEthMaybeWei(v){
-  if(v==null) return null;
-  if(typeof v==='string'){ if(v.includes('.')){ const n=Number(v); if(isFinite(n)) return n; } const big=Number(v); if(isFinite(big)){ return big>=1e9 ? big/1e18 : big; } return null; }
-  if(typeof v==='number'){ return v>=1e9 ? v/1e18 : v; }
-  return null;
+function fmt(n){ return n.toLocaleString(); 
 }
-function formatEth(v){ if(v==null) return ''; const n=Math.max(0, Number(v)); if(!isFinite(n)) return ''; const x=(n>=1)?n.toFixed(3):n.toFixed(4); return 'Ξ'+x.replace(/0+$/,'').replace(/\.$/,''); }
+
 
 /* IO */
 async function fetchJson(url){ const r=await fetch(url); if(!r.ok) throw new Error(url+' '+r.status); const ct=r.headers.get('content-type')||''; if(!ct.includes('json') && !ct.includes('javascript')) throw new Error(url+' non-JSON response'); return r.json(); }
