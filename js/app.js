@@ -723,9 +723,6 @@ const COMBO_ROWS_CACHE = { ready:false, promise:null, rows:[] };
 const COMBO_COUNT_CACHE = new Map();
 const COMBO_INSIGHT_CACHE = new Map();
 
-function comboEsc(s){
-  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
 function comboNorm(s){ return String(s || '').trim().toLowerCase(); }
 function comboPartTrait(part){ return part?.trait || part?.name || ''; }
 function comboPartKey(part){ return `${comboNorm(comboPartTrait(part))}=${comboNorm(part.value)}`; }

@@ -29,3 +29,7 @@ function formatEth(v){
 
 function fmt(n){ return n.toLocaleString();
 }
+
+function comboEsc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
