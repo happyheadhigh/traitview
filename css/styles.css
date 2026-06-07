@@ -46,7 +46,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .btn.go{background:rgba(25,195,125,.15);border-color:var(--good);box-shadow:0 0 0 1px var(--good) inset;color:#c7f9df}
 .bar{display:grid;grid-template-columns:360px 1fr;gap:14px}
 @media (max-width:1100px){.bar{grid-template-columns:1fr}}
-#desktopStickyStatsBar{display:none}
+#desktopBottomStatusBar{display:none}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px}
 .panel{padding:12px;background:var(--panel);color:var(--text)}
 .section{color:var(--sub);font-size:12px;font-weight:800;margin:0 0 8px}
@@ -2913,47 +2913,69 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   .topbar{
     position:relative!important;
     top:auto!important;
-    min-height:104px;
+    min-height:0!important;
     padding-bottom:10px!important;
     background:linear-gradient(180deg,rgba(8,12,18,.98),rgba(8,12,18,.92))!important;
     backdrop-filter:none!important;
   }
 
   #desktopJumpWallet{
-    position:absolute!important;
-    left:24px!important;
+    position:relative!important;
+    left:auto!important;
     right:auto!important;
-    bottom:14px!important;
+    bottom:auto!important;
     width:auto!important;
     flex:0 0 auto!important;
-    order:unset!important;
-    margin:0!important;
+    order:8!important;
+    margin-left:auto!important;
+    margin-right:0!important;
     display:flex!important;
     justify-content:flex-end!important;
     align-items:center!important;
     z-index:5!important;
   }
 
-  #desktopStickyStatsBar{
-    position:sticky!important;
-    top:0!important;
-    z-index:18!important;
+  #desktopBottomStatusBar{
+    position:fixed!important;
+    left:0!important;
+    right:0!important;
+    bottom:0!important;
+    top:auto!important;
+    z-index:30!important;
     display:flex!important;
     align-items:center!important;
     justify-content:flex-start!important;
-    gap:14px!important;
-    min-height:28px!important;
-    padding:3px 18px!important;
-    margin:-4px -14px 10px!important;
-    background:rgba(8,12,18,.98)!important;
-    border-top:1px solid rgba(255,255,255,.04)!important;
-    border-bottom:1px solid rgba(255,255,255,.10)!important;
-    box-shadow:0 6px 14px rgba(0,0,0,.16)!important;
+    gap:12px!important;
+    min-height:34px!important;
+    padding:4px 360px 4px 18px!important;
+    margin:0!important;
+    background:rgba(8,12,18,.985)!important;
+    border-top:1px solid rgba(255,255,255,.10)!important;
+    border-bottom:0!important;
+    box-shadow:0 -8px 18px rgba(0,0,0,.24)!important;
     overflow-x:auto!important;
     scrollbar-width:none!important;
   }
 
-  #desktopStickyStatsBar::-webkit-scrollbar{
+  .wrap{
+    padding-bottom:54px!important;
+  }
+
+  #desktopLinkRow{
+    position:fixed!important;
+    right:12px!important;
+    bottom:4px!important;
+    z-index:31!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:8px!important;
+    width:auto!important;
+    margin:0!important;
+    padding:0!important;
+  }
+
+  #desktopBottomStatusBar::-webkit-scrollbar{
     display:none!important;
   }
 
@@ -2979,6 +3001,13 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 
   .sticky-stat-item.sticky-change.is-down{
     color:#f87171!important;
+  }
+
+  .sticky-stat-item.sticky-listings{
+    color:#2dd4bf!important;
+    max-width:220px!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
   }
 
   .sidebar-collapse-panel{
@@ -3010,8 +3039,8 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 
     .bar > div:first-child{
       position:sticky!important;
-      top:36px!important;
-      max-height:calc(100vh - 40px)!important;
+      top:0!important;
+      max-height:calc(100vh - 54px)!important;
       overflow-y:auto!important;
       overscroll-behavior:contain!important;
       padding-right:4px!important;
