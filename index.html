@@ -372,10 +372,6 @@
         </div>
 
         <div class="matching-panel-head">
-  <div class="matching-panel-left">
-    <h3 class="section" style="margin:0">Matching Token IDs</h3>
-  </div>
-
   <div class="matching-panel-right">
     <button id="btnClear" onclick="clearFilters()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--sub);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Space Grotesk',sans-serif" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='rgba(255,255,255,.15)'">✕ Clear</button>
   </div>
@@ -390,19 +386,6 @@
     <input type="checkbox" id="onlyListed" style="display:none">
     <button id="btnFetch" class="btn">Fetch listings</button>
     <div class="statusline" id="listingsStatus"></div>
-  </div>
-
-  <div class="matching-panel-searches">
-    <div id="desktopJumpRow" class="matching-jump-row">
-      <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…">
-      <button id="btnJump" class="btn">Go</button>
-    </div>
-
-    <div class="token-trait-search">
-      <input id="tokenTraitSearch" class="input" type="search" placeholder="Search tokens by traits..." autocomplete="off">
-      <button id="tokenTraitSearchClear" type="button" class="btn ghost" title="Clear token trait search" aria-label="Clear token trait search">×</button>
-      <span id="tokenTraitSearchStatus" class="statusline"></span>
-    </div>
   </div>
 
   <div class="matching-panel-sort">
@@ -431,6 +414,17 @@
     <option value="price-asc">Price ↑ (cheapest first)</option>
     <option value="price-desc">Price ↓ (most expensive)</option>
   </select>
+
+    <div class="token-trait-search">
+      <input id="tokenTraitSearch" class="input" type="search" placeholder="Search tokens by traits..." autocomplete="off">
+      <button id="tokenTraitSearchClear" type="button" class="btn ghost" title="Clear token trait search" aria-label="Clear token trait search">×</button>
+      <span id="tokenTraitSearchStatus" class="statusline"></span>
+    </div>
+
+    <div id="desktopJumpRow" class="matching-jump-row">
+      <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…">
+      <button id="btnJump" class="btn">Go</button>
+    </div>
   </div>
 </div>
 

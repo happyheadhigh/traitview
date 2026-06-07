@@ -3152,19 +3152,14 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   margin-top:6px;
 }
 .matching-panel-actions,
-.matching-panel-searches,
 .matching-panel-sort{
   display:flex;
   align-items:center;
   flex-wrap:wrap;
   gap:8px;
 }
-.matching-panel-searches{
-  flex:1 1 420px;
-  justify-content:flex-end;
-}
 .matching-panel-sort{
-  flex:1 1 420px;
+  flex:1 1 100%;
   justify-content:flex-start;
 }
 
@@ -3173,7 +3168,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     position:relative!important;
     display:flex!important;
     align-items:center!important;
-    justify-content:space-between!important;
+    justify-content:flex-end!important;
     gap:10px!important;
     min-height:0!important;
     margin-bottom:0!important;
@@ -3188,6 +3183,11 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     margin-left:auto!important;
   }
 
+  .matching-panel-actions{
+    flex:1 1 100%!important;
+    justify-content:flex-start!important;
+  }
+
   .matching-panel-actions #btnFetch{
     display:none!important;
   }
@@ -3197,8 +3197,25 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     margin-top:0!important;
   }
 
-  .matching-panel-searches #desktopJumpRow,
-  .matching-panel-searches .matching-jump-row{
+  .matching-panel-sort{
+    flex:1 1 100%!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:8px!important;
+  }
+
+  .matching-panel-sort label.section{
+    margin-left:4px!important;
+  }
+
+  .matching-panel-sort .token-trait-search{
+    flex:1 1 340px!important;
+    max-width:520px!important;
+    min-width:300px!important;
+  }
+
+  .matching-panel-sort #desktopJumpRow,
+  .matching-panel-sort .matching-jump-row{
     position:static!important;
     right:auto!important;
     top:auto!important;
@@ -3209,13 +3226,9 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     margin:0!important;
   }
 
-  .matching-panel-searches .token-trait-search{
-    flex:1 1 280px;
-    max-width:360px;
-  }
-
-  .matching-panel-searches #jump{
-    width:112px!important;
+  .matching-panel-sort #jump{
+    width:104px!important;
+    min-width:104px!important;
   }
 }
 
