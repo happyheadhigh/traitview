@@ -102,11 +102,11 @@
   </div>
 
   <div id="desktopStickyStatsBar" aria-label="Market status">
-    <span class="sticky-stat-pill">Floor <b id="stickyFloorVal">…</b></span>
-    <span class="sticky-stat-pill sticky-change" id="stickyFloorChange">…</span>
-    <span class="sticky-stat-pill">Vol <b id="stickyVolVal">…</b></span>
-    <span class="sticky-stat-pill">Sales <b id="stickySalesVal">…</b></span>
-    <span class="sticky-stat-pill">Owners <b id="stickyOwnersVal">…</b></span>
+    <span class="sticky-stat-item"><span>Floor</span><b id="stickyFloorVal">…</b></span>
+    <span class="sticky-stat-item sticky-change" id="stickyFloorChange">…</span>
+    <span class="sticky-stat-item"><span>Vol</span><b id="stickyVolVal">…</b></span>
+    <span class="sticky-stat-item"><span>Sales</span><b id="stickySalesVal">…</b></span>
+    <span class="sticky-stat-item"><span>Owners</span><b id="stickyOwnersVal">…</b></span>
   </div>
 
   <div class="bar">
@@ -179,9 +179,16 @@
       <div id="activeChips" class="chips" style="margin:6px 0 10px;order:5"></div>
       <div id="accTraits" style="order:6"></div>
 
-      <h3 class="section" style="margin-top:14px;order:7">Trait Count</h3>
-      <div id="traitChips" class="chips" style="margin-bottom:8px;order:8"></div>
-      <div style="color:var(--muted);font-size:12px;order:9">Click a bar or a number to filter to exactly that many traits. Click again to remove.</div>
+      <div id="traitCountPanel" class="sidebar-collapse-panel" style="order:7;margin-top:14px">
+        <div class="sidebar-collapse-head" onclick="(function(el){el.classList.toggle('open');const ch=el.querySelector('.sidebar-collapse-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
+          <span class="section" style="opacity:.7;margin:0">Trait Count</span>
+          <span class="sidebar-collapse-chev" style="color:var(--sub);font-size:16px;line-height:1;transition:transform .2s ease;display:inline-block">⌄</span>
+        </div>
+        <div id="traitCountPanelBody" class="sidebar-collapse-body">
+          <div id="traitChips" class="chips" style="margin-bottom:8px"></div>
+          <div style="color:var(--muted);font-size:12px">Click a bar or a number to filter to exactly that many traits. Click again to remove.</div>
+        </div>
+      </div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:12px">
