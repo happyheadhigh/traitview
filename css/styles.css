@@ -46,6 +46,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .btn.go{background:rgba(25,195,125,.15);border-color:var(--good);box-shadow:0 0 0 1px var(--good) inset;color:#c7f9df}
 .bar{display:grid;grid-template-columns:360px 1fr;gap:14px}
 @media (max-width:1100px){.bar{grid-template-columns:1fr}}
+#desktopStickyStatsBar{display:none}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px}
 .panel{padding:12px;background:var(--panel);color:var(--text)}
 .section{color:var(--sub);font-size:12px;font-weight:800;margin:0 0 8px}
@@ -2910,14 +2911,18 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 @media (min-width:901px){
   /* Wallet stays bottom-right visually, but no longer creates a full extra header row */
   .topbar{
-    position:sticky;
+    position:relative!important;
+    top:auto!important;
     min-height:104px;
     padding-bottom:10px!important;
+    background:linear-gradient(180deg,rgba(8,12,18,.98),rgba(8,12,18,.92))!important;
+    backdrop-filter:none!important;
   }
 
   #desktopJumpWallet{
     position:absolute!important;
-    right:24px!important;
+    left:24px!important;
+    right:auto!important;
     bottom:14px!important;
     width:auto!important;
     flex:0 0 auto!important;
@@ -2927,6 +2932,68 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     justify-content:flex-end!important;
     align-items:center!important;
     z-index:5!important;
+  }
+
+  #desktopStickyStatsBar{
+    position:sticky!important;
+    top:0!important;
+    z-index:18!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:6px!important;
+    min-height:32px!important;
+    padding:4px 8px!important;
+    margin:-4px -14px 10px!important;
+    background:rgba(8,12,18,.96)!important;
+    border-top:1px solid rgba(255,255,255,.04)!important;
+    border-bottom:1px solid rgba(255,255,255,.08)!important;
+    box-shadow:0 8px 18px rgba(0,0,0,.18)!important;
+  }
+
+  .sticky-stat-pill{
+    display:inline-flex!important;
+    align-items:center!important;
+    gap:5px!important;
+    min-height:24px!important;
+    padding:2px 9px!important;
+    border-radius:999px!important;
+    border:1px solid rgba(255,255,255,.10)!important;
+    background:rgba(255,255,255,.045)!important;
+    color:var(--sub)!important;
+    font-size:11px!important;
+    font-weight:700!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+  }
+
+  .sticky-stat-pill b{
+    color:var(--text)!important;
+    font-size:11px!important;
+  }
+
+  .sticky-stat-pill.sticky-change{
+    color:#4ade80!important;
+  }
+
+  .sticky-stat-pill.sticky-change.is-down{
+    color:#f87171!important;
+  }
+
+  @media (min-width:1101px){
+    .bar{
+      align-items:start!important;
+    }
+
+    .bar > div:first-child{
+      position:sticky!important;
+      top:42px!important;
+      max-height:calc(100vh - 48px)!important;
+      overflow-y:auto!important;
+      overscroll-behavior:contain!important;
+      padding-right:4px!important;
+      scrollbar-width:thin!important;
+    }
   }
 
   /* Keep Matching panel header compact */

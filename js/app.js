@@ -4413,7 +4413,29 @@ async function loadManifest(){
   const setText = (id, v) => {
     const el = document.getElementById(id);
     if(el) el.textContent = v;
+    syncStickyMarketStats();
   };
+
+  function syncStickyMarketStats(){
+    const copy = (fromId, toId) => {
+      const from = document.getElementById(fromId);
+      const to = document.getElementById(toId);
+      if(from && to) to.textContent = from.textContent || '-';
+    };
+    copy('floorPillValue', 'stickyFloorVal');
+    copy('mstatTotVolVal', 'stickyVolVal');
+    copy('mstatTotSalesVal', 'stickySalesVal');
+    copy('mmetaOwnersVal', 'stickyOwnersVal');
+
+    const changeEl = document.getElementById('floorChange');
+    const stickyChange = document.getElementById('stickyFloorChange');
+    if(stickyChange){
+      const visible = changeEl && changeEl.style.display !== 'none' && changeEl.textContent.trim();
+      stickyChange.textContent = visible ? changeEl.textContent.trim() : '24h -';
+      stickyChange.classList.toggle('is-down', !!(visible && stickyChange.textContent.indexOf('▼') >= 0));
+      stickyChange.style.color = (visible && changeEl.style.color) ? changeEl.style.color : '';
+    }
+  }
 
   const fmtEth = v => {
     const n = parseFloat(v);
@@ -4481,6 +4503,7 @@ async function loadManifest(){
       if(fp == null || !Number.isFinite(Number(fp))){
         el.textContent = 'N/A';
         el.className = 'fp-loading';
+        syncStickyMarketStats();
         return;
       }
 
@@ -4488,6 +4511,7 @@ async function loadManifest(){
       const formatted = val >= 1 ? val.toFixed(3) : val.toFixed(4);
       el.textContent = `Ξ ${formatted} ${sym}`;
       el.className = '';
+      syncStickyMarketStats();
 
       const pill = document.getElementById('floorPill');
       if(pill){
@@ -4508,20 +4532,22 @@ async function loadManifest(){
         const now = Date.now();
         if(cached && (now - cached.ts) < 5 * 60 * 1000){
           _applyFloorChange(changeEl, currentFloor, cached.ref_24h);
+          syncStickyMarketStats();
           return;
         }
         dbFetch('/db/floor-history', { hours: 48 })
           .then(j => {
-            if(!j?.ok || j.ref_24h == null){ changeEl.style.display='none'; return; }
+            if(!j?.ok || j.ref_24h == null){ changeEl.style.display='none'; syncStickyMarketStats(); return; }
             try{ sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ref_24h: j.ref_24h, ts: now })); }catch{}
             _applyFloorChange(changeEl, currentFloor, j.ref_24h);
+            syncStickyMarketStats();
           })
-          .catch(() => { changeEl.style.display='none'; });
+          .catch(() => { changeEl.style.display='none'; syncStickyMarketStats(); });
       })();
     }catch(e){
       console.warn('[Floor] fetch error:', e.message);
       const el = document.getElementById('floorPillValue');
-      if(el){ el.textContent = '—'; el.className = 'fp-loading'; }
+      if(el){ el.textContent = '—'; el.className = 'fp-loading'; syncStickyMarketStats(); }
     }
   }
 
