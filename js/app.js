@@ -1867,6 +1867,7 @@ function switchTopTab(name){
     else _applyHoldersTraitFilter(); // apply current trait filter if already loaded
   }
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
+  if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   // Show/hide view toggles
   const vt = document.getElementById('salesViewToggle');
@@ -1967,9 +1968,9 @@ function openMobileAnalytics(){
   // Build lightweight tab UI — no DOM moves, no large elements
   const isMob = window.innerWidth <= 900;
   const tabs = isMob
-    ? ['chart','sales','mispriced','floor','holders','wallet']
-    : ['chart','sales','mispriced','scatter','floor','holders','wallet'];
-  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet'};
+    ? ['chart','sales','mispriced','floor','holders','wallet','burns']
+    : ['chart','sales','mispriced','scatter','floor','holders','wallet','burns'];
+  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet',burns:'Burns'};
   const curActive = document.querySelector('.top-tab.active')?.dataset?.ttab || 'chart';
 
   // Reset inner to just the skeleton — no panel content yet
@@ -2009,7 +2010,7 @@ function switchAnalyticsSheetTab(name){
   const body = document.getElementById('analyticsSheetBody');
   if(!body) return;
 
-  const tabs = ['chart','sales','mispriced','scatter','floor','holders','wallet'];
+  const tabs = ['chart','sales','mispriced','scatter','floor','holders','wallet','burns'];
   const topTabPanel = document.getElementById('topTabPanel');
 
   // First: return any currently shown panel back to topTabPanel
@@ -2058,6 +2059,7 @@ function switchAnalyticsSheetTab(name){
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
   else if(name === 'holders' && window._holdersLoaded) renderHolders();
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
+  if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   if(name === 'mispriced'){
     // Auto-trigger listings fetch for mispriced tab
@@ -2089,7 +2091,7 @@ function closeMobileAnalytics(){
   const tabPanel = document.getElementById('topTabPanel');
   const body = document.getElementById('analyticsSheetBody');
   if(tabPanel){
-    ['chart','sales','mispriced','scatter','floor','holders','wallet'].forEach(name => {
+    ['chart','sales','mispriced','scatter','floor','holders','wallet','burns'].forEach(name => {
       const p = document.getElementById('ttab-' + name);
       if(p && (!tabPanel.contains(p))){
         const inner = tabPanel.querySelector('.c-body-inner');
@@ -2119,6 +2121,7 @@ function switchTopTabInSheet(name){
   if(name === 'floor' && (!window._floorLoaded || !window._floorEvents?.length)) loadFloorTrend(false);
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
+  if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
   if(name === 'scatter'){
     const hasListings = window.LISTINGS && Object.keys(window.LISTINGS).length > 0;
     if(hasListings) setTimeout(renderScatter, 100);
