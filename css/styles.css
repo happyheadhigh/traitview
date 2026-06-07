@@ -2966,13 +2966,32 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     right:12px!important;
     bottom:4px!important;
     z-index:31!important;
-    display:flex!important;
+    display:inline-flex!important;
     align-items:center!important;
     justify-content:flex-end!important;
     gap:8px!important;
     width:auto!important;
     margin:0!important;
     padding:0!important;
+    flex:0 0 auto!important;
+    opacity:1!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+  }
+
+  .topbar #desktopLinkRow,
+  .topbar #desktopLinkRow .desktop-icon-link,
+  .topbar #desktopLinkRow #desktopThemeCycle,
+  .topbar #desktopLinkRow #desktopFavoritesBtn,
+  .topbar #desktopLinkRow #desktopFavoritesCount{
+    display:inline-flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+    pointer-events:auto!important;
+  }
+
+  .topbar #desktopLinkRow #desktopFavoritesCount{
+    align-items:center!important;
   }
 
   #desktopBottomStatusBar::-webkit-scrollbar{
