@@ -1968,8 +1968,8 @@ function openMobileAnalytics(){
   // Build lightweight tab UI — no DOM moves, no large elements
   const isMob = window.innerWidth <= 900;
   const tabs = isMob
-    ? ['chart','sales','mispriced','floor','holders','wallet','burns']
-    : ['chart','sales','mispriced','scatter','floor','holders','wallet','burns'];
+    ? ['chart','sales','burns','mispriced','floor','holders','wallet']
+    : ['chart','sales','burns','mispriced','scatter','floor','holders','wallet'];
   const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet',burns:'Burns'};
   const curActive = document.querySelector('.top-tab.active')?.dataset?.ttab || 'chart';
 
@@ -2010,7 +2010,7 @@ function switchAnalyticsSheetTab(name){
   const body = document.getElementById('analyticsSheetBody');
   if(!body) return;
 
-  const tabs = ['chart','sales','mispriced','scatter','floor','holders','wallet','burns'];
+  const tabs = ['chart','sales','burns','mispriced','scatter','floor','holders','wallet'];
   const topTabPanel = document.getElementById('topTabPanel');
 
   // First: return any currently shown panel back to topTabPanel
@@ -2091,7 +2091,7 @@ function closeMobileAnalytics(){
   const tabPanel = document.getElementById('topTabPanel');
   const body = document.getElementById('analyticsSheetBody');
   if(tabPanel){
-    ['chart','sales','mispriced','scatter','floor','holders','wallet','burns'].forEach(name => {
+    ['chart','sales','burns','mispriced','scatter','floor','holders','wallet'].forEach(name => {
       const p = document.getElementById('ttab-' + name);
       if(p && (!tabPanel.contains(p))){
         const inner = tabPanel.querySelector('.c-body-inner');

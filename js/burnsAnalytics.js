@@ -16,10 +16,10 @@
    - burn_events has tx_hash, block_number, log_index, burner_wallet,
      survivor_token_id, points_used, burned_at
    - burn_event_inputs links burn_event_id to burned_token_id
-   - tokens_burned = distinct burn_event_inputs rows for finalized burn_events
-   - tokens_created = finalized burn_events count
-   - supply_reduced_by = tokens_burned - tokens_created
-   - estimated_supply = 10000 - supply_reduced_by
+   - ocas_burned = distinct non-survivor burn_event_inputs rows
+   - total_burns = finalized burn_events count
+   - tokens_used = ocas_burned + total_burns
+   - estimated_supply = 10000 - ocas_burned
 */
 
 const BURNS_ANALYTICS_CACHE = { data:null, loadedAt:0 };
@@ -54,15 +54,52 @@ function burnsTokenLink(id){
   if(!Number.isFinite(n) || n <= 0) return '-';
   return `<a href="https://opensea.io/assets/ethereum/${LIVE_CONTRACT}/${n}" target="_blank" rel="noopener">#${n}</a>`;
 }
+function burnsRankBadge(rank){
+  const n = Number(rank);
+  if(!Number.isFinite(n) || n <= 0) return '';
+  const cls = n <= 100 ? 'gold' : (n <= 1000 ? 'purple' : 'teal');
+  return `<span class="burn-rank ${cls}">#${burnsMetric(n)}</span>`;
+}
 function burnsRankTag(id){
   const n = Number(id);
   if(!Number.isFinite(n) || n <= 0) return '';
   const os = typeof OS_RANK_MAP !== 'undefined' ? OS_RANK_MAP.get(n) : null;
   const tv = typeof RARITY_OBS_RANK !== 'undefined' ? RARITY_OBS_RANK.get(n) : null;
-  const rank = os || tv;
-  if(!rank) return '';
-  const cls = rank <= 100 ? 'gold' : (rank <= 1000 ? 'purple' : 'teal');
-  return `<span class="burn-rank ${cls}">#${burnsMetric(rank)}</span>`;
+  return burnsRankBadge(os || tv);
+}
+function burnsRowRankTag(row, id){
+  return burnsRankBadge(row?.rank || row?.os_rank || row?.obs_rank) || burnsRankTag(id);
+}
+function burnsTokenImgSrc(id){
+  const n = Number(id);
+  if(!Number.isFinite(n) || n <= 0) return '';
+  if(typeof VS !== 'undefined' && VS && typeof VS._imgSrc === 'function') return VS._imgSrc(n) || '';
+  const mapVal = (typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) ? IMAGES_MAP.get(n) : null;
+  const s = mapVal ? String(mapVal).trim() : '';
+  if(s && s.startsWith('<svg')){
+    try{ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); }catch(_){ return ''; }
+  }
+  if(s && s.startsWith('data:')) return s;
+  if(s) return typeof ipfsToHttp === 'function' ? ipfsToHttp(s) : s;
+  return typeof imgForId === 'function' ? imgForId(n) : '';
+}
+function burnsTokenThumb(id, extraClass=''){
+  const n = Number(id);
+  if(!Number.isFinite(n) || n <= 0) return '';
+  const src = burnsTokenImgSrc(n);
+  const img = src ? `<img src="${burnsEsc(src)}" alt="#${n}" loading="lazy" decoding="async">` : `<span>#${n}</span>`;
+  return `<button type="button" class="burn-token-thumb ${burnsEsc(extraClass)}" title="Open token #${n}" aria-label="Open token #${n}" onclick="event.stopPropagation(); if(typeof openModal==='function') openModal(${n});">${img}</button>`;
+}
+function burnsTokenChip(id, row){
+  const n = Number(id);
+  if(!Number.isFinite(n) || n <= 0) return '';
+  return `<span class="burn-token-chip">${burnsTokenThumb(n)}<span class="burn-token-id">${burnsTokenLink(n)}</span>${row ? burnsRowRankTag(row, n) : burnsRankTag(n)}</span>`;
+}
+function burnsTokenChipList(ids, limit=8){
+  const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
+  const more = clean.length > limit ? `<span class="burn-muted">+${clean.length - limit}</span>` : '';
+  const chips = clean.slice(0, limit).map(id => burnsTokenChip(id)).join('');
+  return `<span class="burn-chip-list">${chips || '-'}${more}</span>`;
 }
 function burnsInputIds(row){
   return row?.input_token_ids || row?.burned_ids || row?.burned_token_ids || row?.tokens || [];
@@ -101,11 +138,21 @@ async function fetchBurnsAnalytics(force=false){
 
 function renderBurnStats(stats){
   const s = stats || {};
+  const ocasBurned = s.ocas_burned ?? s.tokens_burned;
+  const totalBurns = s.total_burns ?? s.tokens_created;
+  const tokensUsed = s.tokens_used ?? (
+    Number.isFinite(Number(ocasBurned)) && Number.isFinite(Number(totalBurns))
+      ? Number(ocasBurned) + Number(totalBurns)
+      : null
+  );
+  const estimatedSupply = s.estimated_supply ?? (
+    Number.isFinite(Number(ocasBurned)) ? 10000 - Number(ocasBurned) : null
+  );
   const items = [
-    ['Tokens Burned', s.tokens_burned],
-    ['New Burn Tokens', s.tokens_created],
-    ['Supply Reduced By', s.supply_reduced_by],
-    ['Estimated Supply', s.estimated_supply]
+    ['OCAS Burned', ocasBurned],
+    ['Total Burns', totalBurns],
+    ['Tokens Used', tokensUsed],
+    ['Est. Supply', estimatedSupply]
   ];
   return `<div class="burn-stat-row">${items.map(([label,val]) => `
     <div class="wallet-stat-pill"><span>${burnsEsc(label)}</span><b>${burnsMetric(val)}</b></div>
@@ -115,8 +162,7 @@ function renderLatestBurns(rows){
   if(!rows.length) return '<div class="wallet-empty-state">No finalized burn rows returned yet.</div>';
   return `<div class="burn-table">${rows.slice(0,25).map(row => {
     const ids = burnsInputIds(row).filter(Boolean);
-    const idHtml = ids.slice(0,8).map(burnsTokenLink).join(' ');
-    const more = ids.length > 8 ? ` <span class="burn-muted">+${ids.length-8}</span>` : '';
+    const created = row.created_token_id || row.survivor_token_id;
     return `<div class="burn-row">
       <div class="burn-main">
         <b>${burnsTxLink(row.tx_hash)}</b>
@@ -125,8 +171,9 @@ function renderLatestBurns(rows){
       </div>
       <div class="burn-detail">
         <span>Inputs ${burnsMetric(row.input_count ?? ids.length)}</span>
-        <span>${idHtml || '-' }${more}</span>
-        <span>Created ${burnsTokenLink(row.created_token_id || row.survivor_token_id)} ${burnsRankTag(row.created_token_id || row.survivor_token_id)}</span>
+        ${burnsTokenChipList(ids, 8)}
+        <span class="burn-created-label">Created</span>
+        ${burnsTokenChip(created, row)}
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -136,38 +183,48 @@ function renderBurnLeaderboard(rows){
   return `<div class="burn-table compact">${rows.slice(0,25).map((row,i) => `
     <div class="burn-row leaderboard">
       <div class="burn-main"><b>${i+1}. ${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</b><span>${burnsMetric(row.burn_events || row.total_burns)} burns</span></div>
-      <div class="burn-detail"><span>${burnsMetric(row.tokens_burned || row.total_burned)} tokens burned</span><span>Biggest ${burnsMetric(row.biggest_burn)}</span><span>${row.rarest_burn ? `Best ${burnsEsc(row.rarest_burn)}` : ''}</span></div>
+      <div class="burn-detail"><span>${burnsMetric(row.tokens_burned || row.total_burned)} OCAS burned</span><span>Biggest ${burnsMetric(row.biggest_burn)}</span><span>${row.rarest_burn ? `Best ${burnsEsc(row.rarest_burn)}` : ''}</span></div>
     </div>
   `).join('')}</div>`;
 }
 function renderBestBurns(best){
   const groups = [
-    ['Biggest Burns', best?.biggest || best?.biggest_burns || []],
-    ['Rarest Inputs', best?.rarest_inputs || best?.rarest || []],
-    ['Best Survivors', best?.best_survivors || best?.survivors || []]
+    ['Biggest Burns', best?.biggest || best?.biggest_burns || [], 'biggest'],
+    ['Rarest Inputs', best?.rarest_inputs || best?.rarest_burned_inputs || best?.rarest || [], 'input'],
+    ['Best Survivors', best?.best_survivors || best?.best_created_tokens || best?.survivors || [], 'survivor']
   ];
-  const html = groups.map(([title, rows]) => {
+  const html = groups.map(([title, rows, kind]) => {
     if(!Array.isArray(rows) || !rows.length) return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4><div class="wallet-empty-state">No rows yet.</div></div>`;
     return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4>${rows.slice(0,8).map(row => {
       const survivor = row.created_token_id || row.survivor_token_id || row.token_id;
       const ids = burnsInputIds(row).filter(Boolean);
+      const primaryId = kind === 'input' ? (row.burned_token_id || row.token_id) : survivor;
+      const inputSummary = ids.length ? `<span class="burn-best-inputs">${burnsTokenChipList(ids, 5)}</span>` : '';
       return `<div class="burn-mini-row">
-        <span>${burnsTokenLink(survivor)} ${burnsRankTag(survivor)}</span>
-        <span>${burnsMetric(row.input_count ?? ids.length)} inputs</span>
+        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row)}</span>
+        <span>${kind === 'input' ? 'Input' : burnsMetric(row.input_count ?? ids.length) + ' inputs'}</span>
         <span>${burnsTxLink(row.tx_hash)}</span>
+        ${inputSummary}
       </div>`;
     }).join('')}</div>`;
   }).join('');
   return `<div class="burn-best-grid">${html}</div>`;
 }
 function renderBurnActivity(rows){
-  if(!rows.length) return '<div class="wallet-empty-state">Burn activity endpoint is empty or still building.</div>';
-  const max = Math.max(1, ...rows.map(r => Number(r.count || r.burns || r.tokens_burned || 0)));
-  return `<div class="burn-activity-bars">${rows.slice(-48).map(r => {
-    const val = Number(r.count || r.burns || r.tokens_burned || 0);
-    const h = Math.max(8, Math.round((val / max) * 72));
+  if(!rows.length) return '<div class="wallet-empty-state">Burn timeline is empty or still building.</div>';
+  const recent = rows.slice(-48);
+  const max = Math.max(1, ...recent.flatMap(r => {
+    const events = Number(r.burn_events || r.count || r.burns || 0);
+    const used = Number(r.tokens_used ?? (Number(r.tokens_burned || 0) + Number(r.tokens_created || 0)));
+    return [events, used];
+  }));
+  return `<div class="burn-activity-legend"><span><i class="events"></i>Burn events</span><span><i class="used"></i>Tokens used</span></div><div class="burn-activity-bars">${recent.map(r => {
+    const events = Number(r.burn_events || r.count || r.burns || 0);
+    const used = Number(r.tokens_used ?? (Number(r.tokens_burned || 0) + Number(r.tokens_created || 0)));
+    const h1 = Math.max(8, Math.round((events / max) * 72));
+    const h2 = Math.max(8, Math.round((used / max) * 72));
     const label = r.day || r.date || r.bucket || r.month || '';
-    return `<div class="burn-activity-bar" style="height:${h}px" title="${burnsEsc(label)}: ${burnsMetric(val)}"></div>`;
+    return `<div class="burn-activity-day" title="${burnsEsc(label)}: ${burnsMetric(events)} burn events, ${burnsMetric(used)} tokens used"><span class="burn-activity-bar events" style="height:${h1}px"></span><span class="burn-activity-bar used" style="height:${h2}px"></span></div>`;
   }).join('')}</div>`;
 }
 function renderBurnsAnalytics(data){
@@ -182,8 +239,8 @@ function renderBurnsAnalytics(data){
     ${renderBurnStats(stats)}
     ${burnsSection('Latest Burns', renderLatestBurns(latestRows), 'Finalized burn events from Railway')}
     <div class="burn-two-col">
-      ${burnsSection('Burn Leaderboard', renderBurnLeaderboard(leaderRows), 'Ranked by tokens burned')}
-      ${burnsSection('Burn Activity', renderBurnActivity(activityRows), 'Compact timeline')}
+      ${burnsSection('Burn Leaderboard', renderBurnLeaderboard(leaderRows), 'Ranked by OCAS burned')}
+      ${burnsSection('Burn Timeline', renderBurnActivity(activityRows), 'Daily burn events and tokens used')}
     </div>
     ${burnsSection('Best Burns', renderBestBurns(data?.best || {}), 'Largest burns and rank-aware highlights when available')}
   </div>`;
