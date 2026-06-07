@@ -152,6 +152,53 @@ async function buildStatsAndRanks(){
 function passesRankFilter(id){ const map=(RARITY_MODE==='theoretical' && RARITY_THEO_RANK.size)?RARITY_THEO_RANK:RARITY_OBS_RANK; const r=map.get(id); if(!r) return false; if(rankMin!=null && r<rankMin) return false; if(rankMax!=null && r>rankMax) return false; return true; }
 function rowMatchesActiveTraitsOnly(row){ for(const [name,set] of activeTraits){ const v=row.traits?.[name]; if(!set.has(String(v))) return false; } return true; }
 function rowMatchesAll(row,id){ if(currentTraitCount!=null && getTraitCount(row)!==currentTraitCount) return false; if(!passesRankFilter(id)) return false; return rowMatchesActiveTraitsOnly(row); }
+let tokenTraitSearchQuery = '';
+function normalizeTokenTraitSearchText(value){
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function tokenTraitSearchTerms(){
+  const q = normalizeTokenTraitSearchText(tokenTraitSearchQuery);
+  return q ? q.split(/\s+/).filter(Boolean) : [];
+}
+function tokenTraitSearchTextForRow(row){
+  const parts = [];
+  for(const [k,v] of keepEntries(row?.traits || {})){
+    const name = traitDisplayLabel(k);
+    parts.push(k, name, v, `${k} ${v}`, `${name} ${v}`);
+  }
+  return normalizeTokenTraitSearchText(parts.join(' '));
+}
+function rowMatchesTokenTraitSearch(row){
+  const terms = tokenTraitSearchTerms();
+  if(!terms.length) return true;
+  const haystack = tokenTraitSearchTextForRow(row);
+  return terms.every(term => haystack.includes(term));
+}
+function updateTokenTraitSearchStatus(count){
+  const input = document.getElementById('tokenTraitSearch');
+  const status = document.getElementById('tokenTraitSearchStatus');
+  const clearBtn = document.getElementById('tokenTraitSearchClear');
+  const q = input ? input.value.trim() : tokenTraitSearchQuery.trim();
+  if(clearBtn) clearBtn.style.display = q ? 'inline-flex' : 'none';
+  if(!status) return;
+  status.textContent = q ? (count == null ? `Search: ${q}` : `Search: ${q} · ${fmt(count)} matches`) : '';
+}
+async function applyTokenTraitSearchToIds(ids){
+  if(!tokenTraitSearchTerms().length) return ids;
+  const out = [];
+  for(const id of ids){
+    const row = await fetchRow(id);
+    if(rowMatchesTokenTraitSearch(row)) out.push(id);
+  }
+  return out;
+}
+function clearTokenTraitSearch(){
+  tokenTraitSearchQuery = '';
+  const input = document.getElementById('tokenTraitSearch');
+  if(input) input.value = '';
+  updateTokenTraitSearchStatus(0);
+  if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+}
 async function fetchRow(id){ if(ROW_CACHE.has(id)) return ROW_CACHE.get(id); const idx=chunkIndexFor(id); const ch=await ensureChunk(idx); const row=ch[String(id)]||{traits:{}}; ROW_CACHE.set(id,row); return row; }
 
 /* recompute */
@@ -314,6 +361,7 @@ async function renderTokenGrid(ids, opts){
     const mpb = document.getElementById('mispricedCountBadge');
     if(mpb) mpb.textContent = '–';
   }
+  updateTokenTraitSearchStatus(ids.length);
   if(!ids.length){ tg.appendChild(el('div',null,'No matches.')); return;}
 
   // ── Virtual scroller: mobile + desktop ───────────────────────────────────
@@ -407,6 +455,7 @@ async function renderTokenGridFromState(){
     let ids = [...CHART_ID_MAP[currentTraitCount]];
     if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
     ids = applyConnectedOwnedFilter(ids);
+    ids = await applyTokenTraitSearchToIds(ids);
     await renderTokenGrid(ids);
     return;
   }
@@ -421,6 +470,7 @@ async function renderTokenGridFromState(){
     let ids = [...baseRankMap.keys()].map(Number).filter(Boolean);
     if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
     ids = applyConnectedOwnedFilter(ids);
+    ids = await applyTokenTraitSearchToIds(ids);
     await renderTokenGrid(ids);
     return;
   }
@@ -435,6 +485,7 @@ async function renderTokenGridFromState(){
   }
   let finalIds = favoritesOnlyEnabled() ? ids.filter(id => isFavorite(id)) : ids;
   finalIds = applyConnectedOwnedFilter(finalIds);
+  finalIds = await applyTokenTraitSearchToIds(finalIds);
   await renderTokenGrid(finalIds);
 }
 
@@ -1215,6 +1266,10 @@ function toggleLiveListingsMode(forceValue){
 
 function clearFilters(){
   currentTraitCount=null; activeTraits.clear(); rankMin=null; rankMax=null; OPEN_GROUPS.clear();
+  tokenTraitSearchQuery = '';
+  const tokenSearchInput = document.getElementById('tokenTraitSearch');
+  if(tokenSearchInput) tokenSearchInput.value = '';
+  updateTokenTraitSearchStatus(0);
   document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.remove('active'));
   document.getElementById('rankMin').value='';
   document.getElementById('rankMax').value='';
@@ -1238,6 +1293,19 @@ if(__mobileFavBtn) __mobileFavBtn.onclick = ()=>toggleFavoritesView();
 syncFavoritesUI();
 // onlyListed change is handled by toggleLiveListingsMode() and clearFilters
 document.getElementById('traitSearch').addEventListener('input',()=>renderTraitAccordion(document.getElementById('traitSearch').value));
+const __tokenTraitSearchInput = document.getElementById('tokenTraitSearch');
+const __tokenTraitSearchClear = document.getElementById('tokenTraitSearchClear');
+if(__tokenTraitSearchInput){
+  let tokenTraitSearchDebounce = null;
+  __tokenTraitSearchInput.addEventListener('input', ()=>{
+    tokenTraitSearchQuery = __tokenTraitSearchInput.value || '';
+    updateTokenTraitSearchStatus(null);
+    clearTimeout(tokenTraitSearchDebounce);
+    tokenTraitSearchDebounce = setTimeout(()=>renderTokenGridFromState(), 120);
+  });
+  updateTokenTraitSearchStatus(0);
+}
+if(__tokenTraitSearchClear) __tokenTraitSearchClear.onclick = clearTokenTraitSearch;
 document.getElementById('onlyPresent').addEventListener('change',()=>renderTraitAccordion(document.getElementById('traitSearch').value));
 document.getElementById('rankApply').onclick=async()=>{ const min=document.getElementById('rankMin').value?Number(document.getElementById('rankMin').value):null; const max=document.getElementById('rankMax').value?Number(document.getElementById('rankMax').value):null; rankMin=(min&&min>=1)?min:null; rankMax=(max&&max>=1)?max:null; await updateChartAndList(); };
 document.getElementById('rankClear').onclick=()=>{ document.getElementById('rankMin').value=''; document.getElementById('rankMax').value=''; rankMin=null; rankMax=null; updateChartAndList(); };

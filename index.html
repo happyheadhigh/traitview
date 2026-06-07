@@ -412,6 +412,12 @@
 </div>
 <select id="viewMode" class="input" style="display:none"><option value="standard">2×2 grid</option><option value="grid5">5×5 grid</option><option value="compact">8×8 grid</option><option value="list">List view</option></select>
 
+  <div class="token-trait-search">
+    <input id="tokenTraitSearch" class="input" type="search" placeholder="Search tokens by traits..." autocomplete="off">
+    <button id="tokenTraitSearchClear" type="button" class="btn ghost" title="Clear token trait search" aria-label="Clear token trait search">×</button>
+    <span id="tokenTraitSearchStatus" class="statusline"></span>
+  </div>
+
   <label class="section" style="margin-left:12px">Sort</label>
   <select id="sortMode" class="input" style="width:200px">
     <option value="id-asc">ID ↑ (default)</option>
