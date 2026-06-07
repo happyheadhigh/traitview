@@ -3142,3 +3142,119 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     margin-top:2px!important;
   }
 }
+
+/* === Matching panel organized controls === */
+.matching-panel-controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px 12px;
+  margin-top:6px;
+}
+.matching-panel-actions,
+.matching-panel-searches,
+.matching-panel-sort{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.matching-panel-searches{
+  flex:1 1 420px;
+  justify-content:flex-end;
+}
+.matching-panel-sort{
+  flex:1 1 420px;
+  justify-content:flex-start;
+}
+
+@media (min-width:901px){
+  .matching-panel-head{
+    position:relative!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+    min-height:0!important;
+    margin-bottom:0!important;
+    padding-right:0!important;
+  }
+
+  .matching-panel-right{
+    position:static!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    margin-left:auto!important;
+  }
+
+  .matching-panel-actions #btnFetch{
+    display:none!important;
+  }
+
+  .matching-panel-actions #listingsStatus{
+    white-space:nowrap!important;
+    margin-top:0!important;
+  }
+
+  .matching-panel-searches #desktopJumpRow,
+  .matching-panel-searches .matching-jump-row{
+    position:static!important;
+    right:auto!important;
+    top:auto!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:5px!important;
+    margin:0!important;
+  }
+
+  .matching-panel-searches .token-trait-search{
+    flex:1 1 280px;
+    max-width:360px;
+  }
+
+  .matching-panel-searches #jump{
+    width:112px!important;
+  }
+}
+
+@media (max-width:900px){
+  .matching-panel-head{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+  }
+
+  .matching-panel-right{
+    margin-left:auto!important;
+  }
+
+  .matching-panel-controls{
+    gap:8px!important;
+  }
+
+  .matching-panel-actions,
+  .matching-panel-sort{
+    width:100%;
+  }
+
+  .matching-panel-actions{
+    justify-content:space-between;
+  }
+
+  .matching-panel-actions #listingsStatus{
+    flex:1 1 auto;
+    min-width:120px;
+    text-align:right;
+  }
+
+  .matching-panel-sort{
+    justify-content:flex-start;
+  }
+
+  .matching-panel-sort label.section{
+    margin-left:0!important;
+  }
+}

@@ -374,27 +374,38 @@
         <div class="matching-panel-head">
   <div class="matching-panel-left">
     <h3 class="section" style="margin:0">Matching Token IDs</h3>
+  </div>
+
+  <div class="matching-panel-right">
+    <button id="btnClear" onclick="clearFilters()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--sub);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Space Grotesk',sans-serif" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='rgba(255,255,255,.15)'">✕ Clear</button>
+  </div>
+</div>
+        <div class="matching-panel-controls">
+  <div class="matching-panel-actions">
     <button type="button" class="btn ghost" onclick="toggleTwinFinder()" style="font-size:11px;padding:5px 10px">Twin Finder</button>
     <button id="onlyListedPill" onclick="toggleLiveListingsMode()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:'Space Grotesk',sans-serif">
       <span style="width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0" id="onlyListedDot"></span>
       Live Listings
     </button>
     <input type="checkbox" id="onlyListed" style="display:none">
-  </div>
-
-  <div class="matching-panel-right">
     <button id="btnFetch" class="btn">Fetch listings</button>
     <div class="statusline" id="listingsStatus"></div>
+  </div>
 
+  <div class="matching-panel-searches">
     <div id="desktopJumpRow" class="matching-jump-row">
       <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…">
       <button id="btnJump" class="btn">Go</button>
     </div>
 
-    <button id="btnClear" onclick="clearFilters()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--sub);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Space Grotesk',sans-serif" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='rgba(255,255,255,.15)'">✕ Clear</button>
+    <div class="token-trait-search">
+      <input id="tokenTraitSearch" class="input" type="search" placeholder="Search tokens by traits..." autocomplete="off">
+      <button id="tokenTraitSearchClear" type="button" class="btn ghost" title="Clear token trait search" aria-label="Clear token trait search">×</button>
+      <span id="tokenTraitSearchStatus" class="statusline"></span>
+    </div>
   </div>
-</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+
+  <div class="matching-panel-sort">
   
 <div class="view-switch" id="viewSwitch">
   <button type="button" class="viewbtn" data-view="standard" title="2×2 grid">
@@ -412,12 +423,6 @@
 </div>
 <select id="viewMode" class="input" style="display:none"><option value="standard">2×2 grid</option><option value="grid5">5×5 grid</option><option value="compact">8×8 grid</option><option value="list">List view</option></select>
 
-  <div class="token-trait-search">
-    <input id="tokenTraitSearch" class="input" type="search" placeholder="Search tokens by traits..." autocomplete="off">
-    <button id="tokenTraitSearchClear" type="button" class="btn ghost" title="Clear token trait search" aria-label="Clear token trait search">×</button>
-    <span id="tokenTraitSearchStatus" class="statusline"></span>
-  </div>
-
   <label class="section" style="margin-left:12px">Sort</label>
   <select id="sortMode" class="input" style="width:200px">
     <option value="id-asc">ID ↑ (default)</option>
@@ -426,6 +431,7 @@
     <option value="price-asc">Price ↑ (cheapest first)</option>
     <option value="price-desc">Price ↓ (most expensive)</option>
   </select>
+  </div>
 </div>
 
         <div id="tokenGrid" class="grid" style="max-height:520px;overflow:auto;padding-right:4px"></div>

@@ -199,6 +199,27 @@ function clearTokenTraitSearch(){
   updateTokenTraitSearchStatus(0);
   if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
 }
+function tokenIdSearchValue(){
+  const input = document.getElementById('jump');
+  return String(input?.value || '').replace(/\D+/g, '');
+}
+function applyTokenIdSearchToIds(ids, opts){
+  const q = tokenIdSearchValue();
+  if(!q) return ids;
+  const exact = !!window.__TOKEN_ID_EXACT_SEARCH__ || !!(opts && opts.exact) || q.length >= 4;
+  if(exact){
+    const n = Number(q);
+    return Number.isFinite(n) ? ids.filter(id => Number(id) === n) : [];
+  }
+  const out = [];
+  for(const id of ids){
+    if(String(id).startsWith(q)){
+      out.push(id);
+      if(out.length >= 50) break;
+    }
+  }
+  return out;
+}
 async function fetchRow(id){ if(ROW_CACHE.has(id)) return ROW_CACHE.get(id); const idx=chunkIndexFor(id); const ch=await ensureChunk(idx); const row=ch[String(id)]||{traits:{}}; ROW_CACHE.set(id,row); return row; }
 
 /* recompute */
@@ -456,6 +477,7 @@ async function renderTokenGridFromState(){
     if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
     ids = applyConnectedOwnedFilter(ids);
     ids = await applyTokenTraitSearchToIds(ids);
+    ids = applyTokenIdSearchToIds(ids);
     await renderTokenGrid(ids);
     return;
   }
@@ -471,6 +493,7 @@ async function renderTokenGridFromState(){
     if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
     ids = applyConnectedOwnedFilter(ids);
     ids = await applyTokenTraitSearchToIds(ids);
+    ids = applyTokenIdSearchToIds(ids);
     await renderTokenGrid(ids);
     return;
   }
@@ -486,6 +509,7 @@ async function renderTokenGridFromState(){
   let finalIds = favoritesOnlyEnabled() ? ids.filter(id => isFavorite(id)) : ids;
   finalIds = applyConnectedOwnedFilter(finalIds);
   finalIds = await applyTokenTraitSearchToIds(finalIds);
+  finalIds = applyTokenIdSearchToIds(finalIds);
   await renderTokenGrid(finalIds);
 }
 
@@ -1269,6 +1293,10 @@ function clearFilters(){
   tokenTraitSearchQuery = '';
   const tokenSearchInput = document.getElementById('tokenTraitSearch');
   if(tokenSearchInput) tokenSearchInput.value = '';
+  const jumpInput = document.getElementById('jump');
+  if(jumpInput) jumpInput.value = '';
+  const drawerJumpInput = document.getElementById('drawerJumpInput');
+  if(drawerJumpInput) drawerJumpInput.value = '';
   updateTokenTraitSearchStatus(0);
   document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.remove('active'));
   document.getElementById('rankMin').value='';
@@ -1320,27 +1348,33 @@ document.getElementById('rankClear').onclick=()=>{ document.getElementById('rank
   // Shows only tokens whose ID starts with the typed string.
   // Also respects active trait/rarity filters (rowMatchesAll).
   async function doPrefixFilter(prefix){
+    prefix = String(prefix || '').replace(/\D+/g, '');
+    jumpInput.value = prefix;
     const allIds = [];
+    const exact = prefix.length >= 4;
     for(const idx of indices()){
       const ch = await ensureChunk(idx);
       for(const sid of Object.keys(ch)){
-        if(String(sid).startsWith(prefix)){
+        if(exact ? String(sid) === prefix : String(sid).startsWith(prefix)){
           const id = +sid;
           const row = ch[sid];
-          if(rowMatchesAll(row, id)) allIds.push(id);
+          if(rowMatchesAll(row, id) && rowMatchesTokenTraitSearch(row)) allIds.push(id);
         }
       }
     }
     allIds.sort((a,b)=>a-b);
-    await renderTokenGrid(allIds);
+    let finalIds = favoritesOnlyEnabled() ? allIds.filter(id => isFavorite(id)) : allIds;
+    finalIds = applyConnectedOwnedFilter(finalIds);
+    if(!exact) finalIds = finalIds.slice(0, 50);
+    await renderTokenGrid(finalIds);
   }
 
   // ── Exact jump ─────────────────────────────────────────────────────────────
-  // Navigates to a specific token ID.
-  // If the token isn't in the current filters, clears filters first.
+  // Applies a specific token ID inside the current filters.
   // Updates the URL to ?jump=ID so the link is shareable.
   async function doExactJump(){
-    const raw = jumpInput.value.trim();
+    const raw = tokenIdSearchValue();
+    jumpInput.value = raw;
     if(!raw){
       // Clear URL param when box is emptied
       history.replaceState(null, '', window.location.pathname);
@@ -1349,23 +1383,13 @@ document.getElementById('rankClear').onclick=()=>{ document.getElementById('rank
     }
     const v = Number(raw);
     if(!Number.isFinite(v) || v <= 0) return;
-
-    await ensureChunk(chunkIndexFor(v));
-    const row = await fetchRow(v);
-
-    // Update URL bar — makes this link shareable and works with Discord bot
+    // Update URL bar - makes this link shareable and works with Discord bot
     history.replaceState(null, '', `?jump=${v}`);
-
-    // If token doesn't pass current filters, clear them so it becomes visible
-    if(!rowMatchesAll(row, v)){
-      activeTraits.clear(); currentTraitCount=null; rankMin=rankMax=null;
-      document.getElementById('rankMin').value='';
-      document.getElementById('rankMax').value='';
-      renderTraitAccordion(document.getElementById('traitSearch').value);
-      await updateChartAndList();
-      setTimeout(()=>{ i.textContent=`Tokens: ${fmt(TOKEN_COUNT)} • Max traits detected: ${MAX_TRAIT_COUNT}`; }, 2500);
-    } else {
-      await doPrefixFilter(String(v));
+    window.__TOKEN_ID_EXACT_SEARCH__ = true;
+    try{
+      await renderTokenGridFromState();
+    } finally {
+      window.__TOKEN_ID_EXACT_SEARCH__ = false;
     }
 
     setTimeout(()=>{
@@ -1381,13 +1405,14 @@ document.getElementById('rankClear').onclick=()=>{ document.getElementById('rank
   // ── Input event — always prefix-filter as user types ──────────────────────
   jumpInput.addEventListener('input', ()=>{
     clearTimeout(jumpDebounce);
-    const raw = jumpInput.value.trim();
+    const raw = tokenIdSearchValue();
+    if(jumpInput.value !== raw) jumpInput.value = raw;
     if(!raw){
       history.replaceState(null, '', window.location.pathname); // clear ?jump= from URL
       renderTokenGridFromState(); // box cleared → restore full grid
       return;
     }
-    jumpDebounce = setTimeout(()=> doPrefixFilter(raw), 160);
+    jumpDebounce = setTimeout(()=> doPrefixFilter(raw), 80);
   });
 
   // ── Enter / Jump button — exact jump ──────────────────────────────────────
