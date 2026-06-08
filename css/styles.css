@@ -2919,9 +2919,85 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     position:relative!important;
     top:auto!important;
     min-height:0!important;
-    padding-bottom:10px!important;
+    padding:8px 14px 9px!important;
     background:linear-gradient(180deg,rgba(8,12,18,.98),rgba(8,12,18,.92))!important;
     backdrop-filter:none!important;
+    gap:12px!important;
+    row-gap:6px!important;
+  }
+
+  #mobileTopRow,
+  #mobileMetaRow{
+    gap:0!important;
+    margin-left:10px!important;
+    overflow:visible!important;
+  }
+
+  #mobileTopRow{
+    align-items:center!important;
+  }
+
+  #mobileStatsRow{
+    gap:0!important;
+    overflow:visible!important;
+  }
+
+  #floorPill,
+  .mstat,
+  #mobileMetaRow .mmeta{
+    min-height:0!important;
+    height:auto!important;
+    padding:0 12px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    display:inline-flex!important;
+    align-items:baseline!important;
+    gap:5px!important;
+    line-height:1!important;
+    color:var(--text)!important;
+    white-space:nowrap!important;
+    position:relative!important;
+  }
+
+  #floorPill,
+  .mstat,
+  #mobileMetaRow .mmeta:not(:first-child){
+    border-left:1px solid rgba(255,255,255,.12)!important;
+  }
+
+  #floorPill .fp-label,
+  .mstat .mstat-label,
+  #mobileMetaRow .mmeta-label{
+    color:var(--muted)!important;
+    font-size:9px!important;
+    font-weight:800!important;
+    letter-spacing:.075em!important;
+    text-transform:uppercase!important;
+  }
+
+  #floorPillValue,
+  .mstat b,
+  #mobileMetaRow .mmeta b{
+    color:var(--text)!important;
+    font-size:12px!important;
+    font-weight:800!important;
+    letter-spacing:0!important;
+  }
+
+  #floorPillValue{
+    color:#e6fff9!important;
+  }
+
+  #floorChange{
+    align-items:baseline!important;
+    margin-left:0!important;
+    padding:0 12px!important;
+    border-left:1px solid rgba(255,255,255,.12)!important;
+    font-size:12px!important;
+    font-weight:800!important;
+    line-height:1!important;
   }
 
   #desktopJumpWallet{
@@ -2950,20 +3026,20 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     display:flex!important;
     align-items:center!important;
     justify-content:flex-start!important;
-    gap:12px!important;
-    min-height:34px!important;
-    padding:4px 12px 4px 18px!important;
+    gap:0!important;
+    min-height:30px!important;
+    padding:3px 10px 3px 14px!important;
     margin:0!important;
     background:rgba(8,12,18,.985)!important;
     border-top:1px solid rgba(255,255,255,.10)!important;
     border-bottom:0!important;
-    box-shadow:0 -8px 18px rgba(0,0,0,.24)!important;
+    box-shadow:0 -6px 14px rgba(0,0,0,.22)!important;
     overflow-x:auto!important;
     scrollbar-width:none!important;
   }
 
   .wrap{
-    padding-bottom:54px!important;
+    padding-bottom:46px!important;
   }
 
   #desktopBottomStatusBar #desktopLinkRow{
@@ -2974,7 +3050,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     display:inline-flex!important;
     align-items:center!important;
     justify-content:flex-end!important;
-    gap:8px!important;
+    gap:6px!important;
     width:auto!important;
     margin:0 0 0 auto!important;
     padding:0!important;
@@ -3014,15 +3090,27 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     align-items:baseline!important;
     gap:5px!important;
     color:var(--sub)!important;
-    font-size:11px!important;
-    font-weight:700!important;
+    font-size:10px!important;
+    font-weight:800!important;
+    letter-spacing:.06em!important;
+    text-transform:uppercase!important;
     line-height:1!important;
     white-space:nowrap!important;
+    padding:0 10px!important;
+    border-left:1px solid rgba(255,255,255,.11)!important;
+  }
+
+  .sticky-stat-item:first-child{
+    padding-left:0!important;
+    border-left:0!important;
   }
 
   .sticky-stat-item b{
     color:var(--text)!important;
     font-size:11px!important;
+    font-weight:800!important;
+    letter-spacing:0!important;
+    text-transform:none!important;
   }
 
   .sticky-stat-item.sticky-change{
