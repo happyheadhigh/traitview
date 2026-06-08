@@ -917,6 +917,21 @@ function initHolderTagPreview(){
   };
   document.addEventListener('pointerover', e => {
     if(isTouch()) return;
+    const burnThumb = e.target.closest?.('.burn-token-thumb[data-burn-token-id]');
+    if(burnThumb){
+      const id = Number(burnThumb.dataset.burnTokenId);
+      if(!id) return;
+      const src = typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : (typeof imgForId === 'function' ? imgForId(id) : '');
+      const osRank = typeof OS_RANK_MAP !== 'undefined' ? OS_RANK_MAP.get(id) : null;
+      const tvRank = typeof RARITY_OBS_RANK !== 'undefined' ? RARITY_OBS_RANK.get(id) : null;
+      const rank = osRank || tvRank;
+      const row = typeof ROW_CACHE !== 'undefined' ? ROW_CACHE.get(id) : null;
+      const traits = row && typeof getTraitCount === 'function' ? getTraitCount(row) : null;
+      tip.innerHTML = `<div class="holder-tag-preview-title">Token #${id}</div><div class="holder-tag-preview-token">${src ? `<img src="${comboEsc(src)}" alt="#${id}">` : ''}<div><b>#${id}</b>${rank ? `<span>Rank #${comboEsc(rank)}</span>` : ''}${traits != null ? `<span>${comboEsc(traits)} traits</span>` : ''}</div></div>`;
+      tip.style.display = 'block';
+      move(e.clientX, e.clientY);
+      return;
+    }
     const tag = e.target.closest?.('.holder-tag[data-holder-ids]');
     if(!tag) return;
     const rawIds = String(tag.dataset.holderIds || '').split(',').map(Number).filter(Boolean);
@@ -930,7 +945,7 @@ function initHolderTagPreview(){
     move(e.clientX, e.clientY);
   }, { passive:true });
   document.addEventListener('pointermove', e => { if(tip.style.display === 'block') move(e.clientX, e.clientY); }, { passive:true });
-  document.addEventListener('pointerout', e => { if(e.target.closest?.('.holder-tag[data-holder-ids]')) hide(); }, { passive:true });
+  document.addEventListener('pointerout', e => { if(e.target.closest?.('.holder-tag[data-holder-ids], .burn-token-thumb[data-burn-token-id]')) hide(); }, { passive:true });
 }
 document.addEventListener('DOMContentLoaded', initHolderTagPreview);
 
