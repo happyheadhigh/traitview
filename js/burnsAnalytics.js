@@ -155,35 +155,37 @@ function renderBurnStats(stats){
     ['Est. Supply', estimatedSupply]
   ];
   return `<div class="burn-stat-row">${items.map(([label,val]) => `
-    <div class="wallet-stat-pill"><span>${burnsEsc(label)}</span><b>${burnsMetric(val)}</b></div>
+    <div class="burn-stat-cell"><span>${burnsEsc(label)}</span><b>${burnsMetric(val)}</b></div>
   `).join('')}</div>`;
 }
 function renderLatestBurns(rows){
   if(!rows.length) return '<div class="wallet-empty-state">No finalized burn rows returned yet.</div>';
-  return `<div class="burn-table">${rows.slice(0,25).map(row => {
+  return `<div class="burn-table burn-latest-table">
+    <div class="burn-table-head"><span>Tx</span><span>Inputs</span><span>Created</span><span>Time</span><span>Wallet</span><span>Count</span></div>
+    ${rows.slice(0,25).map(row => {
     const ids = burnsInputIds(row).filter(Boolean);
     const created = row.created_token_id || row.survivor_token_id;
-    return `<div class="burn-row">
-      <div class="burn-main">
-        <b>${burnsTxLink(row.tx_hash)}</b>
-        <span>${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</span>
-        <span>${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</span>
-      </div>
-      <div class="burn-detail">
-        <span>Inputs ${burnsMetric(row.input_count ?? ids.length)}</span>
-        ${burnsTokenChipList(ids, 8)}
-        <span class="burn-created-label">Created</span>
-        ${burnsTokenChip(created, row)}
-      </div>
+    return `<div class="burn-row burn-latest-row">
+      <div class="burn-cell burn-tx"><b>${burnsTxLink(row.tx_hash)}</b></div>
+      <div class="burn-cell burn-inputs">${burnsTokenChipList(ids, 8)}</div>
+      <div class="burn-cell burn-created">${burnsTokenChip(created, row)}</div>
+      <div class="burn-cell burn-time">${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</div>
+      <div class="burn-cell burn-wallet">${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</div>
+      <div class="burn-cell burn-count">${burnsMetric(row.input_count ?? ids.length)}</div>
     </div>`;
   }).join('')}</div>`;
 }
 function renderBurnLeaderboard(rows){
   if(!rows.length) return '<div class="wallet-empty-state">No burner leaderboard rows returned yet.</div>';
-  return `<div class="burn-table compact">${rows.slice(0,25).map((row,i) => `
-    <div class="burn-row leaderboard">
-      <div class="burn-main"><b>${i+1}. ${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</b><span>${burnsMetric(row.burn_events || row.total_burns)} burns</span></div>
-      <div class="burn-detail"><span>${burnsMetric(row.tokens_burned || row.total_burned)} OCAS burned</span><span>Biggest ${burnsMetric(row.biggest_burn)}</span><span>${row.rarest_burn ? `Best ${burnsEsc(row.rarest_burn)}` : ''}</span></div>
+  return `<div class="burn-table compact burn-leader-table">
+    <div class="burn-table-head"><span>#</span><span>Wallet</span><span>OCAS Burned</span><span>Biggest</span><span>Burns</span></div>
+    ${rows.slice(0,25).map((row,i) => `
+    <div class="burn-row leaderboard burn-leader-row">
+      <div class="burn-cell burn-rank-num">${i+1}</div>
+      <div class="burn-cell burn-wallet"><b>${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</b></div>
+      <div class="burn-cell">${burnsMetric(row.tokens_burned || row.total_burned)}</div>
+      <div class="burn-cell">${burnsMetric(row.biggest_burn)}</div>
+      <div class="burn-cell">${burnsMetric(row.burn_events || row.total_burns)}</div>
     </div>
   `).join('')}</div>`;
 }
