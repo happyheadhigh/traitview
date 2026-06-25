@@ -235,12 +235,14 @@ try {
 async function tvDiscordClaimCode(code) {
   const clean = (code || '').trim().toUpperCase();
   if(clean.length !== 6) throw new Error('Code must be 6 characters');
-  const data = await dbFetch('/tv/claim-code', {}, {
+  const url = `${RAILWAY_API}/tv/claim-code?key=${RAILWAY_KEY}`;
+  const r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code: clean }),
   });
-  if(!data.ok) throw new Error(data.error || 'Claim failed');
+  const data = await r.json();
+  if(!r.ok) throw new Error(data.error || 'Claim failed');
   TV_DISCORD_LINK = { discord_id: data.discord_id, wallet: data.wallet, guild_id: data.guild_id };
   try { sessionStorage.setItem('tv_discord_link', JSON.stringify(TV_DISCORD_LINK)); } catch(_) {}
   return TV_DISCORD_LINK;
@@ -322,17 +324,4 @@ function tvShowLinkedBanner(wallet) {
   setTimeout(() => banner.remove(), 5000);
 }
 
-// Override dbFetch to support POST for TV endpoints
-const _origDbFetch = typeof dbFetch !== 'undefined' ? dbFetch : null;
-async function dbFetch(path, params = {}, fetchOpts = {}) {
-  const qs = new URLSearchParams({ ...params, key: RAILWAY_KEY });
-  const url = `${RAILWAY_API}${path}?${qs}`;
-  const r = await fetch(url, fetchOpts);
-  if(!r.ok) {
-    const err = await r.json().catch(()=>({}));
-    throw new Error(err.error || `DB ${path} HTTP ${r.status}`);
-  }
-  const ct = r.headers.get('content-type') || '';
-  if(!ct.includes('application/json')) throw new Error(`DB ${path} returned non-JSON`);
-  return r.json();
-}
+
