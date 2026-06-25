@@ -81,13 +81,14 @@ function closeWalletConnectMenu(){
   document.getElementById('walletConnectMenu')?.classList.remove('open');
 }
 function handleWalletConnectButton(event){
-  if(!CONNECTED_WALLET?.address){
-    closeWalletConnectMenu();
-    connectTraitViewWallet();
-    return;
-  }
   event?.stopPropagation?.();
-  document.getElementById('walletConnectMenu')?.classList.toggle('open');
+  const menu = document.getElementById('walletConnectMenu');
+  const connectDiv = document.getElementById('walletConnectMenuConnect');
+  const connectedDiv = document.getElementById('walletConnectMenuConnected');
+  const isConnected = !!CONNECTED_WALLET?.address;
+  if(connectDiv) connectDiv.style.display = isConnected ? 'none' : 'block';
+  if(connectedDiv) connectedDiv.style.display = isConnected ? 'block' : 'none';
+  menu?.classList.toggle('open');
 }
 document.addEventListener('click', e => {
   const menu = document.getElementById('walletConnectMenu');
