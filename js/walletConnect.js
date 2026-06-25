@@ -90,13 +90,18 @@ function handleWalletConnectButton(event){
   if(connectDiv) connectDiv.style.display = isConnected ? 'none' : 'block';
   if(connectedDiv) connectedDiv.style.display = isConnected ? 'block' : 'none';
 
-  // Position menu relative to button using fixed coords to escape stacking context
-  if(btn && menu && !menu.classList.contains('open')) {
+  // Use fixed positioning to escape backdrop-filter stacking context
+  if(btn && menu) {
     const rect = btn.getBoundingClientRect();
+    const menuWidth = 160; // min-width of menu
     menu.style.position = 'fixed';
     menu.style.top = (rect.bottom + 6) + 'px';
-    menu.style.right = (window.innerWidth - rect.right) + 'px';
     menu.style.left = 'auto';
+    // Clamp to viewport so it doesn't overflow right edge
+    const rightEdge = window.innerWidth - rect.right;
+    menu.style.right = Math.max(8, rightEdge) + 'px';
+    menu.style.minWidth = menuWidth + 'px';
+    menu.style.zIndex = '99999';
   }
   menu?.classList.toggle('open');
 }
