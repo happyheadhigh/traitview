@@ -211,3 +211,106 @@ function initTraitViewWallet(){
   }catch(_){}
 }
 document.addEventListener('DOMContentLoaded', initTraitViewWallet);
+
+
+// ── Discord↔TraitView verification ───────────────────────────────────────────
+// TV_DISCORD_LINK is set after a successful claim, persisted in sessionStorage
+let TV_DISCORD_LINK = null;
+try {
+  const stored = sessionStorage.getItem('tv_discord_link');
+  if(stored) TV_DISCORD_LINK = JSON.parse(stored);
+} catch(_) {}
+
+async function tvDiscordClaimCode(code) {
+  const clean = (code || '').trim().toUpperCase();
+  if(clean.length !== 6) throw new Error('Code must be 6 characters');
+  const data = await dbFetch('/tv/claim-code', {}, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: clean }),
+  });
+  if(!data.ok) throw new Error(data.error || 'Claim failed');
+  TV_DISCORD_LINK = { discord_id: data.discord_id, wallet: data.wallet, guild_id: data.guild_id };
+  try { sessionStorage.setItem('tv_discord_link', JSON.stringify(TV_DISCORD_LINK)); } catch(_) {}
+  return TV_DISCORD_LINK;
+}
+
+async function tvDiscordGenerateCodeAndShow() {
+  // Show modal asking user to enter code from Discord bot
+  const modal = document.createElement('div');
+  modal.id = 'tv-discord-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.innerHTML = `
+    <div style="background:#1e1f22;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+      <h3 style="margin:0 0 8px;color:#fff;font-size:18px">🔗 Connect Discord</h3>
+      <p style="color:#b5bac1;font-size:14px;margin:0 0 20px">
+        Open <b style="color:#fff">Discord</b>, go to <b style="color:#fff">/me → TraitView</b>,
+        tap <b style="color:#fff">Generate Code</b>, then enter the 6-character code below.
+      </p>
+      <input id="tv-discord-code-input" maxlength="6" placeholder="ABC123"
+        style="width:100%;box-sizing:border-box;padding:12px 16px;border-radius:8px;border:1px solid #3f4147;background:#2b2d31;color:#fff;font-size:22px;letter-spacing:6px;text-align:center;text-transform:uppercase;outline:none;margin-bottom:16px">
+      <div id="tv-discord-error" style="color:#ed4245;font-size:13px;margin-bottom:12px;display:none"></div>
+      <div style="display:flex;gap:10px">
+        <button id="tv-discord-submit" style="flex:1;padding:10px;border-radius:8px;border:none;background:#5865f2;color:#fff;font-weight:600;cursor:pointer;font-size:15px">Link Account</button>
+        <button id="tv-discord-cancel" style="padding:10px 16px;border-radius:8px;border:none;background:#2b2d31;color:#b5bac1;cursor:pointer;font-size:15px">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector('#tv-discord-code-input');
+  const errEl = modal.querySelector('#tv-discord-error');
+  const submitBtn = modal.querySelector('#tv-discord-submit');
+  const cancelBtn = modal.querySelector('#tv-discord-cancel');
+
+  input.focus();
+  input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
+
+  cancelBtn.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+
+  submitBtn.addEventListener('click', async () => {
+    const code = input.value.trim();
+    errEl.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Linking...';
+    try {
+      const link = await tvDiscordClaimCode(code);
+      modal.remove();
+      tvShowLinkedBanner(link.wallet);
+    } catch(e) {
+      const msgs = {
+        invalid_code: 'Invalid code. Check Discord and try again.',
+        code_expired: 'Code expired. Generate a new one in Discord.',
+        code_already_used: 'Code already used. Generate a new one.',
+      };
+      errEl.textContent = msgs[e.message] || e.message;
+      errEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Link Account';
+    }
+  });
+}
+
+function tvShowLinkedBanner(wallet) {
+  const short = wallet ? wallet.slice(0,6)+'...'+wallet.slice(-4) : '';
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#23a55a;color:#fff;padding:12px 24px;border-radius:10px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+  banner.textContent = `✅ Discord linked! Wallet: ${short}`;
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 5000);
+}
+
+// Override dbFetch to support POST for TV endpoints
+const _origDbFetch = typeof dbFetch !== 'undefined' ? dbFetch : null;
+async function dbFetch(path, params = {}, fetchOpts = {}) {
+  const qs = new URLSearchParams({ ...params, key: RAILWAY_KEY });
+  const url = `${RAILWAY_API}${path}?${qs}`;
+  const r = await fetch(url, fetchOpts);
+  if(!r.ok) {
+    const err = await r.json().catch(()=>({}));
+    throw new Error(err.error || `DB ${path} HTTP ${r.status}`);
+  }
+  const ct = r.headers.get('content-type') || '';
+  if(!ct.includes('application/json')) throw new Error(`DB ${path} returned non-JSON`);
+  return r.json();
+}
