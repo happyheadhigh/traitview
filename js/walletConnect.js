@@ -235,61 +235,72 @@ async function tvDiscordClaimCode(code) {
   return TV_DISCORD_LINK;
 }
 
-async function tvDiscordGenerateCodeAndShow() {
-  // Show modal asking user to enter code from Discord bot
+function tvShowDiscordVerifyModal() {
+  // Remove any existing modal
+  document.getElementById('tv-discord-modal')?.remove();
+
   const modal = document.createElement('div');
   modal.id = 'tv-discord-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999';
   modal.innerHTML = `
-    <div style="background:#1e1f22;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.5)">
-      <h3 style="margin:0 0 8px;color:#fff;font-size:18px">🔗 Connect Discord</h3>
-      <p style="color:#b5bac1;font-size:14px;margin:0 0 20px">
-        Open <b style="color:#fff">Discord</b>, go to <b style="color:#fff">/me → TraitView</b>,
-        tap <b style="color:#fff">Generate Code</b>, then enter the 6-character code below.
+    <div style="background:var(--surface,#1a1d23);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:28px 28px 24px;max-width:400px;width:calc(100% - 32px);box-shadow:0 16px 48px rgba(0,0,0,.55)">
+      <div style="font:700 15px/1 'Space Grotesk',system-ui,sans-serif;color:var(--text,#e6e8eb);margin-bottom:8px">Discord Verify</div>
+      <p style="color:var(--sub,#8b8fa8);font-size:13px;margin:0 0 20px;line-height:1.5">
+        In Discord, open <b style="color:var(--text,#e6e8eb)">/me → TraitView → Generate Code</b>, then enter the 6-character code below.
       </p>
-      <input id="tv-discord-code-input" maxlength="6" placeholder="ABC123"
-        style="width:100%;box-sizing:border-box;padding:12px 16px;border-radius:8px;border:1px solid #3f4147;background:#2b2d31;color:#fff;font-size:22px;letter-spacing:6px;text-align:center;text-transform:uppercase;outline:none;margin-bottom:16px">
-      <div id="tv-discord-error" style="color:#ed4245;font-size:13px;margin-bottom:12px;display:none"></div>
-      <div style="display:flex;gap:10px">
-        <button id="tv-discord-submit" style="flex:1;padding:10px;border-radius:8px;border:none;background:#5865f2;color:#fff;font-weight:600;cursor:pointer;font-size:15px">Link Account</button>
-        <button id="tv-discord-cancel" style="padding:10px 16px;border-radius:8px;border:none;background:#2b2d31;color:#b5bac1;cursor:pointer;font-size:15px">Cancel</button>
+      <input id="tv-dc-input" maxlength="6" placeholder="Enter code"
+        style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:var(--text,#e6e8eb);font:700 20px/1 'Space Grotesk',monospace;letter-spacing:8px;text-align:center;text-transform:uppercase;outline:none;margin-bottom:10px;transition:border-color .15s">
+      <div id="tv-dc-err" style="color:#ed4245;font-size:12px;min-height:18px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button id="tv-dc-submit" style="flex:1;padding:9px;border-radius:8px;border:none;background:#1CFFAF;color:#0a0f16;font:700 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Verify</button>
+        <button id="tv-dc-cancel" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--sub,#8b8fa8);font:600 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Cancel</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
 
-  const input = modal.querySelector('#tv-discord-code-input');
-  const errEl = modal.querySelector('#tv-discord-error');
-  const submitBtn = modal.querySelector('#tv-discord-submit');
-  const cancelBtn = modal.querySelector('#tv-discord-cancel');
+  const input = modal.querySelector('#tv-dc-input');
+  const errEl = modal.querySelector('#tv-dc-err');
+  const submitBtn = modal.querySelector('#tv-dc-submit');
 
   input.focus();
-  input.addEventListener('input', () => { input.value = input.value.toUpperCase(); });
-
-  cancelBtn.addEventListener('click', () => modal.remove());
+  input.addEventListener('input', () => { input.value = input.value.toUpperCase(); errEl.textContent = ''; });
+  modal.querySelector('#tv-dc-cancel').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
 
   submitBtn.addEventListener('click', async () => {
     const code = input.value.trim();
-    errEl.style.display = 'none';
+    if(code.length < 6) { errEl.textContent = 'Enter the full 6-character code.'; return; }
+    errEl.textContent = '';
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Linking...';
+    submitBtn.textContent = 'Verifying...';
     try {
       const link = await tvDiscordClaimCode(code);
       modal.remove();
+      // Clean up URL param if present
+      const url = new URL(window.location.href);
+      if(url.searchParams.has('verify')) { url.searchParams.delete('verify'); window.history.replaceState({}, '', url); }
       tvShowLinkedBanner(link.wallet);
     } catch(e) {
       const msgs = {
         invalid_code: 'Invalid code. Check Discord and try again.',
         code_expired: 'Code expired. Generate a new one in Discord.',
-        code_already_used: 'Code already used. Generate a new one.',
+        code_already_used: 'Code already used. Generate a new one in Discord.',
       };
       errEl.textContent = msgs[e.message] || e.message;
-      errEl.style.display = 'block';
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Link Account';
+      submitBtn.textContent = 'Verify';
     }
   });
 }
+
+// Auto-open verify modal if ?verify=true in URL
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('verify') === 'true') {
+    // Wait for page to load before showing modal
+    window.addEventListener('load', () => setTimeout(tvShowDiscordVerifyModal, 500));
+  }
+})();
 
 function tvShowLinkedBanner(wallet) {
   const short = wallet ? wallet.slice(0,6)+'...'+wallet.slice(-4) : '';
