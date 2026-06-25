@@ -83,11 +83,21 @@ function closeWalletConnectMenu(){
 function handleWalletConnectButton(event){
   event?.stopPropagation?.();
   const menu = document.getElementById('walletConnectMenu');
+  const btn = document.getElementById('walletConnectBtn');
   const connectDiv = document.getElementById('walletConnectMenuConnect');
   const connectedDiv = document.getElementById('walletConnectMenuConnected');
   const isConnected = !!CONNECTED_WALLET?.address;
   if(connectDiv) connectDiv.style.display = isConnected ? 'none' : 'block';
   if(connectedDiv) connectedDiv.style.display = isConnected ? 'block' : 'none';
+
+  // Position menu relative to button using fixed coords to escape stacking context
+  if(btn && menu && !menu.classList.contains('open')) {
+    const rect = btn.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = (rect.bottom + 6) + 'px';
+    menu.style.right = (window.innerWidth - rect.right) + 'px';
+    menu.style.left = 'auto';
+  }
   menu?.classList.toggle('open');
 }
 document.addEventListener('click', e => {
