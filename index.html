@@ -56,17 +56,6 @@
   <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
     <span>Connect</span>
   </button>
-  <div id="walletConnectMenu">
-    <div id="walletConnectMenuConnect" style="display:none">
-      <button type="button" onclick="connectTraitViewWallet();closeWalletConnectMenu()">Connect Wallet</button>
-      <button type="button" onclick="tvShowDiscordVerifyModal();closeWalletConnectMenu()">Discord Verify</button>
-    </div>
-    <div id="walletConnectMenuConnected" style="display:none">
-      <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
-      <button type="button" onclick="tvShowDiscordVerifyModal();closeWalletConnectMenu()">Discord Verify</button>
-      <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
-    </div>
-  </div>
 </div>
 
   <div id="themePicker" style="display:flex;gap:8px;align-items:center;margin-left:12px;">

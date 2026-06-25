@@ -80,9 +80,36 @@ function updateWalletConnectButtons(status){
 function closeWalletConnectMenu(){
   document.getElementById('walletConnectMenu')?.classList.remove('open');
 }
+function _ensureWalletMenu() {
+  let menu = document.getElementById('walletConnectMenu');
+  if(!menu) {
+    // Create menu as direct body child to escape topbar stacking context
+    menu = document.createElement('div');
+    menu.id = 'walletConnectMenu';
+    menu.innerHTML = `
+      <div id="walletConnectMenuConnect" style="display:none">
+        <button type="button" onclick="connectTraitViewWallet();closeWalletConnectMenu()">Connect Wallet</button>
+        <button type="button" onclick="tvShowDiscordVerifyModal();closeWalletConnectMenu()">Discord Verify</button>
+      </div>
+      <div id="walletConnectMenuConnected" style="display:none">
+        <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
+        <button type="button" onclick="tvShowDiscordVerifyModal();closeWalletConnectMenu()">Discord Verify</button>
+        <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
+      </div>`;
+    document.body.appendChild(menu);
+    // Close on outside click
+    document.addEventListener('click', e => {
+      if(menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'walletConnectBtn') {
+        closeWalletConnectMenu();
+      }
+    });
+  }
+  return menu;
+}
+
 function handleWalletConnectButton(event){
   event?.stopPropagation?.();
-  const menu = document.getElementById('walletConnectMenu');
+  const menu = _ensureWalletMenu();
   const btn = document.getElementById('walletConnectBtn');
   const connectDiv = document.getElementById('walletConnectMenuConnect');
   const connectedDiv = document.getElementById('walletConnectMenuConnected');
@@ -90,20 +117,16 @@ function handleWalletConnectButton(event){
   if(connectDiv) connectDiv.style.display = isConnected ? 'none' : 'block';
   if(connectedDiv) connectedDiv.style.display = isConnected ? 'block' : 'none';
 
-  // Use fixed positioning to escape backdrop-filter stacking context
-  if(btn && menu) {
+  // Position relative to button — fixed so it escapes all stacking contexts
+  if(btn) {
     const rect = btn.getBoundingClientRect();
-    const menuWidth = 160; // min-width of menu
     menu.style.position = 'fixed';
     menu.style.top = (rect.bottom + 6) + 'px';
     menu.style.left = 'auto';
-    // Clamp to viewport so it doesn't overflow right edge
-    const rightEdge = window.innerWidth - rect.right;
-    menu.style.right = Math.max(8, rightEdge) + 'px';
-    menu.style.minWidth = menuWidth + 'px';
+    menu.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
     menu.style.zIndex = '99999';
   }
-  menu?.classList.toggle('open');
+  menu.classList.toggle('open');
 }
 document.addEventListener('click', e => {
   const menu = document.getElementById('walletConnectMenu');
