@@ -57,8 +57,14 @@
     <span>Connect</span>
   </button>
   <div id="walletConnectMenu">
-    <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
-    <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
+    <div id="walletConnectMenuConnect" style="display:none">
+      <button type="button" onclick="connectTraitViewWallet();closeWalletConnectMenu()">🦊 MetaMask / Web3</button>
+      <button type="button" onclick="tvDiscordGenerateCodeAndShow();closeWalletConnectMenu()">💬 Discord Verify</button>
+    </div>
+    <div id="walletConnectMenuConnected" style="display:none">
+      <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
+      <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
+    </div>
   </div>
 </div>
 
