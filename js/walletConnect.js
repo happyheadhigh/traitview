@@ -293,6 +293,15 @@ function tvShowDiscordVerifyModal() {
       const url = new URL(window.location.href);
       if(url.searchParams.has('verify')) { url.searchParams.delete('verify'); window.history.replaceState({}, '', url); }
       tvShowLinkedBanner(link.wallet);
+      // Auto-load wallet analytics with the verified wallet
+      if(link.wallet) {
+        try {
+          const ids = await fetchWalletTokenIdsForAddress(link.wallet);
+          await setConnectedWallet(link.wallet, null, ids, { allowHiddenAnalyticsFetch: true });
+        } catch(e) {
+          console.warn('[TVVerify] auto-load wallet failed:', e.message);
+        }
+      }
     } catch(e) {
       const msgs = {
         invalid_code: 'Invalid code. Check Discord and try again.',
