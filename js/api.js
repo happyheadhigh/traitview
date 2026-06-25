@@ -3,7 +3,7 @@
    Keep this as a classic script, not an ES module. */
 
 // ── Railway DB API ────────────────────────────────────────────────────────────
-const RAILWAY_API = 'https://ocas-sales-bot-production.up.railway.app';
+const RAILWAY_API = 'https://successful-healing-production-2f7e.up.railway.app';
 const RAILWAY_KEY = 'AllStarSecret2k26TV';
 
 async function dbFetch(path, params = {}) {
