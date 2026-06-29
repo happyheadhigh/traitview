@@ -349,6 +349,10 @@ function rankBadgeHtml(id){
   return rankDiamondHtml(rank, '', sys);
 }
 async function renderTokenGrid(ids, opts){
+  // Filter out burned tokens if we have the burned ID set
+  if (window._BURNED_IDS && window._BURNED_IDS.size > 0) {
+    ids = ids.filter(id => !window._BURNED_IDS.has(id));
+  }
   const preserveOrder = !!(opts && opts.preserveOrder);
   window.LAST_IDS = Array.isArray(ids) ? ids.slice() : [];
   const onlyListed = document.getElementById('onlyListed').checked;
@@ -1665,12 +1669,46 @@ async function init(){
       renderActiveChips();
     }
 
-    // Start images + all chunks in parallel
+    // Start images in parallel, load traits from DB (live, post-burn accurate)
     const imagesPromise = loadImagesMap();
     loadProbabilities();
-    const allChunkPromises = indices().map(idx => ensureChunk(idx));
     window.__INIT_LOADING__ = true;
     startBackgroundListingsLoad();
+
+    // Fetch all surviving tokens' traits from DB — replaces static chunk files.
+    // Server caches for 5 min so this is fast for all visitors after the first.
+    // Falls back to static chunks if DB fetch fails.
+    const allTraitsPromise = dbFetch('/db/all-traits')
+      .then(data => {
+        if (!data?.ok || !data.tokens) throw new Error('no data');
+        // Pre-warm chunk cache with live DB data
+        // Group tokens by chunk index so ensureChunk() returns immediately
+        const byChunk = {};
+        for (const [sid, row] of Object.entries(data.tokens)) {
+          const id = +sid;
+          const idx = chunkIndexFor(id);
+          if (!byChunk[idx]) byChunk[idx] = {};
+          byChunk[idx][sid] = row;
+        }
+        for (const [idx, chunkData] of Object.entries(byChunk)) {
+          CHUNK_CACHE.set(+idx, chunkData);
+        }
+        // Store burned token IDs for grid filtering
+        window._BURNED_IDS = new Set();
+        for (let id = 1; id <= 10000; id++) {
+          if (!data.tokens[String(id)]) window._BURNED_IDS.add(id);
+        }
+        console.log('[TraitView] Loaded ' + Object.keys(data.tokens).length + ' live tokens from DB');
+        return data;
+      })
+      .catch(err => {
+        console.warn('[TraitView] DB traits fetch failed, falling back to chunks:', err.message);
+        // Fallback: load static chunk files as before
+        indices().forEach(idx => ensureChunk(idx));
+        return null;
+      });
+
+    await allTraitsPromise;
 
     // ── ?jump= fast path ──────────────────────────────────────────────────────
     if(jumpNum){
