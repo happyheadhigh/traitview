@@ -1614,11 +1614,15 @@ async function init(){
     // ── Phase 1: manifest + fast files in parallel ────────────────────────────
     const [_, fastBundle] = await Promise.all([
       loadManifest(),
-      fetch('./data/fast/traits_fast.json', {cache:'force-cache'})
-        .then(r => r.ok ? r.json() : null).catch(() => null)
+      dbFetch('/db/traits-fast').then(j => j?.ok ? j : null).catch(() => null)
     ]);
 
     if(fastBundle){
+      // Update TOKEN_COUNT to reflect post-burn survivor count
+      if(fastBundle.survivorCount && fastBundle.survivorCount > 0){
+        TOKEN_COUNT = fastBundle.survivorCount;
+        window.TOKEN_COUNT = TOKEN_COUNT;
+      }
       if(Array.isArray(fastBundle.rank)){
         RARITY_OBS_RANK = new Map(fastBundle.rank.map(([id,_s], i) => [id, i+1]));
         // Load OS rank from Railway DB (lean endpoint, cached 1hr at CDN)
@@ -1631,6 +1635,10 @@ async function init(){
               }
             }).catch(()=>{});
         }
+      }
+      if(fastBundle.freq){
+        // Load trait frequencies from DB — used for rarity score calculation
+        TRAIT_FREQ = fastBundle.freq;
       }
       if(fastBundle.domain){
         for(const [k, vals] of Object.entries(fastBundle.domain)){
