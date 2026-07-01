@@ -3527,3 +3527,31 @@ body.wallet-drawer-open #sidebarExpandToggle{display:flex}
   background:var(--accent);
   border-color:var(--accent);
 }
+
+
+/* ═══════════ Header wallet action group — flat, divided, no pill borders ═══ */
+.wallet-action-group{
+  display:flex;align-items:center;gap:10px;
+}
+.wallet-action-btn{
+  background:none;border:none;
+  color:var(--sub);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  font-size:13px;font-weight:600;
+  cursor:pointer;padding:4px 2px;
+  position:relative;
+  transition:color .15s ease;
+  border-bottom:2px solid transparent;
+}
+.wallet-action-btn:hover{color:var(--text)}
+.wallet-action-divider{
+  color:var(--border,rgba(255,255,255,.15));
+  font-size:14px;font-weight:300;
+  user-select:none;
+}
+/* Active/connected states — green text + underline */
+#viewWalletBtn.has-wallet,
+#walletConnectBtn.connected{
+  color:#2dd4bf;
+  border-bottom-color:#2dd4bf;
+}
