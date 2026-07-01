@@ -52,12 +52,12 @@
     </div>
 
     <div class="spacer"></div>
-    <div id="desktopJumpWallet" style="display:flex;gap:8px;align-items:center">
-  <button type="button" id="viewWalletBtn" class="btn ghost tt" data-tip="View any wallet's tokens" onclick="toggleWalletDrawer()" aria-label="View wallet" style="position:relative">
+    <div id="desktopJumpWallet" class="wallet-action-group">
+  <button type="button" id="viewWalletBtn" class="wallet-action-btn tt" data-tip="View any wallet's tokens" onclick="toggleWalletDrawer()" aria-label="View wallet">
     <span id="viewWalletBtnLabel">View Wallet</span>
-    <span id="viewWalletIndicator" style="display:none;position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:#2dd4bf;border:2px solid var(--bg,#0b0e14)"></span>
   </button>
-  <button type="button" id="walletConnectBtn" class="btn ghost wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
+  <span class="wallet-action-divider">|</span>
+  <button type="button" id="walletConnectBtn" class="wallet-action-btn wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
     <span>Connect</span>
   </button>
 </div>
