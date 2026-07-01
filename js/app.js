@@ -2422,6 +2422,185 @@ function mobileWalletSort(mode){
   _renderMobileWalletGrid(ids, grid);
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// Desktop Wallet Drawer — non-modal, right-side, stays open while browsing.
+// Persists last address + open state in localStorage.
+// ══════════════════════════════════════════════════════════════════════════
+
+function toggleWalletDrawer(forceState){
+  const drawer = document.getElementById('desktopWalletDrawer');
+  if(!drawer) return;
+  const shouldOpen = forceState !== undefined ? forceState : !drawer.classList.contains('open');
+  drawer.classList.toggle('open', shouldOpen);
+  document.body.classList.toggle('wallet-drawer-open', shouldOpen);
+  try{ localStorage.setItem('walletDrawerOpen', shouldOpen ? '1' : '0'); }catch{}
+
+  if(shouldOpen){
+    // Restore last-viewed address if the drawer is empty
+    const input = document.getElementById('desktopWalletInput');
+    if(input && !input.value){
+      const saved = (function(){ try{ return localStorage.getItem('walletDrawerAddress') || ''; }catch{ return ''; } })();
+      if(saved){ input.value = saved; desktopWalletLookup(); }
+    }
+  }
+}
+
+async function desktopWalletLookup(){
+  const addr = (document.getElementById('desktopWalletInput')?.value || '').trim();
+  if(!addr || addr.length < 10) return;
+  try{ localStorage.setItem('walletDrawerAddress', addr); }catch{}
+
+  const status = document.getElementById('desktopWalletStatus');
+  const grid   = document.getElementById('desktopWalletGrid');
+  const holderTags = document.getElementById('desktopWalletHolderTags');
+  if(status) status.textContent = 'Loading…';
+  if(grid)   grid.innerHTML = '';
+  if(holderTags){ holderTags.innerHTML = ''; holderTags.style.display = 'none'; }
+
+  try{
+    const r = await fetch(`${LIVE_ENDPOINT}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(LIVE_CONTRACT)}`);
+    const j = r.ok ? await r.json() : null;
+    let ids = (j?.tokenIds || []).filter(id => id >= 1 && id <= 10000);
+    ids = [...new Set(ids)];
+
+    if(!ids.length){
+      if(status) status.textContent = 'No OCAS tokens found.';
+      updateWalletIndicator(false);
+      return;
+    }
+
+    ids.sort((a,b) => (RARITY_OBS_RANK.get(a)||99999) - (RARITY_OBS_RANK.get(b)||99999));
+
+    const listed = ids.filter(id => window.LISTINGS?.[id]?.opensea?.price_eth != null);
+    const lowestListed = listed.length ? listed.reduce((a,b) => {
+      return (window.LISTINGS[a].opensea.price_eth < window.LISTINGS[b].opensea.price_eth) ? a : b;
+    }) : null;
+    const lowestPrice = lowestListed ? window.LISTINGS[lowestListed].opensea.price_eth : null;
+
+    if(status) status.textContent =
+      `${ids.length} tokens${listed.length ? ` • ${listed.length} listed` : ''}` +
+      (lowestPrice ? ` • Floor Ξ ${lowestPrice.toFixed(4)}` : '');
+
+    window._desktopWalletIds = ids;
+    window._desktopWalletIdsFiltered = ids;
+    hydrateHolderTags(addr, ids, 'desktopWalletHolderTags');
+    _renderDesktopWalletGrid(ids, grid);
+    updateWalletIndicator(true);
+
+  } catch(e){
+    console.error('desktopWalletLookup error:', e);
+    if(status) status.textContent = 'Error: ' + (e.message || 'failed');
+  }
+}
+
+function updateWalletIndicator(hasWallet){
+  const btn = document.getElementById('viewWalletBtn');
+  if(btn) btn.classList.toggle('has-wallet', !!hasWallet);
+}
+
+function clearDesktopWallet(){
+  document.getElementById('desktopWalletInput').value = '';
+  document.getElementById('desktopWalletTraitSearch').value = '';
+  document.getElementById('desktopWalletStatus').textContent = '';
+  document.getElementById('desktopWalletGrid').innerHTML = '';
+  document.getElementById('desktopWalletHolderTags').innerHTML = '';
+  window._desktopWalletIds = null;
+  window._desktopWalletIdsFiltered = null;
+  try{ localStorage.removeItem('walletDrawerAddress'); }catch{}
+  updateWalletIndicator(false);
+}
+
+function _renderDesktopWalletGrid(ids, grid){
+  grid = grid || document.getElementById('desktopWalletGrid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for(const id of ids){
+    const rank = RARITY_OBS_RANK.get(id);
+    const price = window.LISTINGS?.[id]?.opensea?.price_eth;
+    const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
+    const imgSrc = VS._imgSrc ? VS._imgSrc(id) : imgForId(id);
+    const card = document.createElement('div');
+    card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
+    card.innerHTML =
+      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
+      (rank ? `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${rankDiamondHtml(rank)}</div>` : '') +
+      `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
+      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">Ξ${priceStr}</div>` : '');
+    card.addEventListener('click', () => { openModal(id); });
+    frag.appendChild(card);
+  }
+  grid.appendChild(frag);
+}
+
+function desktopWalletSort(mode){
+  document.querySelectorAll('[data-dwsort]').forEach(b => b.classList.toggle('active', b.dataset.dwsort === mode));
+  const grid = document.getElementById('desktopWalletGrid');
+  const source = window._desktopWalletIdsFiltered || window._desktopWalletIds;
+  if(!grid || !source) return;
+  let ids = [...source];
+  if(mode === 'rank'){
+    ids.sort((a,b) => (RARITY_OBS_RANK.get(a)||99999) - (RARITY_OBS_RANK.get(b)||99999));
+  } else if(mode === 'listed'){
+    ids.sort((a,b) => {
+      const al = window.LISTINGS?.[a]?.opensea?.price_eth != null ? 1 : 0;
+      const bl = window.LISTINGS?.[b]?.opensea?.price_eth != null ? 1 : 0;
+      if(al !== bl) return bl - al;
+      return (RARITY_OBS_RANK.get(a)||99999) - (RARITY_OBS_RANK.get(b)||99999);
+    });
+  } else if(mode === 'price-asc'){
+    ids.sort((a,b) => (window.LISTINGS?.[a]?.opensea?.price_eth ?? Infinity) - (window.LISTINGS?.[b]?.opensea?.price_eth ?? Infinity));
+  } else {
+    ids.sort((a,b) => a - b);
+  }
+  _renderDesktopWalletGrid(ids, grid);
+}
+
+// Simple comma/space-separated trait filter — matches token traits against
+// typed terms, e.g. "zombie, gold chain" filters to tokens matching either.
+function filterDesktopWalletByTrait(){
+  const raw = (document.getElementById('desktopWalletTraitSearch')?.value || '').trim().toLowerCase();
+  const source = window._desktopWalletIds;
+  const grid = document.getElementById('desktopWalletGrid');
+  if(!source || !grid) return;
+
+  if(!raw){
+    window._desktopWalletIdsFiltered = source;
+    _renderDesktopWalletGrid(source, grid);
+    return;
+  }
+
+  const terms = raw.split(',').map(t => t.trim()).filter(Boolean);
+  const filtered = source.filter(id => {
+    const ch = CHUNK_CACHE.get(chunkIndexFor(id));
+    const row = ch?.[String(id)];
+    const traits = row?.traits || {};
+    const traitValues = Object.values(traits).map(v => String(v).toLowerCase());
+    const traitKeys = Object.keys(traits).map(k => String(k).toLowerCase());
+    return terms.some(term =>
+      traitValues.some(v => v.includes(term)) || traitKeys.some(k => k.includes(term))
+    );
+  });
+
+  window._desktopWalletIdsFiltered = filtered;
+  _renderDesktopWalletGrid(filtered, grid);
+
+  const status = document.getElementById('desktopWalletStatus');
+  if(status) status.textContent = `${filtered.length} of ${source.length} tokens match`;
+}
+
+// Restore drawer open state on page load
+(function(){
+  try{
+    const wasOpen = localStorage.getItem('walletDrawerOpen') === '1';
+    const hadAddr = !!localStorage.getItem('walletDrawerAddress');
+    if(hadAddr) updateWalletIndicator(true);
+    if(wasOpen && window.innerWidth > 1100){
+      setTimeout(() => toggleWalletDrawer(true), 300); // slight delay so RARITY_OBS_RANK is ready
+    }
+  }catch{}
+})();
+
 // ── Active filter pills (jump + traits) above grid ───────────────────────────
 function updateActivePills(){
   const container = document.getElementById('activeMobilePills');
