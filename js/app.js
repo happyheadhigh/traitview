@@ -36,9 +36,7 @@ function _applyOwnerEl(el, addr){
     el.style.cursor = 'pointer';
     el.onclick = e => {
       e.stopPropagation();
-      document.getElementById('walletInput').value = addr;
-      if(typeof openMobileWallet==='function') openMobileWallet(addr);
-      else document.getElementById('walletLookupBtn')?.click();
+      openWalletView(addr);
     };
   } else {
     el.textContent = '—';
@@ -662,20 +660,7 @@ async function openModal(id){
   // Click owner pill → open wallet view (drawer on mobile, panel on desktop)
   ownerEl.onclick = () => {
     const addr = ownerEl.dataset.address;
-    if(!addr) return;
-    document.getElementById('modal').style.display = 'none';
-    if(window.innerWidth <= 900 && typeof openMobileWalletDrawer === 'function'){
-      openMobileWalletDrawer(addr);
-      return;
-    }
-    const walletInput = document.getElementById('walletInput');
-    const walletBody  = document.getElementById('walletPanelBody');
-    const walletPanel = document.getElementById('walletPanel');
-    if(walletInput) walletInput.value = addr;
-    if(walletBody)  walletBody.style.display = 'block';
-    if(walletPanel) walletPanel.classList.add('open');
-    if(typeof lookupWallet === 'function') lookupWallet();
-    else document.getElementById('walletLookupBtn')?.click();
+    openWalletView(addr);
   };
 
   // ── Image ────────────────────────────────────────────────────
@@ -2427,6 +2412,22 @@ function mobileWalletSort(mode){
 // Persists last address + open state in localStorage.
 // ══════════════════════════════════════════════════════════════════════════
 
+// Universal wallet-click handler — call this anywhere an address is clickable.
+// Routes to the mobile drawer on small screens, desktop drawer otherwise.
+function openWalletView(addr){
+  if(!addr) return;
+  const modal = document.getElementById('modal');
+  if(modal) modal.style.display = 'none';
+  if(window.innerWidth <= 1100 && typeof openMobileWalletDrawer === 'function'){
+    openMobileWalletDrawer(addr);
+    return;
+  }
+  toggleWalletDrawer(true);
+  const input = document.getElementById('desktopWalletInput');
+  if(input){ input.value = addr; }
+  desktopWalletLookup();
+}
+
 function toggleWalletDrawer(forceState){
   const drawer = document.getElementById('desktopWalletDrawer');
   if(!drawer) return;
@@ -3556,9 +3557,7 @@ const VS = {
       el.style.cursor = 'pointer';
       el.onclick = e => {
         e.stopPropagation();
-        document.getElementById('walletInput').value = addr;
-        if(typeof openMobileWallet==='function') openMobileWallet(addr);
-        else document.getElementById('walletLookupBtn')?.click();
+        openWalletView(addr);
       };
     } else {
       el.textContent = '—';
@@ -6296,7 +6295,7 @@ async function renderHoldersByTrait(){
     }).join('');
 
     return `<div style="padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:2px;cursor:pointer"
-      onclick="(function(a){if(window.innerWidth<=900&&typeof openMobileWalletDrawer==='function'){openMobileWalletDrawer(a);return;}window._walletTokenIds=null;document.getElementById('walletInput').value=a;document.getElementById('walletPanelBody').style.display='block';document.getElementById('walletPanel').classList.add('open');document.getElementById('walletLookupBtn').click();}('${addr}'))">
+      onclick="openWalletView('${addr}')">
       <div style="display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:center;margin-bottom:4px">
         <span style="font-size:10px;color:var(--muted);font-weight:600">${i+1}</span>
         <span style="font-family:monospace;font-size:11px;color:var(--text)">${short}
@@ -6451,7 +6450,7 @@ function renderHolders(){
       const moreCount = listedIds.length > 20 ? listedIds.length - 20 : 0;
 
       return `<div style="padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:2px;cursor:pointer"
-        onclick="(function(a){if(window.innerWidth<=900&&typeof openMobileWalletDrawer==='function'){openMobileWalletDrawer(a);return;}window._walletTokenIds=null;document.getElementById('walletInput').value=a;document.getElementById('walletPanelBody').style.display='block';document.getElementById('walletPanel').classList.add('open');document.getElementById('walletLookupBtn').click();}('${addr}'))">
+        onclick="openWalletView('${addr}')">
         <div style="display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:center;margin-bottom:4px;cursor:pointer">
           <span style="font-size:10px;color:var(--muted);font-weight:600">${i+1}</span>
           <span style="font-family:monospace;font-size:11px;color:var(--text)">${short}</span>
