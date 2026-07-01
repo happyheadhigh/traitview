@@ -1731,7 +1731,7 @@ async function init(){
 
       // Background: finish loading all chunks + build ranks
       // BUT only re-render the grid if the user hasn't typed anything
-      Promise.all(allChunkPromises).then(async ()=>{
+      (async ()=>{
         window.__INIT_LOADING__ = false;
         window._chunksReady = true;
         if(RARITY_OBS_RANK.size === 0 || Object.keys(TRAIT_FREQ).length === 0){
@@ -1759,31 +1759,13 @@ async function init(){
     if(RARITY_OBS_RANK.size > 0){
       await updateChartAndList();
 
-      // Chunks load in background — update grid when done
-      Promise.all(allChunkPromises).then(async () => {
-        window.__INIT_LOADING__ = false;
-        window._chunksReady = true;
-        // Build TRAIT_FREQ for rarity scores (chunks needed for this)
-        const _freq={}, _domain={};
-        let _max=0;
-        for(const idx of indices()){
-        const ch=await ensureChunk(idx);
-        for(const [sid,row] of Object.entries(ch)){
-          const n=getTraitCount(row); if(n>_max) _max=n;
-          for(const [k,v] of keepEntries(row.traits)){ (_domain[k]||=new Set()).add(v); (_freq[k]||={})[v]=(_freq[k][v]||0)+1; }
-        }
-      }
-        TRAIT_FREQ=_freq; TRAIT_DOMAIN=_domain; MAX_TRAIT_COUNT=_max;
-
-        // Refresh grid now that trait data is available
-        const jumpVal2 = document.getElementById('jump').value.trim();
-        if(!jumpVal2) await updateChartAndList();
-      }).catch(e => console.warn('Background chunk load failed:', e.message));
+      // Data already loaded via /db/all-traits — nothing more to fetch in the background
+      window.__INIT_LOADING__ = false;
+      window._chunksReady = true;
 
     } else {
       // No fast bundle — must wait for chunks before rendering
       await updateChartAndList();
-      await Promise.all(allChunkPromises);
       window.__INIT_LOADING__ = false;
       window._chunksReady = true;
       await buildStatsAndRanks();
