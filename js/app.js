@@ -2717,7 +2717,7 @@ function cToggle(id){
     }catch{}
   }
   const defaults = {
-    topTabPanel:      !isMobile,   // collapsed on mobile, open on desktop
+    topTabPanel:      false,        // collapsed by default everywhere — grid/traits are the priority on first load
     panelRarity:      false,
     panelCompare:     false,
     panelPinned:      false,
