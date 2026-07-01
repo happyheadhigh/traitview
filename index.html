@@ -167,7 +167,7 @@
         <button id="drawerJumpBtn" class="btn" onclick="(function(){const v=document.getElementById('drawerJumpInput').value.trim();if(!v)return;document.getElementById('jump').value=v;closeMobileFilter();document.getElementById('btnJump').click();})()">Go</button>
       </div>
 
-      <div style="display:flex;gap:6px;align-items:center;margin:8px 0;order:3">
+      <div style="display:flex;gap:6px;align-items:center;margin:8px 0;order:0.5">
         <input id="traitSearch" class="input" placeholder="Search traits…" style="flex:1;padding:6px 10px;font-size:12px">
         <button id="onlyPresentToggle" class="btn ghost tt" data-tip="Only show values present in current results" onclick="(function(b){const cb=document.getElementById('onlyPresent');cb.checked=!cb.checked;b.classList.toggle('active',cb.checked);cb.dispatchEvent(new Event('change'));})(this)" style="font-size:11px;padding:5px 8px;white-space:nowrap">✓ Present</button>
         <input type="checkbox" id="onlyPresent" style="display:none">
