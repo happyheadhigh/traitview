@@ -3468,12 +3468,14 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   display:none;
   position:fixed;top:0;right:0;bottom:0;z-index:60;
   width:340px;
-  background:var(--panel,rgba(12,17,26,.98));
-  border-left:1px solid var(--border,rgba(255,255,255,.12));
+  background:rgba(10,15,22,.82);
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  border-left:1px solid rgba(255,255,255,.10);
   transform:translateX(100%);
   transition:transform .28s cubic-bezier(.4,0,.2,1);
   flex-direction:column;
-  box-shadow:-8px 0 40px rgba(0,0,0,.35);
+  box-shadow:-8px 0 40px rgba(0,0,0,.45);
 }
 #desktopWalletDrawer.open{display:flex;transform:translateX(0)}
 #desktopWalletHeader{
@@ -3512,4 +3514,16 @@ body.wallet-drawer-open #sidebarExpandToggle{display:flex}
   #desktopWalletDrawer{display:none!important}
   body.wallet-drawer-open .wrap{margin-right:0}
   body.wallet-drawer-open .bar{grid-template-columns:1fr!important}
+}
+
+
+/* Wallet drawer sort buttons — flatter rectangular style instead of pills */
+#desktopWalletSortBtns .mispriced-mode-btn{
+  border-radius:8px;
+  background:rgba(255,255,255,.03);
+  border-color:rgba(255,255,255,.10);
+}
+#desktopWalletSortBtns .mispriced-mode-btn.active{
+  background:var(--accent);
+  border-color:var(--accent);
 }
