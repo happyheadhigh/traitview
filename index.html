@@ -109,7 +109,7 @@
   <div class="bar">
     <div style="display:flex;flex-direction:column;gap:10px">
       <h3 class="section" style="margin-bottom:4px;padding:0 2px;opacity:.7">Filters</h3>
-<div id="panelRarity" style="margin-bottom:2px;order:2">
+<div id="panelRarity" style="margin-bottom:2px;order:5">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px;cursor:pointer;user-select:none" onclick="(function(el){el.classList.toggle('open');const b=document.getElementById('rarityPanelBody');if(b)b.style.display=el.classList.contains('open')?'block':'none';const ch=el.querySelector('.rarity-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
     <span class="section" style="opacity:.7;margin:0">Rarity Mode &amp; Rank</span>
     <span class="rarity-chev" style="color:var(--sub);font-size:16px;line-height:1;transition:transform .2s ease;display:inline-block">⌄</span>
@@ -134,8 +134,8 @@
   </div></div>
 </div>
 
-      <!-- Wallet View in left column — floating, no box -->
-      <div id="walletPanel" style="margin-bottom:2px;order:1">
+      <!-- Wallet View — deprioritized below traits; will move to header drawer in Pass 2 -->
+      <div id="walletPanel" style="margin-bottom:2px;order:6">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px;cursor:pointer;user-select:none" onclick="(function(el){el.classList.toggle('open');const b=document.getElementById('walletPanelBody');if(b){b.style.display=el.classList.contains('open')?'block':'none';}const ch=el.querySelector('.wallet-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
           <span class="section" style="opacity:.7;margin:0">Wallet View</span>
           <div style="display:flex;align-items:center;gap:6px">
@@ -162,21 +162,22 @@
       </div>
 
       <!-- Jump to token — shown in filter drawer on mobile -->
-      <div id="mobileDrawerJump" style="display:none;gap:6px;margin:0 0 10px;align-items:center;order:3">
+      <div id="mobileDrawerJump" style="display:none;gap:6px;margin:0 0 10px;align-items:center;order:0">
         <input id="drawerJumpInput" class="input" type="text" inputmode="numeric" placeholder="Jump to Token ID…" style="flex:1;font-size:16px">
         <button id="drawerJumpBtn" class="btn" onclick="(function(){const v=document.getElementById('drawerJumpInput').value.trim();if(!v)return;document.getElementById('jump').value=v;closeMobileFilter();document.getElementById('btnJump').click();})()">Go</button>
       </div>
 
-      <div style="display:flex;gap:8px;align-items:center;margin:8px 0;order:4">
-        <input id="traitSearch" class="input" placeholder="Search trait or value…" style="flex:1">
-        <label style="display:flex;align-items:center;gap:6px" title="Show only values present in current result set"><input type="checkbox" id="onlyPresent"> <span class="section" style="margin:0">Only show values present</span></label>
-        <button id="btnClearFilters" class="btn" style="font-size:11px;padding:5px 10px">Clear</button>
+      <div style="display:flex;gap:6px;align-items:center;margin:8px 0;order:3">
+        <input id="traitSearch" class="input" placeholder="Search traits…" style="flex:1;padding:6px 10px;font-size:12px">
+        <button id="onlyPresentToggle" class="btn ghost tt" data-tip="Only show values present in current results" onclick="(function(b){const cb=document.getElementById('onlyPresent');cb.checked=!cb.checked;b.classList.toggle('active',cb.checked);cb.dispatchEvent(new Event('change'));})(this)" style="font-size:11px;padding:5px 8px;white-space:nowrap">✓ Present</button>
+        <input type="checkbox" id="onlyPresent" style="display:none">
+        <button id="btnClearFilters" class="btn ghost" style="font-size:11px;padding:5px 8px" title="Clear all filters">✕</button>
       </div>
 
-      <div id="activeChips" class="chips" style="margin:6px 0 10px;order:5"></div>
-      <div id="accTraits" style="order:6"></div>
+      <div id="activeChips" class="chips" style="margin:6px 0 10px;order:4"></div>
+      <div id="accTraits" style="order:1"></div>
 
-      <div id="traitCountPanel" class="sidebar-collapse-panel" style="order:7;margin-top:14px">
+      <div id="traitCountPanel" class="sidebar-collapse-panel" style="order:2;margin-top:14px">
         <div class="sidebar-collapse-head" onclick="(function(el){el.classList.toggle('open');const ch=el.querySelector('.sidebar-collapse-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
           <span class="section" style="opacity:.7;margin:0">Trait Count</span>
           <span class="sidebar-collapse-chev" style="color:var(--sub);font-size:16px;line-height:1;transition:transform .2s ease;display:inline-block">⌄</span>
