@@ -224,50 +224,89 @@ function hideWalletActivityTooltip(){
   const tip = document.getElementById('walletActivityTooltip');
   if(tip) tip.style.display = 'none';
 }
+function walletActivityDirection(row, kind, address){
+  const from = String(row?.from_address || '').toLowerCase();
+  const to   = String(row?.to_address || '').toLowerCase();
+  const addr = String(address || '').toLowerCase();
+  if(addr && to === addr) return 1;   // token entered this wallet
+  if(addr && from === addr) return -1; // token left this wallet
+  // No address info on the row — fall back to kind semantics
+  if(kind === 'mint') return 1;
+  if(kind === 'burn') return -1;
+  if(kind === 'sale') return -1; // most wallet-scoped sale rows are this wallet selling
+  return 0; // listings and undetermined transfers don't change holdings
+}
 function walletActivityChartHtml(data){
-  const eventsAll = walletActivityEvents(data);
+  const address = data?.address || '';
+  const eventsAll = walletActivityEvents(data).map(e => ({
+    ...e, dir: walletActivityDirection(e.row, e.kind, address)
+  }));
   const kinds = ['mint','sale','listing','burn','transfer'];
   const filters = `<div class="wallet-activity-filters">${kinds.map(k => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_FILTERS.has(k)?'active':''}" onclick="toggleWalletActivityFilter('${k}')">${k}</button>`).join('')}</div>`;
-  const events = eventsAll.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));
   if(!eventsAll.length) return `${filters}<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>`;
+
+  // Running "tokens held" total — every event gets a valid y-value this way,
+  // instead of the old chart where only priced events (a minority) could be
+  // plotted at all, leaving most of the timeline empty.
+  let running = 0;
+  const withHoldings = eventsAll.map(e => {
+    running += e.dir;
+    return { ...e, held: Math.max(0, running) };
+  });
+
+  const events = withHoldings.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));
   if(!events.length) return `${filters}<div class="wallet-empty-state">No events match the selected activity filters.</div>`;
-  // Render Plotly chart into a host div — same style as Floor Trend
+
   const hostId = 'walletActivityPlotly_' + Date.now();
   const kindColors = {mint:'#1CFFAF',sale:'#2dd4bf',listing:'#60a5fa',burn:'#f87171',transfer:'#a78bfa'};
-  // Group by kind for separate traces (Plotly legend)
+
+  // Base area/line — ALWAYS the full unfiltered history, so toggling filters
+  // never breaks or shortens the line; it only changes which markers glow.
+  const lineTrace = {
+    x: withHoldings.map(e => new Date(e.ts).toISOString()),
+    y: withHoldings.map(e => e.held),
+    mode: 'lines', type: 'scatter', name: 'Tokens Held',
+    line: { color: '#1CFFAF', width: 2, shape: 'hv' },
+    fill: 'tozeroy', fillcolor: 'rgba(28,255,175,0.08)',
+    hoverinfo: 'skip', showlegend: false,
+  };
+  // One marker trace per kind, plotted at the SAME (time, holdings) coordinate
+  // as the line — so every dot sits meaningfully on the story, not floating
+  // in empty space tied only to price.
   const byKind = {};
   for(const e of events){
     if(!byKind[e.kind]) byKind[e.kind] = {x:[],y:[],ids:[],labels:[]};
-    byKind[e.kind].x.push(new Date(e.ts*1000).toISOString().slice(0,10));
-    byKind[e.kind].y.push(e.price > 0 ? e.price : null);
+    byKind[e.kind].x.push(new Date(e.ts).toISOString());
+    byKind[e.kind].y.push(e.held);
     byKind[e.kind].ids.push(e.id||0);
     byKind[e.kind].labels.push(
-      '#'+(e.id||'?')+' · '+e.kind+'<br>'+new Date(e.ts*1000).toLocaleDateString()+(e.price>0?' · Ξ'+e.price.toFixed(4):'')
+      '#'+(e.id||'?')+' · '+e.kind+'<br>'+new Date(e.ts).toLocaleDateString()+(e.price>0?' · Ξ'+e.price.toFixed(4):'')
     );
   }
-  const traces = Object.entries(byKind).map(([kind,d])=>({
+  const markerTraces = Object.entries(byKind).map(([kind,d])=>({
     x:d.x, y:d.y, mode:'markers', type:'scatter', name:kind,
-    marker:{size:7,color:kindColors[kind]||'#9aa4b2',symbol:'circle',opacity:.85,
-            line:{color:'rgba(0,0,0,.3)',width:1}},
+    marker:{size:9,color:kindColors[kind]||'#9aa4b2',symbol:'circle',opacity:.95,
+            line:{color:'rgba(0,0,0,.35)',width:1.5}},
     customdata:d.ids,
     text:d.labels,
     hovertemplate:'%{text}<extra></extra>'
   }));
+  const traces = [lineTrace, ...markerTraces];
+
   const cs = getComputedStyle(document.body);
   const textColor = cs.getPropertyValue('--text').trim()||'#e6edf7';
   const subColor  = cs.getPropertyValue('--sub').trim()||'#7a8fa8';
   const layout = {
-    height:220, margin:{l:52,r:14,t:10,b:40},
+    height:240, margin:{l:44,r:14,t:10,b:40},
     paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
     font:{color:textColor,size:11},
     xaxis:{color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false},
-    yaxis:{title:'ETH',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,tickformat:'.4f'},
+    yaxis:{title:'Tokens Held',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,rangemode:'tozero',dtick:1},
     showlegend:true,
     legend:{x:0,y:1,font:{size:10},bgcolor:'rgba(0,0,0,0)',orientation:'h'},
     hovermode:'closest',
     hoverlabel:{bgcolor:'rgba(10,15,22,.92)',bordercolor:'rgba(255,255,255,.13)',font:{color:textColor,size:11}}
   };
-  // Defer Plotly render until host div is in DOM and visible.
   setTimeout(()=>{
     const host = document.getElementById(hostId);
     if(!host || typeof Plotly === 'undefined') return;
@@ -277,7 +316,7 @@ function walletActivityChartHtml(data){
       Plotly.newPlot(currentHost, traces, layout, {responsive:true,displayModeBar:false});
       currentHost.on('plotly_click', function(eventData){
         const pt = eventData.points?.[0];
-        if(!pt) return;
+        if(!pt || pt.data.mode !== 'markers') return;
         const id = pt.customdata;
         if(id) openModal(id);
       });
@@ -288,8 +327,131 @@ function walletActivityChartHtml(data){
     }
     render();
   }, 60);
-  return `${filters}<div id="${hostId}" style="width:100%;min-height:220px"></div>`;
+  return `${filters}<div id="${hostId}" style="width:100%;min-height:240px"></div>`;
 }
+// ── Rarity Improvement from Burns ───────────────────────────────────────────
+// Every burn anywhere in the collection can make a held token's traits
+// relatively rarer, whether or not the holder ever burned anything
+// themselves. Reuses computeOriginalTraitFreq() (already built for the Burns
+// tab's Trait Extinction Tracker, cached after first call) against the live
+// TRAIT_FREQ — zero new API calls, just diffing data already in memory.
+async function computeWalletRarityImprovement(ownedTokens){
+  if(!Array.isArray(ownedTokens) || !ownedTokens.length) return null;
+  if(typeof computeOriginalTraitFreq !== 'function') return null;
+  const original = await computeOriginalTraitFreq();
+  const current = (typeof TRAIT_FREQ === 'object' && TRAIT_FREQ) || {};
+  const perToken = [];
+  for(const t of ownedTokens){
+    const id = walletTokenId(t);
+    if(!id) continue;
+    let row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || null;
+    if(!row && typeof ensureChunk === 'function' && typeof chunkIndexFor === 'function'){
+      try{
+        const ch = await ensureChunk(chunkIndexFor(id));
+        row = ch && ch[String(id)] ? ch[String(id)] : null;
+      }catch(_){}
+    }
+    if(!row) continue;
+    const traits = typeof keepEntries === 'function' ? keepEntries(row.traits) : Object.entries(row.traits||{});
+    let sumPct = 0, n = 0, best = null;
+    for(const [cat, val] of traits){
+      const orig = original?.[cat]?.[val];
+      const curr = current?.[cat]?.[val];
+      if(!orig || orig < 3 || curr == null) continue;
+      const burned = orig - curr;
+      if(burned <= 0) continue;
+      const pct = (burned / orig) * 100;
+      sumPct += pct; n++;
+      if(!best || pct > best.pct) best = { cat, val, pct, orig, curr };
+    }
+    if(n === 0) continue;
+    perToken.push({ id, avgPct: sumPct / n, best });
+  }
+  if(!perToken.length) return { overallPct: 0, perToken: [] };
+  const overallPct = perToken.reduce((s, t) => s + t.avgPct, 0) / perToken.length;
+  perToken.sort((a, b) => b.avgPct - a.avgPct);
+  return { overallPct, perToken };
+}
+function renderRarityImprovement(result){
+  if(!result || !result.perToken.length){
+    return '<div class="wallet-empty-state">Not enough burn data yet to measure — check back as more burns happen.</div>';
+  }
+  const { overallPct, perToken } = result;
+  const top = perToken.slice(0, 3);
+  return `
+    <div class="rarity-improve-hero">
+      <div class="rarity-improve-big">+${overallPct.toFixed(1)}%</div>
+      <div class="rarity-improve-label">Rarer On Average Since Mint</div>
+      <div class="rarity-improve-sub">Other holders burning duplicates of your traits made your tokens scarcer — no action needed from you.</div>
+    </div>
+    <div class="rarity-improve-tokens">${top.map(t => {
+      const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(t.id) : imgForId(t.id);
+      return `<div class="rarity-improve-token" onclick="openModal(${t.id})">
+        <img src="${comboEsc(src)}" alt="#${t.id}" loading="lazy">
+        <div class="rarity-improve-token-body">
+          <b>#${t.id}</b>
+          <span class="rarity-improve-token-pct">+${t.avgPct.toFixed(0)}% rarer</span>
+          ${t.best ? `<span class="rarity-improve-token-trait">${comboEsc(t.best.cat)}: ${comboEsc(t.best.val)} — ${t.best.curr}/${t.best.orig} left</span>` : ''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+}
+async function loadWalletRarityImprovement(data){
+  const hosts = ['rarityImproveHost', 'mobileRarityImproveHost']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if(!hosts.length) return;
+  const summary = data?.summary?.summary || data?.summary || {};
+  const owned = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
+  try{
+    const result = await computeWalletRarityImprovement(owned);
+    const html = renderRarityImprovement(result);
+    hosts.forEach(h => h.innerHTML = html);
+  }catch(e){
+    hosts.forEach(h => h.innerHTML = '<div class="wallet-empty-state">Could not compute rarity data.</div>');
+  }
+}
+
+// ── Collection Scarcity ─────────────────────────────────────────────────────
+// Deliberately not burn-participation-gated: this works identically for a
+// wallet that has never burned a single token. It tells the collection-wide
+// scarcity story (how many remain vs. the 10,000 original) plus a purely
+// personal, always-available stat — where this wallet's tokens rank on
+// average against the field — using data already loaded at page init.
+function walletAvgRankPercentile(topTokens){
+  const ranks = (topTokens || []).map(t => Number(t.os_rank ?? t.obs_rank)).filter(n => Number.isFinite(n) && n > 0);
+  if(!ranks.length) return null;
+  const avg = ranks.reduce((a, b) => a + b, 0) / ranks.length;
+  const total = (typeof TOKEN_COUNT === 'number' && TOKEN_COUNT > 0) ? TOKEN_COUNT : 10000;
+  return { avg, pct: Math.max(0.1, (avg / total) * 100) };
+}
+function renderCollectionScarcity(topTokens){
+  const total = 10000;
+  const remain = (typeof TOKEN_COUNT === 'number' && TOKEN_COUNT > 0) ? TOKEN_COUNT : total;
+  const burned = Math.max(0, total - remain);
+  const pct = Math.min(100, (burned / total) * 100);
+  const r = 42, c = 2 * Math.PI * r;
+  const dash = (pct / 100) * c;
+  const standing = walletAvgRankPercentile(topTokens);
+  return `
+    <div class="scarcity-wrap">
+      <div class="scarcity-gauge-wrap">
+        <svg viewBox="0 0 100 100" class="scarcity-gauge">
+          <circle cx="50" cy="50" r="${r}" class="scarcity-gauge-track"/>
+          <circle cx="50" cy="50" r="${r}" class="scarcity-gauge-fill" style="stroke-dasharray:${dash.toFixed(1)} ${c.toFixed(1)}"/>
+        </svg>
+        <div class="scarcity-gauge-center"><b>${pct.toFixed(1)}%</b><span>Burned</span></div>
+      </div>
+      <div class="scarcity-stats">
+        <div class="scarcity-stat"><b>${walletMetric(remain)}</b><span>Remain</span></div>
+        <div class="scarcity-stat"><b>${walletMetric(burned)}</b><span>Burned</span></div>
+        <div class="scarcity-stat"><b>${walletMetric(total)}</b><span>Original</span></div>
+      </div>
+    </div>
+    ${standing ? `<div class="scarcity-standing">
+      <span>Your tokens average <b>Top ${standing.pct < 1 ? standing.pct.toFixed(1) : Math.round(standing.pct)}%</b> of the collection by rank</span>
+    </div>` : ''}`;
+}
+
 function walletMobileAnalyticsHtml(data){
   const summary = data?.summary?.summary || data?.summary || {};
   const synced = data?.summary?.synced;
@@ -311,6 +473,14 @@ function walletMobileAnalyticsHtml(data){
         <div class="wallet-stat-chip"><span>Est. Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
         <div class="wallet-stat-chip"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
       </div>
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Collection Scarcity</div></div>
+      ${renderCollectionScarcity(topTokens)}
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title" style="color:#1CFFAF">Rarity Gained From Burns</div></div>
+      <div id="mobileRarityImproveHost"><div class="wallet-empty-state">Calculating…</div></div>
     </div>
     <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Top Owned Tokens</div></div>
@@ -375,6 +545,10 @@ function walletDesktopAnalyticsHtml(data){
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Wallet Activity Timeline</div><div class="wallet-analytics-sub">Real history + transfer rows</div></div>
       ${walletActivityChartHtml(data)}
     </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Collection Scarcity</div></div>
+      ${renderCollectionScarcity(topTokens)}
+    </div>
     <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:8px">
       <div class="wallet-analytics-card">
         <div class="wallet-analytics-head">
@@ -394,6 +568,10 @@ function walletDesktopAnalyticsHtml(data){
         ${topTokens.length ? `<div class="wallet-top-token-grid" id="walletOwnedGrid">${topTokens.map(walletTopTokenCard).join('')}</div>` : '<div class="wallet-empty-state">Owned tokens will appear after wallet summary sync completes.</div>'}
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="wallet-analytics-card">
+          <div class="wallet-analytics-head"><div class="wallet-analytics-title" style="color:#1CFFAF">Rarity Gained From Burns</div></div>
+          <div id="rarityImproveHost"><div class="wallet-empty-state">Calculating…</div></div>
+        </div>
         <div class="wallet-analytics-card">
           <div class="wallet-analytics-head"><div class="wallet-analytics-title">Trait Exposure</div></div>
           ${traitRows.length ? `<div class="wallet-trait-bars">${traitRows.map(t => `<div class="wallet-trait-row"><div class="wallet-trait-label"><b>${comboEsc(t.category)}</b><span>${comboEsc(t.value || 'Mixed')}</span></div><div class="wallet-trait-count">${walletMetric(t.count)}</div></div>`).join('')}</div>` : '<div class="wallet-empty-state">Trait analytics will appear after sync/derive completes.</div>'}
@@ -491,4 +669,5 @@ function renderWalletAnalytics(data){
   if(desktopHost) desktopHost.innerHTML = walletDesktopAnalyticsHtml(data);
   if(mobileHost) mobileHost.innerHTML = walletMobileAnalyticsHtml(data);
   setTimeout(flushWalletActivityPlot, 80);
+  loadWalletRarityImprovement(data);
 }
