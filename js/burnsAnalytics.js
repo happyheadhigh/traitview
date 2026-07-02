@@ -101,11 +101,10 @@ function burnsTokenChipList(ids, limit=8){
   const chips = clean.slice(0, limit).map(id => burnsTokenChip(id)).join('');
   return `<span class="burn-chip-list">${chips || '-'}${more}</span>`;
 }
-function burnsInputGallery(ids, limit=5){
+function burnsInputGallery(ids){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
-  const more = clean.length > limit ? `<span class="burn-more-count">+${clean.length - limit} more</span>` : '';
-  const chips = clean.slice(0, limit).map(id => burnsTokenChip(id)).join('');
-  return `<div class="burn-input-gallery">${chips || '-'}${more}</div>`;
+  const chips = clean.map(id => burnsTokenChip(id)).join('');
+  return `<div class="burn-input-gallery">${chips || '-'}</div>`;
 }
 function burnsInputIds(row){
   return row?.input_token_ids || row?.burned_ids || row?.burned_token_ids || row?.tokens || [];
@@ -175,7 +174,7 @@ function renderLatestBurns(rows){
     const created = row.created_token_id || row.survivor_token_id;
     return `<div class="burn-row burn-latest-row">
       <div class="burn-cell burn-tx"><b>${burnsTxLink(row.tx_hash)}</b></div>
-      <div class="burn-cell burn-inputs">${burnsInputGallery(ids, 5)}</div>
+      <div class="burn-cell burn-inputs">${burnsInputGallery(ids)}</div>
       <div class="burn-cell burn-created">${burnsTokenChip(created, row)}</div>
       <div class="burn-cell burn-count">${burnsMetric(row.input_count ?? ids.length)}</div>
       <div class="burn-cell burn-time">${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</div>
@@ -247,15 +246,26 @@ function renderBurnSizeDistribution(activity){
     return `<div class="burn-size-row"><span>${burnsEsc(r.bucket || r.label || '-')}</span><div><i style="width:${pct}%"></i></div><b>${burnsMetric(val)}</b></div>`;
   }).join('')}</div>`;
 }
+function toggleBurnThumbSize(){
+  const host = document.getElementById('burnsAnalyticsHost');
+  if(!host) return;
+  const isLg = host.classList.toggle('burn-thumbs-lg');
+  try{ localStorage.setItem('traitview_burn_thumbs_lg', isLg ? '1' : '0'); }catch(_){}
+  const btn = document.getElementById('burnThumbSizeToggle');
+  if(btn) btn.textContent = isLg ? '🔎 Smaller Thumbnails' : '🔍 Bigger Thumbnails';
+}
 function renderBurnsAnalytics(data){
   const host = document.getElementById('burnsAnalyticsHost');
   if(!host) return;
+  let thumbsLg = false;
+  try{ thumbsLg = localStorage.getItem('traitview_burn_thumbs_lg') === '1'; }catch(_){}
+  host.classList.toggle('burn-thumbs-lg', thumbsLg);
   const stats = data?.stats?.stats || data?.stats || {};
   const latestRows = burnsRows(data, 'latest', 'burns');
   const leaderRows = burnsRows(data, 'leaderboard', 'leaders');
   const activityRows = burnsRows(data, 'activity', 'activity');
   host.innerHTML = `<div class="burns-analytics-inner">
-    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
+    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost" id="burnThumbSizeToggle" onclick="toggleBurnThumbSize()">${thumbsLg ? '🔎 Smaller Thumbnails' : '🔍 Bigger Thumbnails'}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
     ${renderBurnStats(stats)}
     ${burnsSection('Latest Burns', renderLatestBurns(latestRows), 'Finalized burn events from Railway')}
     <div class="burn-two-col">
