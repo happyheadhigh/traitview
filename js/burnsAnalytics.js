@@ -83,17 +83,32 @@ function burnsTokenImgSrc(id){
   if(s) return typeof ipfsToHttp === 'function' ? ipfsToHttp(s) : s;
   return typeof imgForId === 'function' ? imgForId(n) : '';
 }
-function burnsTokenThumb(id, extraClass=''){
-  const n = Number(id);
-  if(!Number.isFinite(n) || n <= 0) return '';
-  const src = burnsTokenImgSrc(n);
-  const img = src ? `<img src="${burnsEsc(src)}" alt="#${n}" loading="lazy" decoding="async">` : `<span>#${n}</span>`;
-  return `<button type="button" class="burn-token-thumb ${burnsEsc(extraClass)}" data-burn-token-id="${n}" title="Open token #${n}" aria-label="Open token #${n}" onclick="event.stopPropagation(); if(typeof openModal==='function') openModal(${n});">${img}</button>`;
+function burnsNormalizeImgSrc(raw){
+  const s = raw ? String(raw).trim() : '';
+  if(!s) return '';
+  if(s.startsWith('<svg')){
+    try{ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); }catch(_){ return ''; }
+  }
+  if(s.startsWith('data:')) return s;
+  return typeof ipfsToHttp === 'function' ? ipfsToHttp(s) : s;
 }
-function burnsTokenChip(id, row){
+function burnsTokenThumb(id, extraClass='', overrideSrc=null){
   const n = Number(id);
   if(!Number.isFinite(n) || n <= 0) return '';
-  return `<span class="burn-token-chip">${burnsTokenThumb(n)}<span class="burn-token-id">${burnsTokenLink(n)}</span>${row ? burnsRowRankTag(row, n) : burnsRankTag(n)}</span>`;
+  const src = overrideSrc ? burnsNormalizeImgSrc(overrideSrc) : burnsTokenImgSrc(n);
+  const img = src ? `<img src="${burnsEsc(src)}" alt="#${n}" loading="lazy" decoding="async">` : `<span>#${n}</span>`;
+  // Historical/frozen thumbnails (showing a specific past burn's appearance,
+  // not the token's current one) are marked so the live-refresh system
+  // (refreshLiveTokenData in app.js) knows to leave them alone — otherwise
+  // it would overwrite this intentional historical image with the token's
+  // current one on its next periodic pass.
+  const frozenAttr = overrideSrc ? ' data-burn-frozen-img="1"' : '';
+  return `<button type="button" class="burn-token-thumb ${burnsEsc(extraClass)}" data-burn-token-id="${n}"${frozenAttr} title="Open token #${n}" aria-label="Open token #${n}" onclick="event.stopPropagation(); if(typeof openModal==='function') openModal(${n});">${img}</button>`;
+}
+function burnsTokenChip(id, row, overrideSrc=null){
+  const n = Number(id);
+  if(!Number.isFinite(n) || n <= 0) return '';
+  return `<span class="burn-token-chip">${burnsTokenThumb(n, '', overrideSrc)}<span class="burn-token-id">${burnsTokenLink(n)}</span>${row ? burnsRowRankTag(row, n) : burnsRankTag(n)}</span>`;
 }
 function burnsTokenChipList(ids){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
@@ -174,7 +189,7 @@ function renderLatestBurns(rows){
     return `<div class="burn-row burn-latest-row">
       <div class="burn-cell burn-tx"><b>${burnsTxLink(row.tx_hash)}</b></div>
       <div class="burn-cell burn-inputs">${burnsInputGallery(ids)}</div>
-      <div class="burn-cell burn-created">${burnsTokenChip(created, row)}</div>
+      <div class="burn-cell burn-created">${burnsTokenChip(created, row, row.snapshot_image || null)}</div>
       <div class="burn-cell burn-count">${burnsMetric(row.input_count ?? ids.length)}</div>
       <div class="burn-cell burn-time">${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</div>
       <div class="burn-cell burn-wallet">${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</div>

@@ -5661,7 +5661,7 @@ async function refreshLiveTokenData(){
         const current = String(IMAGES_MAP?.get(id) || '').trim();
         if(data.image !== current){
           IMAGES_MAP?.set(id, data.image);
-          document.querySelectorAll(`[data-id="${id}"] img, [data-burn-token-id="${id}"] img`).forEach(img => { img.src = data.image; });
+          document.querySelectorAll(`[data-id="${id}"] img, [data-burn-token-id="${id}"]:not([data-burn-frozen-img]) img`).forEach(img => { img.src = data.image; });
           if(window._modalCurrentId === id){
             const imgBox = document.getElementById('mImg');
             if(imgBox){
