@@ -58,6 +58,13 @@ function walletEth(v){
   const n = Number(v);
   return Number.isFinite(n) ? `Ξ ${n.toFixed(n >= 1 ? 3 : 4)}` : '-';
 }
+function walletPnl(v){
+  const n = Number(v);
+  if(!Number.isFinite(n)) return { text: '-', color: 'var(--sub)' };
+  const sign = n > 0 ? '+' : (n < 0 ? '-' : '');
+  const abs = Math.abs(n);
+  return { text: `${sign}Ξ ${abs.toFixed(abs >= 1 ? 3 : 4)}`, color: n > 0 ? '#4ade80' : (n < 0 ? '#f87171' : 'var(--sub)') };
+}
 function walletDate(v){
   if(!v) return '';
   const d = new Date(v);
@@ -162,7 +169,7 @@ function walletActivityKind(row, address){
   return 'transfer';
 }
 function walletActivityPrice(row){
-  const val = row?.price_eth ?? row?.eth_price ?? row?.price ?? row?.listing_price ?? row?.floor_eth ?? row?.estimated_floor_value ?? row?.value_eth;
+  const val = row?.sale_price ?? row?.price_eth ?? row?.eth_price ?? row?.price ?? row?.listing_price ?? row?.floor_eth ?? row?.estimated_floor_value ?? row?.value_eth;
   const n = Number(val);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
@@ -322,10 +329,23 @@ function walletMobileAnalyticsHtml(data){
       ${transferRows.length ? `<div class="wallet-transfer-list">${transferRows.map(t => {
         const id = walletTokenId(t);
         const tx = t.tx_hash || t.transaction_hash || '';
-        const kind = t.event_type || t.direction || (String(t.to_address || '').toLowerCase() === data.address.toLowerCase() ? 'received' : 'sent');
+        const kind = walletActivityKind(t, data.address);
+        const price = walletActivityPrice(t);
         const date = walletDate(t.block_ts || t.timestamp || t.created_at);
         const link = tx ? `https://etherscan.io/tx/${tx}` : '';
-        return `<div class="wallet-transfer-row"><div class="wallet-transfer-kind">${comboEsc(kind)}</div><div class="wallet-transfer-main">#${id || '-'}${link ? ` · <a href="${comboEsc(link)}" target="_blank" rel="noopener">tx</a>` : ''}</div><div class="wallet-transfer-date">${comboEsc(date)}</div></div>`;
+        const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
+        const thumb = src ? `<img src="${comboEsc(src)}" alt="#${id}">` : `<span>#${id}</span>`;
+        return `<div class="wallet-transfer-row">
+          <button type="button" class="wallet-transfer-thumb" onclick="openModal(${id})">${thumb}</button>
+          <div class="wallet-transfer-mid">
+            <div class="wallet-transfer-topline">
+              <span class="wallet-transfer-kind" style="color:${walletActivityColor(kind)};border-color:${walletActivityColor(kind)}66;background:${walletActivityColor(kind)}1a">${comboEsc(kind)}</span>
+              <span class="wallet-transfer-id">#${id || '-'}</span>
+              ${price > 0 ? `<span class="wallet-transfer-price">Ξ${price.toFixed(4)}</span>` : ''}
+            </div>
+            <div class="wallet-transfer-date">${comboEsc(date)}${link ? ` · <a href="${comboEsc(link)}" target="_blank" rel="noopener">tx</a>` : ''}</div>
+          </div>
+        </div>`;
       }).join('')}</div>` : '<div class="wallet-empty-state">No transfer rows yet. Summary data is available now.</div>'}
     </div>`;
   return html;
@@ -333,7 +353,7 @@ function walletMobileAnalyticsHtml(data){
 function walletDesktopAnalyticsHtml(data){
   const summary = data?.summary?.summary || data?.summary || {};
   const synced = data?.summary?.synced;
-  const topTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens.slice(0, 6) : [];
+  const topTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
   const traitRows = normalizeWalletTraits(data?.traits).sort((a,b)=>b.count-a.count).slice(0, 6);
   return `<div class="wallet-analytics-compact">
     <div class="wallet-analytics-card" style="padding:8px 9px">
@@ -347,6 +367,8 @@ function walletDesktopAnalyticsHtml(data){
         <div class="wallet-stat-pill"><span>Listed</span><b>${walletMetric(summary.listed_count)}</b></div>
         <div class="wallet-stat-pill"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
         <div class="wallet-stat-pill"><span>Est Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
+        <div class="wallet-stat-pill"><span>Realized P&L</span><b style="color:${walletPnl(summary.realized_pnl).color}">${walletPnl(summary.realized_pnl).text}</b></div>
+        <div class="wallet-stat-pill"><span>Unrealized P&L</span><b style="color:${walletPnl(summary.unrealized_pnl).color}">${walletPnl(summary.unrealized_pnl).text}</b></div>
       </div>
     </div>
     <div class="wallet-analytics-card">
