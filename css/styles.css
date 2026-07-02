@@ -2697,6 +2697,14 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     max-height: 680px !important;
   }
 
+  /* ── Analytics panel: fixed height regardless of tab content, so a
+     tall tab (e.g. Burns with many rows) scrolls internally instead of
+     growing the panel and pushing the token grid down the page. ── */
+  #topTabPanel .top-tab-panel {
+    max-height: 680px !important;
+    overflow-y: auto !important;
+  }
+
   /* ── Analytics panel: reasonable min-height ── */
   #topTabPanel .c-header{
     padding:8px 14px 0!important;
@@ -3415,8 +3423,11 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-created{overflow:visible;white-space:normal}
 .burn-inputs{overflow:hidden;white-space:normal}
 .burn-count,.burn-rank-num{font-weight:900;color:#dbe7f5;text-align:right}
-.burn-token-chip,.burn-chip-list{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
-.burn-token-chip{padding:1px 4px 1px 1px;border:0;border-radius:0;background:transparent;line-height:1}
+.burn-token-chip{display:inline-flex;align-items:center;gap:5px;padding:1px 4px 1px 1px;border:0;border-radius:0;background:transparent;line-height:1}
+.burn-chip-list{display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:2px;vertical-align:top;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.burn-chip-list::-webkit-scrollbar{height:4px}
+.burn-chip-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
+.burn-chip-list::-webkit-scrollbar-track{background:transparent}
 .burn-token-thumb{width:24px;height:24px;border:1px solid rgba(255,255,255,.08);border-radius:5px;overflow:hidden;padding:0;background:rgba(255,255,255,.055);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--sub);font-size:9px;flex:0 0 auto;transition:width .15s ease,height .15s ease}
 .burn-token-thumb:hover{box-shadow:0 0 0 1px rgba(45,212,191,.5)}
 .burn-token-thumb img{width:100%;height:100%;object-fit:contain;display:block}

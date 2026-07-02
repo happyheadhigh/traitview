@@ -95,11 +95,10 @@ function burnsTokenChip(id, row){
   if(!Number.isFinite(n) || n <= 0) return '';
   return `<span class="burn-token-chip">${burnsTokenThumb(n)}<span class="burn-token-id">${burnsTokenLink(n)}</span>${row ? burnsRowRankTag(row, n) : burnsRankTag(n)}</span>`;
 }
-function burnsTokenChipList(ids, limit=8){
+function burnsTokenChipList(ids){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
-  const more = clean.length > limit ? `<span class="burn-muted">+${clean.length - limit}</span>` : '';
-  const chips = clean.slice(0, limit).map(id => burnsTokenChip(id)).join('');
-  return `<span class="burn-chip-list">${chips || '-'}${more}</span>`;
+  const chips = clean.map(id => burnsTokenChip(id)).join('');
+  return `<span class="burn-chip-list">${chips || '-'}</span>`;
 }
 function burnsInputGallery(ids){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
@@ -208,7 +207,7 @@ function renderBestBurns(best){
       const survivor = row.created_token_id || row.survivor_token_id || row.token_id;
       const ids = burnsInputIds(row).filter(Boolean);
       const primaryId = kind === 'input' ? (row.burned_token_id || row.token_id) : survivor;
-      const inputSummary = ids.length ? `<span class="burn-best-inputs">${burnsTokenChipList(ids, 5)}</span>` : '';
+      const inputSummary = ids.length ? `<span class="burn-best-inputs">${burnsTokenChipList(ids)}</span>` : '';
       return `<div class="burn-mini-row">
         <span class="burn-mini-primary">${burnsTokenChip(primaryId, row)}</span>
         <span>${kind === 'input' ? 'Input' : burnsMetric(row.input_count ?? ids.length) + ' inputs'}</span>
@@ -221,20 +220,43 @@ function renderBestBurns(best){
 }
 function renderBurnActivity(rows){
   if(!rows.length) return '<div class="wallet-empty-state">Burn timeline is empty or still building.</div>';
-  const recent = rows.slice(-48);
-  const max = Math.max(1, ...recent.flatMap(r => {
-    const events = Number(r.burn_events || r.count || r.burns || 0);
-    const used = Number(r.tokens_used ?? (Number(r.tokens_burned || 0) + Number(r.tokens_created || 0)));
-    return [events, used];
-  }));
-  return `<div class="burn-activity-legend"><span><i class="events"></i>Burn events</span><span><i class="used"></i>Tokens used</span></div><div class="burn-axis-label burn-y-label">Count</div><div class="burn-activity-bars">${recent.map(r => {
-    const events = Number(r.burn_events || r.count || r.burns || 0);
-    const used = Number(r.tokens_used ?? (Number(r.tokens_burned || 0) + Number(r.tokens_created || 0)));
-    const h1 = Math.max(8, Math.round((events / max) * 72));
-    const h2 = Math.max(8, Math.round((used / max) * 72));
-    const label = r.day || r.date || r.bucket || r.month || '';
-    return `<div class="burn-activity-day" title="${burnsEsc(label)}: ${burnsMetric(events)} burn events, ${burnsMetric(used)} tokens used"><span class="burn-activity-bar events" style="height:${h1}px"></span><span class="burn-activity-bar used" style="height:${h2}px"></span></div>`;
-  }).join('')}</div><div class="burn-axis-label burn-x-label">Date / day</div>`;
+  return `<div id="burnActivityChart" style="width:100%;height:320px"></div>`;
+}
+function drawBurnActivityChart(rows){
+  const el = document.getElementById('burnActivityChart');
+  if(!el || !Array.isArray(rows) || !rows.length) return;
+  if(typeof Plotly === 'undefined'){ setTimeout(() => drawBurnActivityChart(rows), 80); return; }
+  const recent = rows.slice(-90);
+  const xs = recent.map(r => r.day || r.date || r.bucket || r.month || '');
+  const events = recent.map(r => Number(r.burn_events || r.count || r.burns || 0));
+  const used = recent.map(r => Number(r.tokens_used ?? (Number(r.tokens_burned || 0) + Number(r.tokens_created || 0))));
+  const data = [
+    {
+      x: xs, y: events, name: 'Burn events', type: 'scatter', mode: 'lines',
+      line: { color: '#FFD700', width: 2, shape: 'spline', smoothing: 0.4 },
+      fill: 'tozeroy', fillcolor: 'rgba(255,215,0,0.12)',
+      hovertemplate: '%{y} burn events<extra></extra>',
+    },
+    {
+      x: xs, y: used, name: 'Tokens used', type: 'scatter', mode: 'lines',
+      line: { color: '#2dd4bf', width: 2, shape: 'spline', smoothing: 0.4 },
+      fill: 'tozeroy', fillcolor: 'rgba(45,212,191,0.12)',
+      hovertemplate: '%{y} tokens used<extra></extra>',
+    },
+  ];
+  const chartW = Math.min((el.parentElement||el).offsetWidth - 16, window.innerWidth - 32);
+  const layout = {
+    height: 320, showlegend: true,
+    legend: { orientation: 'h', y: 1.15, x: 0, font: { size: 11 } },
+    margin: { l: 44, r: 12, t: 6, b: 36 },
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { color: getComputedStyle(document.body).getPropertyValue('--text') },
+    xaxis: { title: '', showgrid: false, fixedrange: true, tickfont: { size: 10 } },
+    yaxis: { title: 'Count', rangemode: 'tozero', gridcolor: 'rgba(255,255,255,0.06)', fixedrange: true },
+    hovermode: 'x unified', autosize: true, width: chartW || undefined,
+  };
+  const config = { displayModeBar: false, responsive: true, scrollZoom: false };
+  Plotly.newPlot('burnActivityChart', data, layout, config);
 }
 function renderBurnSizeDistribution(activity){
   const rows = activity?.burn_size_distribution || activity?.distribution || [];
@@ -275,6 +297,7 @@ function renderBurnsAnalytics(data){
     ${burnsSection('Burn Size Distribution', renderBurnSizeDistribution(data?.activity || {}), 'How many input tokens each burn used')}
     ${burnsSection('Best Burns', renderBestBurns(data?.best || {}), 'Largest burns and rank-aware highlights when available')}
   </div>`;
+  drawBurnActivityChart(activityRows);
 }
 function renderBurnsEndpointEmpty(error){
   const host = document.getElementById('burnsAnalyticsHost');
