@@ -245,15 +245,19 @@ function drawBurnActivityChart(rows){
     },
   ];
   const chartW = Math.min((el.parentElement||el).offsetWidth - 16, window.innerWidth - 32);
+  const cardBg = getComputedStyle(document.body).getPropertyValue('--card').trim() || '#111c2a';
+  const borderCol = getComputedStyle(document.body).getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
+  const textCol = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#e6edf7';
   const layout = {
     height: 320, showlegend: true,
     legend: { orientation: 'h', y: 1.15, x: 0, font: { size: 11 } },
     margin: { l: 44, r: 12, t: 6, b: 36 },
     paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-    font: { color: getComputedStyle(document.body).getPropertyValue('--text') },
+    font: { color: textCol },
     xaxis: { title: '', showgrid: false, fixedrange: true, tickfont: { size: 10 } },
     yaxis: { title: 'Count', rangemode: 'tozero', gridcolor: 'rgba(255,255,255,0.06)', fixedrange: true },
     hovermode: 'x unified', autosize: true, width: chartW || undefined,
+    hoverlabel: { bgcolor: cardBg, bordercolor: borderCol, font: { color: textCol, size: 12 } },
   };
   const config = { displayModeBar: false, responsive: true, scrollZoom: false };
   Plotly.newPlot('burnActivityChart', data, layout, config);
