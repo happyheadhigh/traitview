@@ -3439,6 +3439,26 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-thumbs-lg .burn-token-thumb{width:44px;height:44px;border-radius:8px}
 .burn-thumbs-lg .burn-input-gallery{gap:6px}
 .burn-created-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+
+/* ── Trait Extinction Tracker ── */
+.extinct-banner{background:linear-gradient(135deg,rgba(248,113,113,.10),rgba(251,146,60,.06));border:1px solid rgba(248,113,113,.25);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.extinct-title{font-size:13px;font-weight:900;color:#fca5a5;letter-spacing:.01em}
+.extinct-sub{font-size:10.5px;color:rgba(203,213,225,.68);margin-top:2px;margin-bottom:9px}
+.extinct-chips{display:flex;flex-wrap:wrap;gap:6px}
+.extinct-chip{font-size:10.5px;font-weight:700;color:#fecaca;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.28);border-radius:999px;padding:3px 9px}
+.extinction-list{display:flex;flex-direction:column;gap:9px}
+.extinction-row{display:grid;grid-template-columns:minmax(90px,150px) 1fr minmax(80px,auto);align-items:center;gap:10px}
+.extinction-label{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.extinction-label b{font-size:11px;color:var(--text);text-transform:uppercase;letter-spacing:.04em}
+.extinction-label span{font-size:11.5px;color:rgba(203,213,225,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.extinction-bar-track{height:7px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
+.extinction-bar-fill{height:100%;border-radius:999px;transition:width .3s ease}
+.extinction-stat{font-size:10.5px;color:rgba(203,213,225,.75);text-align:right;white-space:nowrap}
+.extinction-pct{display:inline-block;margin-left:5px;font-weight:900;color:#fca5a5}
+@media (max-width:640px){
+  .extinction-row{grid-template-columns:1fr;gap:4px}
+  .extinction-stat{text-align:left}
+}
 .burn-mini-primary{min-width:0}
 .burn-best-inputs{flex-basis:100%;min-width:0}
 .burn-rank{display:inline-flex;align-items:center;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:800;border:1px solid rgba(255,255,255,.12)}

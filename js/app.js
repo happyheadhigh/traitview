@@ -5638,6 +5638,63 @@ function _refreshListedTokenImages(){
   _queueImgRefresh(listed);
 }
 
+// ── Periodic live data refresh (images + traits) ──────────────────────────────
+// Piggybacks entirely on /db/all-traits, the same endpoint already loaded once
+// at page init — this just re-fetches it periodically instead of never again.
+// The bot's own DB is kept live by ongoing processes (burn finalization writes
+// fresh traits + image immediately; see lib/burn-poller.js), so re-polling
+// this one endpoint is enough to catch changes without any per-token OpenSea
+// calls from the browser. Updates visible grid cards + open modal in place;
+// does not trigger a full re-render.
+const LIVE_REFRESH_MS = 5 * 60 * 1000; // matches the backend's own 5-min cache TTL
+async function refreshLiveTokenData(){
+  try{
+    const j = await dbFetch('/db/all-traits');
+    if(!j?.ok || !j.tokens) return;
+    for(const [idStr, data] of Object.entries(j.tokens)){
+      const id = parseInt(idStr);
+      if(!Number.isFinite(id)) continue;
+
+      // Image: only touch it if the DB actually has a fresher one on file
+      // (most tokens will be null here until they go through a burn).
+      if(data.image){
+        const current = String(IMAGES_MAP?.get(id) || '').trim();
+        if(data.image !== current){
+          IMAGES_MAP?.set(id, data.image);
+          document.querySelectorAll(`[data-id="${id}"] img`).forEach(img => { img.src = data.image; });
+          if(window._modalCurrentId === id){
+            const imgBox = document.getElementById('mImg');
+            if(imgBox){
+              const s = String(data.image).trim();
+              if(s.startsWith('<svg')) imgBox.innerHTML = `<div class="svg-wrap" style="width:100%;height:100%">${s}</div>`;
+              else imgBox.innerHTML = `<img src="${s.startsWith('data:')?s:ipfsToHttp(s)}" alt="#${id}">`;
+            }
+          }
+        }
+      }
+
+      // Traits: only touch cache if they've actually changed (burn survivors
+      // get a completely different trait set once a burn finalizes).
+      if(data.traits && Object.keys(data.traits).length){
+        const cachedRow = ROW_CACHE.get(id);
+        const changed = !cachedRow || JSON.stringify(cachedRow.traits) !== JSON.stringify(data.traits);
+        if(changed){
+          ROW_CACHE.set(id, { traits: data.traits });
+          if(window._modalCurrentId === id){
+            const kv = keepEntries(data.traits);
+            const mTraits = document.getElementById('mTraits');
+            if(mTraits) mTraits.innerHTML = kv.length ? kv.map(([k,v])=>`<div><span>${traitDisplayLabel(k)}</span><b>${v}</b></div>`).join('') : '<div style="color:var(--muted)">No traits</div>';
+          }
+        }
+      }
+    }
+  }catch(e){ console.warn('[LiveRefresh]', e.message); }
+}
+setTimeout(() => {
+  refreshLiveTokenData();
+  setInterval(refreshLiveTokenData, LIVE_REFRESH_MS);
+}, 30_000); // wait 30s after script load so this never competes with initial page render
+
 // Global data store for holder thumbnail tooltips
 window._holderThumbs = {};
 

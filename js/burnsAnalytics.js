@@ -262,6 +262,87 @@ function drawBurnActivityChart(rows){
   const config = { displayModeBar: false, responsive: true, scrollZoom: false };
   Plotly.newPlot('burnActivityChart', data, layout, config);
 }
+// ── Trait Extinction Tracker ────────────────────────────────────────────────
+// Compares each trait value's ORIGINAL mint count (all ~10,000 tokens, from
+// the local static chunk files that ship with the site) against its CURRENT
+// surviving count (already loaded into the global TRAIT_FREQ by app.js from
+// the live /db/traits-fast endpoint). Zero new API calls — both halves of
+// this comparison are data the site already has sitting in memory or on
+// disk; this just diffs them instead of discarding the original count.
+let _originalTraitFreqCache = null;
+async function computeOriginalTraitFreq(){
+  if(_originalTraitFreqCache) return _originalTraitFreqCache;
+  if(typeof ensureChunk !== 'function' || typeof indices !== 'function') return {};
+  const freq = {};
+  for(const idx of indices()){
+    const ch = await ensureChunk(idx);
+    for(const row of Object.values(ch)){
+      for(const [k, v] of keepEntries(row.traits)){
+        (freq[k] ||= {})[v] = (freq[k][v] || 0) + 1;
+      }
+    }
+  }
+  _originalTraitFreqCache = freq;
+  return freq;
+}
+function computeTraitExtinction(originalFreq, currentFreq){
+  const rows = [];
+  for(const [traitName, values] of Object.entries(originalFreq || {})){
+    for(const [value, original] of Object.entries(values)){
+      if(original < 3) continue; // skip naturally 1-2-of-a-kind traits — too noisy to be meaningful
+      const remaining = (currentFreq?.[traitName]?.[value]) || 0;
+      const burned = original - remaining;
+      if(burned <= 0) continue;
+      rows.push({ traitName, value, original, remaining, burned, pct: (burned / original) * 100 });
+    }
+  }
+  rows.sort((a, b) => b.pct - a.pct || b.burned - a.burned);
+  return rows;
+}
+function extinctionBarColor(pct){
+  if(pct >= 75) return '#f87171';
+  if(pct >= 50) return '#fb923c';
+  if(pct >= 25) return '#facc15';
+  return '#4ade80';
+}
+function renderTraitExtinction(rows){
+  if(!rows.length) return '<div class="wallet-empty-state">Not enough burn data yet to compute trait extinction.</div>';
+  const extinct = rows.filter(r => r.remaining === 0);
+  const depleted = rows.filter(r => r.remaining > 0).slice(0, 20);
+  let html = '';
+  if(extinct.length){
+    html += `<div class="extinct-banner">
+      <div class="extinct-title">🔥 ${extinct.length} Trait${extinct.length===1?'':'s'} Gone Extinct</div>
+      <div class="extinct-sub">No surviving tokens have these anymore</div>
+      <div class="extinct-chips">${extinct.slice(0, 16).map(r =>
+        `<span class="extinct-chip">${burnsEsc(r.traitName)}: ${burnsEsc(r.value)}</span>`
+      ).join('')}</div>
+    </div>`;
+  }
+  if(depleted.length){
+    html += `<div class="extinction-list">${depleted.map(r => {
+      const pctRemain = Math.max(2, 100 - r.pct);
+      return `<div class="extinction-row">
+        <div class="extinction-label"><b>${burnsEsc(r.traitName)}</b><span>${burnsEsc(r.value)}</span></div>
+        <div class="extinction-bar-track"><div class="extinction-bar-fill" style="width:${pctRemain}%;background:${extinctionBarColor(r.pct)}"></div></div>
+        <div class="extinction-stat">${r.remaining} / ${r.original} left <span class="extinction-pct">-${Math.round(r.pct)}%</span></div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+  return html || '<div class="wallet-empty-state">Not enough burn data yet to compute trait extinction.</div>';
+}
+async function loadTraitExtinction(){
+  const host = document.getElementById('traitExtinctionHost');
+  if(!host) return;
+  try{
+    const original = await computeOriginalTraitFreq();
+    const current = (typeof TRAIT_FREQ === 'object' && TRAIT_FREQ) || {};
+    const rows = computeTraitExtinction(original, current);
+    host.innerHTML = renderTraitExtinction(rows);
+  }catch(e){
+    host.innerHTML = '<div class="wallet-empty-state">Could not compute trait extinction data.</div>';
+  }
+}
 function renderBurnSizeDistribution(activity){
   const rows = activity?.burn_size_distribution || activity?.distribution || [];
   if(!Array.isArray(rows) || !rows.length) return '<div class="wallet-empty-state">Burn size distribution is not available yet.</div>';
@@ -298,10 +379,11 @@ function renderBurnsAnalytics(data){
       ${burnsSection('Burn Leaderboard', renderBurnLeaderboard(leaderRows), 'Ranked by OCAS burned')}
       ${burnsSection('Burn Timeline', renderBurnActivity(activityRows), 'Daily burn events and tokens used')}
     </div>
-    ${burnsSection('Burn Size Distribution', renderBurnSizeDistribution(data?.activity || {}), 'How many input tokens each burn used')}
+    ${burnsSection('Trait Extinction Tracker', '<div id="traitExtinctionHost"><div class="wallet-empty-state">Loading original trait data…</div></div>', 'Trait values disappearing from the living supply due to burns')}
     ${burnsSection('Best Burns', renderBestBurns(data?.best || {}), 'Largest burns and rank-aware highlights when available')}
   </div>`;
   drawBurnActivityChart(activityRows);
+  loadTraitExtinction();
 }
 function renderBurnsEndpointEmpty(error){
   const host = document.getElementById('burnsAnalyticsHost');
