@@ -547,7 +547,8 @@ async function openModal(id){
   const _osChip  = _osR ? `<span class='chip'>${rankDiamondHtml(_osR,'','os')}</span>` : '';
   const _tvChip  = _tvR ? `<span class='chip'>${rankDiamondHtml(_tvR,'','tv')}</span>` : '';
   const _ownedChip = connectedWalletOwns(id) ? `<span class="chip" style="color:#1CFFAF;border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.08)">Owned</span>` : '';
-  $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}${_ownedChip}`;
+  const _burnedChip = (window._BURNED_IDS && window._BURNED_IDS.has(+id)) ? `<span class="chip" style="color:#f87171;border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.08)">🔥 Burned</span>` : '';
+  $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}${_ownedChip}${_burnedChip}`;
   hydrateMarketPersonalityTags(id, row);
   const links = $('#mLinks'); links.innerHTML = '';
   const listing = (window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null;

@@ -155,6 +155,26 @@ async function fetchBurnsAnalytics(force=false){
   return data;
 }
 
+function burnScarcityGaugeHtml(remain, total){
+  const burned = Math.max(0, total - remain);
+  const pct = total > 0 ? Math.min(100, (burned / total) * 100) : 0;
+  const r = 22, c = 2 * Math.PI * r;
+  const dash = (pct / 100) * c;
+  return `<div class="burn-scarcity-cell">
+    <div class="burn-scarcity-gauge-wrap">
+      <svg viewBox="0 0 56 56" class="burn-scarcity-gauge">
+        <circle cx="28" cy="28" r="${r}" class="burn-scarcity-gauge-track"/>
+        <circle cx="28" cy="28" r="${r}" class="burn-scarcity-gauge-fill" style="stroke-dasharray:${dash.toFixed(1)} ${c.toFixed(1)}"/>
+      </svg>
+      <div class="burn-scarcity-gauge-center">${pct.toFixed(1)}%</div>
+    </div>
+    <div class="burn-scarcity-text">
+      <span>Collection Scarcity</span>
+      <b>${burnsMetric(burned)} burned</b>
+      <b class="burn-scarcity-sub">${burnsMetric(remain)} / ${burnsMetric(total)} remain</b>
+    </div>
+  </div>`;
+}
 function renderBurnStats(stats){
   const s = stats || {};
   const ocasBurned = s.ocas_burned ?? s.tokens_burned;
@@ -168,14 +188,17 @@ function renderBurnStats(stats){
     Number.isFinite(Number(ocasBurned)) ? 10000 - Number(ocasBurned) : null
   );
   const items = [
-    ['OCAS Burned', ocasBurned],
     ['Total Burns', totalBurns],
     ['Tokens Used', tokensUsed],
-    ['Est. Supply', estimatedSupply],
     ['24H Burned', s.burned_24h],
     ['24H Burns', s.burns_24h]
   ];
-  return `<div class="burn-stat-row">${items.map(([label,val]) => `
+  const gauge = (Number.isFinite(Number(estimatedSupply)) && Number.isFinite(Number(ocasBurned)))
+    ? burnScarcityGaugeHtml(Number(estimatedSupply), Number(estimatedSupply) + Number(ocasBurned))
+    : '';
+  return `<div class="burn-stat-row">
+    ${gauge ? `<div class="burn-stat-cell burn-stat-cell-gauge">${gauge}</div>` : ''}
+    ${items.map(([label,val]) => `
     <div class="burn-stat-cell"><span>${burnsEsc(label)}</span><b>${burnsMetric(val)}</b></div>
   `).join('')}</div>`;
 }

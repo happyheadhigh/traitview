@@ -294,13 +294,38 @@ async function tvDiscordClaimCode(code) {
   return TV_DISCORD_LINK;
 }
 
-function tvShowDiscordVerifyModal() {
+async function tvShowDiscordVerifyModal(opts={}) {
   // Remove any existing modal
   document.getElementById('tv-discord-modal')?.remove();
+
+  const addr = CONNECTED_WALLET?.address;
+  if(addr && typeof tvCheckLinkStatus === 'function'){
+    try{ await tvCheckLinkStatus(addr); }catch(_){}
+  }
+  const alreadyLinked = !opts.force && addr && TV_DISCORD_LINK && String(TV_DISCORD_LINK.wallet||'').toLowerCase() === String(addr).toLowerCase();
 
   const modal = document.createElement('div');
   modal.id = 'tv-discord-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999';
+
+  if(alreadyLinked){
+    modal.innerHTML = `
+      <div style="background:var(--surface,#1a1d23);border:1px solid rgba(28,255,175,.25);border-radius:12px;padding:28px;max-width:400px;width:calc(100% - 32px);box-shadow:0 16px 48px rgba(0,0,0,.55);text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <div style="font:700 15px/1 'Space Grotesk',system-ui,sans-serif;color:var(--text,#e6e8eb);margin-bottom:8px">Already Linked</div>
+        <p style="color:var(--sub,#8b8fa8);font-size:13px;margin:0 0 20px;line-height:1.5">This wallet is already linked to your Discord account.</p>
+        <div style="display:flex;gap:8px">
+          <button id="tv-dc-relink" style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--sub,#8b8fa8);font:600 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Link a different code</button>
+          <button id="tv-dc-close" style="padding:9px 14px;border-radius:8px;border:none;background:#1CFFAF;color:#0a0f16;font:700 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Done</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#tv-dc-close').addEventListener('click', () => modal.remove());
+    modal.querySelector('#tv-dc-relink').addEventListener('click', () => { modal.remove(); tvShowDiscordVerifyModal({ force:true }); });
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+    return;
+  }
+
   modal.innerHTML = `
     <div style="background:var(--surface,#1a1d23);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:28px 28px 24px;max-width:400px;width:calc(100% - 32px);box-shadow:0 16px 48px rgba(0,0,0,.55)">
       <div style="font:700 15px/1 'Space Grotesk',system-ui,sans-serif;color:var(--text,#e6e8eb);margin-bottom:8px">Discord Verify</div>

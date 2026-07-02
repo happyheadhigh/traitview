@@ -141,7 +141,7 @@ async function loadWalletAnalytics(address, opts={}){
       dbFetch(`/db/wallet/${enc}/summary`),
       dbFetch(`/db/wallet/${enc}/traits`).catch(e => ({ ok:false, error:e.message })),
       dbFetch(`/db/wallet/${enc}/history`).catch(e => ({ ok:false, error:e.message })),
-      dbFetch(`/db/wallet/${enc}/transfers`, { limit: 100 }).catch(e => ({ ok:false, error:e.message }))
+      dbFetch(`/db/wallet/${enc}/transfers`, { limit: 500 }).catch(e => ({ ok:false, error:e.message }))
     ]);
     const data = { address:addr, summary, traits, history, transfers, loadedAt:Date.now() };
     WALLET_ANALYTICS_CACHE.set(key, data);
@@ -152,7 +152,7 @@ async function loadWalletAnalytics(address, opts={}){
     return null;
   }
 }
-const WALLET_ACTIVITY_FILTERS = new Set(['mint','sale','listing','burn','transfer']);
+const WALLET_ACTIVITY_FILTERS = new Set(['mint','sale','burn','transfer']); // 'listing' omitted — no wallet-scoped listings data source exists yet
 function walletActivityKind(row, address){
   const raw = String(row?.event_type || row?.type || row?.direction || row?.kind || '').toLowerCase();
   if(raw.includes('mint')) return 'mint';
@@ -196,7 +196,7 @@ function walletActivityEvents(data){
     ts:walletActivityTimestamp(row),
     price:walletActivityPrice(row)
   })).filter(e => e.ts && (e.id || e.price));
-  return [...transfers, ...history].sort((a,b)=>a.ts-b.ts).slice(-140);
+  return [...transfers, ...history].sort((a,b)=>a.ts-b.ts).slice(-500);
 }
 function walletActivityColor(kind){
   return { mint:'#1CFFAF', sale:'#7dd3fc', listing:'#c084fc', burn:'#fb7185', transfer:'#94a3b8' }[kind] || '#94a3b8';
@@ -241,7 +241,7 @@ function walletActivityChartHtml(data){
   const eventsAll = walletActivityEvents(data).map(e => ({
     ...e, dir: walletActivityDirection(e.row, e.kind, address)
   }));
-  const kinds = ['mint','sale','listing','burn','transfer'];
+  const kinds = ['mint','sale','burn','transfer'];
   const filters = `<div class="wallet-activity-filters">${kinds.map(k => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_FILTERS.has(k)?'active':''}" onclick="toggleWalletActivityFilter('${k}')">${k}</button>`).join('')}</div>`;
   if(!eventsAll.length) return `${filters}<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>`;
 
@@ -275,37 +275,36 @@ function walletActivityChartHtml(data){
   // in empty space tied only to price.
   const byKind = {};
   for(const e of events){
-    if(!byKind[e.kind]) byKind[e.kind] = {x:[],y:[],ids:[],labels:[]};
+    if(!byKind[e.kind]) byKind[e.kind] = {x:[],y:[],ids:[],dates:[],prices:[]};
     byKind[e.kind].x.push(new Date(e.ts).toISOString());
     byKind[e.kind].y.push(e.held);
     byKind[e.kind].ids.push(e.id||0);
-    byKind[e.kind].labels.push(
-      '#'+(e.id||'?')+' · '+e.kind+'<br>'+new Date(e.ts).toLocaleDateString()+(e.price>0?' · Ξ'+e.price.toFixed(4):'')
-    );
+    byKind[e.kind].dates.push(new Date(e.ts).toLocaleDateString());
+    byKind[e.kind].prices.push(e.price > 0 ? e.price : null);
   }
   const markerTraces = Object.entries(byKind).map(([kind,d])=>({
     x:d.x, y:d.y, mode:'markers', type:'scatter', name:kind,
     marker:{size:9,color:kindColors[kind]||'#9aa4b2',symbol:'circle',opacity:.95,
             line:{color:'rgba(0,0,0,.35)',width:1.5}},
-    customdata:d.ids,
-    text:d.labels,
-    hovertemplate:'%{text}<extra></extra>'
+    customdata:d.ids.map((id,i)=>({id, kind, date:d.dates[i], eth:d.prices[i]})),
+    hoverinfo:'none', // custom image tooltip below replaces Plotly's plain-text hover
   }));
   const traces = [lineTrace, ...markerTraces];
 
   const cs = getComputedStyle(document.body);
   const textColor = cs.getPropertyValue('--text').trim()||'#e6edf7';
   const subColor  = cs.getPropertyValue('--sub').trim()||'#7a8fa8';
+  const maxHeld = Math.max(1, ...withHoldings.map(e=>e.held));
+  const dtick = maxHeld <= 10 ? 1 : Math.ceil(maxHeld/6);
   const layout = {
-    height:240, margin:{l:44,r:14,t:10,b:40},
+    height:240, margin:{l:50,r:14,t:10,b:40},
     paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
     font:{color:textColor,size:11},
     xaxis:{color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false},
-    yaxis:{title:'Tokens Held',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,rangemode:'tozero',dtick:1},
+    yaxis:{title:'Tokens Held',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,rangemode:'tozero',dtick},
     showlegend:true,
     legend:{x:0,y:1,font:{size:10},bgcolor:'rgba(0,0,0,0)',orientation:'h'},
     hovermode:'closest',
-    hoverlabel:{bgcolor:'rgba(10,15,22,.92)',bordercolor:'rgba(255,255,255,.13)',font:{color:textColor,size:11}}
   };
   setTimeout(()=>{
     const host = document.getElementById(hostId);
@@ -317,9 +316,15 @@ function walletActivityChartHtml(data){
       currentHost.on('plotly_click', function(eventData){
         const pt = eventData.points?.[0];
         if(!pt || pt.data.mode !== 'markers') return;
-        const id = pt.customdata;
-        if(id) openModal(id);
+        const item = pt.customdata;
+        if(item?.id) openModal(item.id);
       });
+      currentHost.on('plotly_hover', function(eventData){
+        const pt = eventData.points?.[0];
+        if(!pt || pt.data.mode !== 'markers' || !eventData.event) return;
+        showWalletActivityTooltip(eventData.event, encodeURIComponent(JSON.stringify(pt.customdata)));
+      });
+      currentHost.on('plotly_unhover', hideWalletActivityTooltip);
     };
     if(!walletAnalyticsElementIsVisible(host)){
       WALLET_ACTIVITY_PLOT_PENDING = { hostId, render };
@@ -329,19 +334,14 @@ function walletActivityChartHtml(data){
   }, 60);
   return `${filters}<div id="${hostId}" style="width:100%;min-height:240px"></div>`;
 }
-// ── Rarity Improvement from Burns ───────────────────────────────────────────
-// Every burn anywhere in the collection can make a held token's traits
-// relatively rarer, whether or not the holder ever burned anything
-// themselves. Reuses computeOriginalTraitFreq() (already built for the Burns
-// tab's Trait Extinction Tracker, cached after first call) against the live
-// TRAIT_FREQ — zero new API calls, just diffing data already in memory.
-async function computeWalletRarityImprovement(ownedTokens){
-  if(!Array.isArray(ownedTokens) || !ownedTokens.length) return null;
-  if(typeof computeOriginalTraitFreq !== 'function') return null;
-  const original = await computeOriginalTraitFreq();
-  const current = (typeof TRAIT_FREQ === 'object' && TRAIT_FREQ) || {};
-  const perToken = [];
-  for(const t of ownedTokens){
+// ── Shared owned-token trait lookup ─────────────────────────────────────────
+// Built once per wallet load, reused by both Rarity Improvement and the
+// Trait Exposure hover feature — avoids fetching/looking up each owned
+// token's traits twice for two different panels.
+let _walletOwnedTraitsMap = null;
+async function buildOwnedTokenTraitsMap(ownedTokens){
+  const map = new Map();
+  for(const t of (ownedTokens || [])){
     const id = walletTokenId(t);
     if(!id) continue;
     let row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || null;
@@ -353,6 +353,25 @@ async function computeWalletRarityImprovement(ownedTokens){
     }
     if(!row) continue;
     const traits = typeof keepEntries === 'function' ? keepEntries(row.traits) : Object.entries(row.traits||{});
+    map.set(id, traits);
+  }
+  return map;
+}
+
+// ── Rarity Improvement from Burns ───────────────────────────────────────────
+// Every burn anywhere in the collection can make a held token's traits
+// relatively rarer, whether or not the holder ever burned anything
+// themselves. Reuses computeOriginalTraitFreq() (already built for the Burns
+// tab's Trait Extinction Tracker, cached after first call) against the live
+// TRAIT_FREQ — zero new API calls, just diffing data already in memory.
+async function computeWalletRarityImprovement(ownedTokens){
+  if(!Array.isArray(ownedTokens) || !ownedTokens.length) return null;
+  if(typeof computeOriginalTraitFreq !== 'function') return null;
+  const original = await computeOriginalTraitFreq();
+  const current = (typeof TRAIT_FREQ === 'object' && TRAIT_FREQ) || {};
+  const traitsMap = _walletOwnedTraitsMap || await buildOwnedTokenTraitsMap(ownedTokens);
+  const perToken = [];
+  for(const [id, traits] of traitsMap.entries()){
     let sumPct = 0, n = 0, best = null;
     for(const [cat, val] of traits){
       const orig = original?.[cat]?.[val];
@@ -399,9 +418,16 @@ function renderRarityImprovement(result){
 async function loadWalletRarityImprovement(data){
   const hosts = ['rarityImproveHost', 'mobileRarityImproveHost']
     .map(id => document.getElementById(id)).filter(Boolean);
-  if(!hosts.length) return;
   const summary = data?.summary?.summary || data?.summary || {};
   const owned = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
+  // Build the shared traits map regardless of whether the rarity hosts exist
+  // on this render — Trait Exposure hover depends on it too.
+  try{
+    _walletOwnedTraitsMap = await buildOwnedTokenTraitsMap(owned);
+  }catch(e){
+    _walletOwnedTraitsMap = new Map();
+  }
+  if(!hosts.length) return;
   try{
     const result = await computeWalletRarityImprovement(owned);
     const html = renderRarityImprovement(result);
@@ -411,45 +437,36 @@ async function loadWalletRarityImprovement(data){
   }
 }
 
-// ── Collection Scarcity ─────────────────────────────────────────────────────
-// Deliberately not burn-participation-gated: this works identically for a
-// wallet that has never burned a single token. It tells the collection-wide
-// scarcity story (how many remain vs. the 10,000 original) plus a purely
-// personal, always-available stat — where this wallet's tokens rank on
-// average against the field — using data already loaded at page init.
-function walletAvgRankPercentile(topTokens){
-  const ranks = (topTokens || []).map(t => Number(t.os_rank ?? t.obs_rank)).filter(n => Number.isFinite(n) && n > 0);
-  if(!ranks.length) return null;
-  const avg = ranks.reduce((a, b) => a + b, 0) / ranks.length;
-  const total = (typeof TOKEN_COUNT === 'number' && TOKEN_COUNT > 0) ? TOKEN_COUNT : 10000;
-  return { avg, pct: Math.max(0.1, (avg / total) * 100) };
+// ── Trait Exposure hover ────────────────────────────────────────────────────
+// Shows thumbnails of exactly which owned tokens carry a given trait value,
+// using the shared _walletOwnedTraitsMap built above.
+function showTraitExposureTooltip(ev, categoryEnc, valueEnc){
+  const category = decodeURIComponent(categoryEnc || '');
+  const value = decodeURIComponent(valueEnc || '');
+  if(!_walletOwnedTraitsMap || !_walletOwnedTraitsMap.size) return;
+  const matches = [];
+  for(const [id, traits] of _walletOwnedTraitsMap.entries()){
+    if(traits.some(([c, v]) => c === category && v === value)) matches.push(id);
+  }
+  if(!matches.length) return;
+  const tip = document.getElementById('walletTraitTooltip') || document.body.appendChild(
+    Object.assign(document.createElement('div'), { id:'walletTraitTooltip', className:'wallet-trait-tooltip' })
+  );
+  const shown = matches.slice(0, 10);
+  tip.innerHTML = `<div class="wallet-trait-tooltip-label">${shown.length < matches.length ? `${matches.length} tokens` : `${matches.length} token${matches.length===1?'':'s'}`}</div>
+    <div class="wallet-trait-tooltip-grid">${shown.map(id => {
+      const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
+      return `<img src="${comboEsc(src)}" alt="#${id}" title="#${id}" onclick="openModal(${id})">`;
+    }).join('')}${matches.length > shown.length ? `<span class="wallet-trait-tooltip-more">+${matches.length - shown.length}</span>` : ''}</div>`;
+  tip.style.display = 'block';
+  const x = Math.min(window.innerWidth - 210, ev.clientX + 14);
+  const y = Math.min(window.innerHeight - 140, ev.clientY + 14);
+  tip.style.left = `${Math.max(8, x)}px`;
+  tip.style.top = `${Math.max(8, y)}px`;
 }
-function renderCollectionScarcity(topTokens){
-  const total = 10000;
-  const remain = (typeof TOKEN_COUNT === 'number' && TOKEN_COUNT > 0) ? TOKEN_COUNT : total;
-  const burned = Math.max(0, total - remain);
-  const pct = Math.min(100, (burned / total) * 100);
-  const r = 42, c = 2 * Math.PI * r;
-  const dash = (pct / 100) * c;
-  const standing = walletAvgRankPercentile(topTokens);
-  return `
-    <div class="scarcity-wrap">
-      <div class="scarcity-gauge-wrap">
-        <svg viewBox="0 0 100 100" class="scarcity-gauge">
-          <circle cx="50" cy="50" r="${r}" class="scarcity-gauge-track"/>
-          <circle cx="50" cy="50" r="${r}" class="scarcity-gauge-fill" style="stroke-dasharray:${dash.toFixed(1)} ${c.toFixed(1)}"/>
-        </svg>
-        <div class="scarcity-gauge-center"><b>${pct.toFixed(1)}%</b><span>Burned</span></div>
-      </div>
-      <div class="scarcity-stats">
-        <div class="scarcity-stat"><b>${walletMetric(remain)}</b><span>Remain</span></div>
-        <div class="scarcity-stat"><b>${walletMetric(burned)}</b><span>Burned</span></div>
-        <div class="scarcity-stat"><b>${walletMetric(total)}</b><span>Original</span></div>
-      </div>
-    </div>
-    ${standing ? `<div class="scarcity-standing">
-      <span>Your tokens average <b>Top ${standing.pct < 1 ? standing.pct.toFixed(1) : Math.round(standing.pct)}%</b> of the collection by rank</span>
-    </div>` : ''}`;
+function hideTraitExposureTooltip(){
+  const tip = document.getElementById('walletTraitTooltip');
+  if(tip) tip.style.display = 'none';
 }
 
 function walletMobileAnalyticsHtml(data){
@@ -475,10 +492,6 @@ function walletMobileAnalyticsHtml(data){
       </div>
     </div>
     <div class="wallet-analytics-card">
-      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Collection Scarcity</div></div>
-      ${renderCollectionScarcity(topTokens)}
-    </div>
-    <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title" style="color:#1CFFAF">Rarity Gained From Burns</div></div>
       <div id="mobileRarityImproveHost"><div class="wallet-empty-state">Calculating…</div></div>
     </div>
@@ -488,7 +501,7 @@ function walletMobileAnalyticsHtml(data){
     </div>
     <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Trait Exposure</div></div>
-      ${traitRows.length ? `<div class="wallet-trait-bars">${traitRows.map(t => `<div class="wallet-trait-row"><div class="wallet-trait-label"><b>${comboEsc(t.category)}</b><span>${comboEsc(t.value || 'Mixed')}</span></div><div class="wallet-trait-count">${walletMetric(t.count)}</div></div>`).join('')}</div>` : '<div class="wallet-empty-state">Trait analytics will appear after sync/derive completes.</div>'}
+      ${traitRows.length ? `<div class="wallet-trait-bars">${traitRows.map(t => `<div class="wallet-trait-row" onmouseenter="showTraitExposureTooltip(event,'${encodeURIComponent(t.category)}','${encodeURIComponent(t.value||'')}')" onmouseleave="hideTraitExposureTooltip()"><div class="wallet-trait-label"><b>${comboEsc(t.category)}</b><span>${comboEsc(t.value || 'Mixed')}</span></div><div class="wallet-trait-count">${walletMetric(t.count)}</div></div>`).join('')}</div>` : '<div class="wallet-empty-state">Trait analytics will appear after sync/derive completes.</div>'}
     </div>
     <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Wallet History</div></div>
@@ -504,7 +517,8 @@ function walletMobileAnalyticsHtml(data){
         const date = walletDate(t.block_ts || t.timestamp || t.created_at);
         const link = tx ? `https://etherscan.io/tx/${tx}` : '';
         const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
-        const thumb = src ? `<img src="${comboEsc(src)}" alt="#${id}">` : `<span>#${id}</span>`;
+        const burnedBadge = kind === 'burn' ? `<span class="wallet-transfer-burned-badge">🔥</span>` : '';
+        const thumb = src ? `<img src="${comboEsc(src)}" alt="#${id}">${burnedBadge}` : `<span>#${id}</span>${burnedBadge}`;
         return `<div class="wallet-transfer-row">
           <button type="button" class="wallet-transfer-thumb" onclick="openModal(${id})">${thumb}</button>
           <div class="wallet-transfer-mid">
@@ -545,10 +559,6 @@ function walletDesktopAnalyticsHtml(data){
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Wallet Activity Timeline</div><div class="wallet-analytics-sub">Real history + transfer rows</div></div>
       ${walletActivityChartHtml(data)}
     </div>
-    <div class="wallet-analytics-card">
-      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Collection Scarcity</div></div>
-      ${renderCollectionScarcity(topTokens)}
-    </div>
     <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:8px">
       <div class="wallet-analytics-card">
         <div class="wallet-analytics-head">
@@ -574,7 +584,7 @@ function walletDesktopAnalyticsHtml(data){
         </div>
         <div class="wallet-analytics-card">
           <div class="wallet-analytics-head"><div class="wallet-analytics-title">Trait Exposure</div></div>
-          ${traitRows.length ? `<div class="wallet-trait-bars">${traitRows.map(t => `<div class="wallet-trait-row"><div class="wallet-trait-label"><b>${comboEsc(t.category)}</b><span>${comboEsc(t.value || 'Mixed')}</span></div><div class="wallet-trait-count">${walletMetric(t.count)}</div></div>`).join('')}</div>` : '<div class="wallet-empty-state">Trait analytics will appear after sync/derive completes.</div>'}
+          ${traitRows.length ? `<div class="wallet-trait-bars">${traitRows.map(t => `<div class="wallet-trait-row" onmouseenter="showTraitExposureTooltip(event,'${encodeURIComponent(t.category)}','${encodeURIComponent(t.value||'')}')" onmouseleave="hideTraitExposureTooltip()"><div class="wallet-trait-label"><b>${comboEsc(t.category)}</b><span>${comboEsc(t.value || 'Mixed')}</span></div><div class="wallet-trait-count">${walletMetric(t.count)}</div></div>`).join('')}</div>` : '<div class="wallet-empty-state">Trait analytics will appear after sync/derive completes.</div>'}
         </div>
         <div class="wallet-analytics-card">
           <div class="wallet-analytics-head"><div class="wallet-analytics-title" style="color:#1CFFAF">Wallet Edge</div></div>
