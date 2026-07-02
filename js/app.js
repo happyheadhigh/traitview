@@ -5361,6 +5361,10 @@ async function runTwinFinderFromInput(id){
 
 /* ── Wallet View ─────────────────────────────────────────────────── */
 (function(){
+  // Sidebar Wallet View panel was removed from index.html (moved to the
+  // header wallet drawer). This whole IIFE is now dead without it — guard
+  // instead of leaving null-reference errors on the elements below.
+  if(!document.getElementById('walletLookupBtn')) return;
   const WORKER   = window.LIVE_ENDPOINT || 'https://nft-live-listings.jvweb3.workers.dev';
   const CONTRACT = '0x078be86f3104a32313a47815792230a3808642cc';
   const OS_SLUG  = 'on-chain-all-stars';

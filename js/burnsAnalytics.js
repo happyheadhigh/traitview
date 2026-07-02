@@ -219,18 +219,31 @@ function renderBestBurns(best){
   ];
   const html = groups.map(([title, rows, kind]) => {
     if(!Array.isArray(rows) || !rows.length) return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4><div class="wallet-empty-state">No rows yet.</div></div>`;
-    return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4>${rows.slice(0,8).map(row => {
-      const survivor = row.created_token_id || row.survivor_token_id || row.token_id;
-      const ids = burnsInputIds(row).filter(Boolean);
-      const primaryId = kind === 'input' ? (row.burned_token_id || row.token_id) : survivor;
-      const inputSummary = ids.length ? `<span class="burn-best-inputs">${burnsTokenChipList(ids)}</span>` : '';
+    const items = rows.slice(0, 8).map(row => {
+      if(kind === 'biggest'){
+        const survivor = row.created_token_id || row.survivor_token_id;
+        const ids = burnsInputIds(row).filter(Boolean);
+        const ptsHtml = row.points_used != null ? `<span class="burn-best-pts">${burnsMetric(row.points_used)} pts</span>` : '';
+        return `<div class="burn-best-card">
+          <div class="burn-best-survivor-row">
+            <span class="burn-best-tag survivor">Survivor</span>
+            ${burnsTokenChip(survivor, row, row.snapshot_image || null)}
+            ${ptsHtml}
+            <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
+          </div>
+          <div class="burn-best-burned-row">
+            <span class="burn-best-tag burned">Burned (${burnsMetric(row.input_count ?? ids.length)})</span>
+            ${burnsInputGallery(ids)}
+          </div>
+        </div>`;
+      }
+      const primaryId = kind === 'input' ? (row.burned_token_id || row.token_id) : (row.created_token_id || row.survivor_token_id || row.token_id);
       return `<div class="burn-mini-row">
         <span class="burn-mini-primary">${burnsTokenChip(primaryId, row)}</span>
-        <span>${kind === 'input' ? 'Input' : burnsMetric(row.input_count ?? ids.length) + ' inputs'}</span>
-        <span>${burnsTxLink(row.tx_hash)}</span>
-        ${inputSummary}
+        <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
       </div>`;
-    }).join('')}</div>`;
+    }).join('');
+    return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4><div class="burn-best-list">${items}</div></div>`;
   }).join('');
   return `<div class="burn-best-grid">${html}</div>`;
 }
@@ -381,29 +394,44 @@ function renderBurnSizeDistribution(activity){
     return `<div class="burn-size-row"><span>${burnsEsc(r.bucket || r.label || '-')}</span><div><i style="width:${pct}%"></i></div><b>${burnsMetric(val)}</b></div>`;
   }).join('')}</div>`;
 }
+const BURN_THUMB_SIZES = ['sm', 'md', 'lg'];
+const BURN_THUMB_ICONS = { sm: '🔍', md: '🔎', lg: '🔬' };
+const BURN_THUMB_LABELS = { sm: 'Small', md: 'Medium', lg: 'Large' };
+function getBurnThumbSize(){
+  try{
+    const v = localStorage.getItem('traitview_burn_thumb_size');
+    return BURN_THUMB_SIZES.includes(v) ? v : 'sm';
+  }catch(_){ return 'sm'; }
+}
+function applyBurnThumbSizeClass(host, size){
+  host.classList.remove('burn-thumbs-md', 'burn-thumbs-lg');
+  if(size === 'md') host.classList.add('burn-thumbs-md');
+  if(size === 'lg') host.classList.add('burn-thumbs-lg');
+}
 function toggleBurnThumbSize(){
   const host = document.getElementById('burnsAnalyticsHost');
   if(!host) return;
-  const isLg = host.classList.toggle('burn-thumbs-lg');
-  try{ localStorage.setItem('traitview_burn_thumbs_lg', isLg ? '1' : '0'); }catch(_){}
+  const cur = getBurnThumbSize();
+  const next = BURN_THUMB_SIZES[(BURN_THUMB_SIZES.indexOf(cur) + 1) % BURN_THUMB_SIZES.length];
+  applyBurnThumbSizeClass(host, next);
+  try{ localStorage.setItem('traitview_burn_thumb_size', next); }catch(_){}
   const btn = document.getElementById('burnThumbSizeToggle');
   if(btn){
-    btn.textContent = isLg ? '🔎' : '🔍';
-    btn.title = isLg ? 'Smaller thumbnails' : 'Bigger thumbnails';
+    btn.textContent = BURN_THUMB_ICONS[next];
+    btn.title = `Thumbnail size: ${BURN_THUMB_LABELS[next]} (click to cycle)`;
   }
 }
 function renderBurnsAnalytics(data){
   const host = document.getElementById('burnsAnalyticsHost');
   if(!host) return;
-  let thumbsLg = false;
-  try{ thumbsLg = localStorage.getItem('traitview_burn_thumbs_lg') === '1'; }catch(_){}
-  host.classList.toggle('burn-thumbs-lg', thumbsLg);
+  const thumbSize = getBurnThumbSize();
+  applyBurnThumbSizeClass(host, thumbSize);
   const stats = data?.stats?.stats || data?.stats || {};
   const latestRows = burnsRows(data, 'latest', 'burns');
   const leaderRows = burnsRows(data, 'leaderboard', 'leaders');
   const activityRows = burnsRows(data, 'activity', 'activity');
   host.innerHTML = `<div class="burns-analytics-inner">
-    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost burn-icon-btn" id="burnThumbSizeToggle" onclick="toggleBurnThumbSize()" title="${thumbsLg ? 'Smaller thumbnails' : 'Bigger thumbnails'}">${thumbsLg ? '🔎' : '🔍'}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
+    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost burn-icon-btn" id="burnThumbSizeToggle" onclick="toggleBurnThumbSize()" title="Thumbnail size: ${BURN_THUMB_LABELS[thumbSize]} (click to cycle)">${BURN_THUMB_ICONS[thumbSize]}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
     ${renderBurnStats(stats)}
     ${burnsSection('Latest Burns', renderLatestBurns(latestRows), 'Finalized burn events from Railway')}
     <div class="burn-two-col">

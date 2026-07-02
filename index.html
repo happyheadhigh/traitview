@@ -139,33 +139,6 @@
   </div></div>
 </div>
 
-      <!-- Wallet View — deprioritized below traits; will move to header drawer in Pass 2 -->
-      <div id="walletPanel" style="margin-bottom:2px;order:6">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px;cursor:pointer;user-select:none" onclick="(function(el){el.classList.toggle('open');const b=document.getElementById('walletPanelBody');if(b){b.style.display=el.classList.contains('open')?'block':'none';}const ch=el.querySelector('.wallet-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
-          <span class="section" style="opacity:.7;margin:0">Wallet View</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span class="sales-count-badge" id="walletCountBadge" style="font-size:10px">–</span>
-            <span class="wallet-chev" style="color:var(--sub);font-size:16px;line-height:1;transition:transform .2s ease;display:inline-block">⌄</span>
-          </div>
-        </div>
-        <div id="walletPanelBody" style="display:none;padding:0 2px 10px">
-          <div style="display:flex;gap:6px;margin-bottom:6px">
-            <input id="walletInput" class="input" placeholder="ETH address (0x…)" style="flex:1;font-size:12px">
-            <button class="btn" id="walletLookupBtn" style="font-size:11px;padding:5px 10px">Look Up</button>
-            <button class="btn ghost" id="walletClearBtn" style="font-size:11px;padding:5px 8px">✕</button>
-          </div>
-          <div id="walletStatus" style="color:var(--sub);font-size:11px;margin-bottom:4px"></div>
-          <div id="walletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
-          <div style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap" id="walletSortBtns">
-            <button class="mispriced-mode-btn active" data-wsort="rank" onclick="setWalletSort('rank')">Rarest First</button>
-            <button class="mispriced-mode-btn" data-wsort="listed" onclick="setWalletSort('listed')">Listed First</button>
-            <button class="mispriced-mode-btn" data-wsort="price-asc" onclick="setWalletSort('price-asc')">Price ↑</button>
-            <button class="mispriced-mode-btn" data-wsort="id" onclick="setWalletSort('id')">Token ID</button>
-          </div>
-          <div id="walletGrid" style="max-height:420px;overflow:auto"></div>
-        </div>
-      </div>
-
       <!-- Jump to token — shown in filter drawer on mobile -->
       <div id="mobileDrawerJump" style="display:none;gap:6px;margin:0 0 10px;align-items:center;order:0">
         <input id="drawerJumpInput" class="input" type="text" inputmode="numeric" placeholder="Jump to Token ID…" style="flex:1;font-size:16px">
