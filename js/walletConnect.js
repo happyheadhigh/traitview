@@ -141,6 +141,7 @@ async function setConnectedWallet(addr, chainId, tokenIds, opts={}){
   window._mobileWalletIds = ids;
   try{ localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({ address:addr, chainId })); }catch(_){}
   updateWalletConnectButtons();
+  if(typeof tvCheckLinkStatus === 'function') tvCheckLinkStatus(addr).catch(()=>{});
   const desktopInput = document.getElementById('walletInput');
   const mobileInput = document.getElementById('mobileWalletInput');
   if(desktopInput) desktopInput.value = addr;
@@ -253,12 +254,30 @@ document.addEventListener('DOMContentLoaded', initTraitViewWallet);
 
 
 // ── Discord↔TraitView verification ───────────────────────────────────────────
-// TV_DISCORD_LINK is set after a successful claim, persisted in sessionStorage
+// TV_DISCORD_LINK reflects the live server-side link status for the
+// currently connected wallet - checked fresh on every connection via
+// /tv/link-status-by-wallet rather than cached client-side. This means
+// verification persists correctly across browser sessions and even
+// different computers, since it's a straight lookup by wallet address
+// against the server's traitview_links table, not anything stored locally.
 let TV_DISCORD_LINK = null;
-try {
-  const stored = sessionStorage.getItem('tv_discord_link');
-  if(stored) TV_DISCORD_LINK = JSON.parse(stored);
-} catch(_) {}
+
+async function tvCheckLinkStatus(wallet){
+  if(!wallet) { TV_DISCORD_LINK = null; return null; }
+  try{
+    const url = `${RAILWAY_API}/tv/link-status-by-wallet?wallet=${encodeURIComponent(wallet)}&key=${RAILWAY_KEY}`;
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data?.linked){
+      TV_DISCORD_LINK = { discord_id: data.discord_id, wallet, guild_id: data.guild_id };
+    } else {
+      TV_DISCORD_LINK = null;
+    }
+  }catch(e){
+    console.warn('[TVLinkStatus]', e.message);
+  }
+  return TV_DISCORD_LINK;
+}
 
 async function tvDiscordClaimCode(code) {
   const clean = (code || '').trim().toUpperCase();
@@ -272,7 +291,6 @@ async function tvDiscordClaimCode(code) {
   const data = await r.json();
   if(!r.ok) throw new Error(data.error || 'Claim failed');
   TV_DISCORD_LINK = { discord_id: data.discord_id, wallet: data.wallet, guild_id: data.guild_id };
-  try { sessionStorage.setItem('tv_discord_link', JSON.stringify(TV_DISCORD_LINK)); } catch(_) {}
   return TV_DISCORD_LINK;
 }
 
