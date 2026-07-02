@@ -182,7 +182,7 @@ function renderBurnStats(stats){
 function renderLatestBurns(rows){
   if(!rows.length) return '<div class="wallet-empty-state">No finalized burn rows returned yet.</div>';
   return `<div class="burn-table burn-latest-table">
-    <div class="burn-table-head"><span>Tx</span><span>Inputs</span><span>Created</span><span>Count</span><span>Time</span><span>Wallet</span></div>
+    <div class="burn-table-head"><span>Tx</span><span>Inputs</span><span>Created</span><span>Count</span><span>Pts</span><span>Time</span><span>Wallet</span></div>
     ${rows.slice(0,25).map(row => {
     const ids = burnsInputIds(row).filter(Boolean);
     const created = row.created_token_id || row.survivor_token_id;
@@ -191,6 +191,7 @@ function renderLatestBurns(rows){
       <div class="burn-cell burn-inputs">${burnsInputGallery(ids)}</div>
       <div class="burn-cell burn-created">${burnsTokenChip(created, row, row.snapshot_image || null)}</div>
       <div class="burn-cell burn-count">${burnsMetric(row.input_count ?? ids.length)}</div>
+      <div class="burn-cell burn-points">${row.points_used != null ? burnsMetric(row.points_used) : '-'}</div>
       <div class="burn-cell burn-time">${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</div>
       <div class="burn-cell burn-wallet">${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</div>
     </div>`;
@@ -287,10 +288,22 @@ function drawBurnActivityChart(rows){
 let _originalTraitFreqCache = null;
 async function computeOriginalTraitFreq(){
   if(_originalTraitFreqCache) return _originalTraitFreqCache;
-  if(typeof ensureChunk !== 'function' || typeof indices !== 'function') return {};
+  if(typeof chunkUrlByIndex !== 'function' || typeof fetchJson !== 'function') return {};
+  // Deliberately NOT using ensureChunk/indices() here — both are gated by
+  // TOKEN_COUNT (current surviving supply, ~8,599), designed for loading
+  // only what's needed to render the current grid. ensureChunk specifically
+  // rejects (and permanently negative-caches in the shared CHUNK_CACHE) any
+  // chunk index beyond that gate. We need the FULL original ~10,000-token
+  // mint regardless of how many have since been burned, so this fetches
+  // chunk files directly, bypassing that gate and using its own isolated
+  // cache untouched by survivor-count logic.
+  const allIdx = (typeof MANIFEST !== 'undefined' && MANIFEST?.files?.length)
+    ? MANIFEST.files.map((_, i) => i)
+    : Array.from({ length: 10 }, (_, i) => i); // fallback: 10 chunks of 1000 = 10,000 tokens
   const freq = {};
-  for(const idx of indices()){
-    const ch = await ensureChunk(idx);
+  for(const idx of allIdx){
+    let ch = {};
+    try{ ch = await fetchJson(chunkUrlByIndex(idx)); }catch(_){ continue; }
     for(const row of Object.values(ch)){
       for(const [k, v] of keepEntries(row.traits)){
         (freq[k] ||= {})[v] = (freq[k][v] || 0) + 1;
@@ -323,21 +336,21 @@ function extinctionBarColor(pct){
 function renderTraitExtinction(rows){
   if(!rows.length) return '<div class="wallet-empty-state">Not enough burn data yet to compute trait extinction.</div>';
   const extinct = rows.filter(r => r.remaining === 0);
-  const depleted = rows.filter(r => r.remaining > 0).slice(0, 20);
+  const depleted = rows.filter(r => r.remaining > 0); // no cap — the original>=3 && burned>0 filter already excludes noise
   let html = '';
   if(extinct.length){
     html += `<div class="extinct-banner">
       <div class="extinct-title">🔥 ${extinct.length} Trait${extinct.length===1?'':'s'} Gone Extinct</div>
       <div class="extinct-sub">No surviving tokens have these anymore</div>
-      <div class="extinct-chips">${extinct.slice(0, 16).map(r =>
+      <div class="extinct-chips">${extinct.map(r =>
         `<span class="extinct-chip">${burnsEsc(r.traitName)}: ${burnsEsc(r.value)}</span>`
       ).join('')}</div>
     </div>`;
   }
   if(depleted.length){
-    html += `<div class="extinction-list">${depleted.map(r => {
+    html += `<div class="extinction-grid">${depleted.map(r => {
       const pctRemain = Math.max(2, 100 - r.pct);
-      return `<div class="extinction-row">
+      return `<div class="extinction-card">
         <div class="extinction-label"><b>${burnsEsc(r.traitName)}</b><span>${burnsEsc(r.value)}</span></div>
         <div class="extinction-bar-track"><div class="extinction-bar-fill" style="width:${pctRemain}%;background:${extinctionBarColor(r.pct)}"></div></div>
         <div class="extinction-stat">${r.remaining} / ${r.original} left <span class="extinction-pct">-${Math.round(r.pct)}%</span></div>
@@ -374,7 +387,10 @@ function toggleBurnThumbSize(){
   const isLg = host.classList.toggle('burn-thumbs-lg');
   try{ localStorage.setItem('traitview_burn_thumbs_lg', isLg ? '1' : '0'); }catch(_){}
   const btn = document.getElementById('burnThumbSizeToggle');
-  if(btn) btn.textContent = isLg ? '🔎 Smaller Thumbnails' : '🔍 Bigger Thumbnails';
+  if(btn){
+    btn.textContent = isLg ? '🔎' : '🔍';
+    btn.title = isLg ? 'Smaller thumbnails' : 'Bigger thumbnails';
+  }
 }
 function renderBurnsAnalytics(data){
   const host = document.getElementById('burnsAnalyticsHost');
@@ -387,7 +403,7 @@ function renderBurnsAnalytics(data){
   const leaderRows = burnsRows(data, 'leaderboard', 'leaders');
   const activityRows = burnsRows(data, 'activity', 'activity');
   host.innerHTML = `<div class="burns-analytics-inner">
-    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost" id="burnThumbSizeToggle" onclick="toggleBurnThumbSize()">${thumbsLg ? '🔎 Smaller Thumbnails' : '🔍 Bigger Thumbnails'}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
+    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost burn-icon-btn" id="burnThumbSizeToggle" onclick="toggleBurnThumbSize()" title="${thumbsLg ? 'Smaller thumbnails' : 'Bigger thumbnails'}">${thumbsLg ? '🔎' : '🔍'}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
     ${renderBurnStats(stats)}
     ${burnsSection('Latest Burns', renderLatestBurns(latestRows), 'Finalized burn events from Railway')}
     <div class="burn-two-col">
