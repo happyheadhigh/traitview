@@ -249,9 +249,11 @@ function walletActivityChartHtml(data){
     ...e, dir: walletActivityDirection(e.row, e.kind, address)
   }));
   const kinds = ['mint','sale','burn','transfer'];
-  const filters = `<div class="wallet-activity-filters">${kinds.map(k => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_FILTERS.has(k)?'active':''}" onclick="toggleWalletActivityFilter('${k}')">${k}</button>`).join('')}</div>`;
   const ranges = [['1d','Day'],['7d','Week'],['30d','Month'],['all','All Time']];
-  const rangeFilters = `<div class="wallet-activity-filters wallet-activity-range">${ranges.map(([k,label]) => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_RANGE===k?'active':''}" onclick="toggleWalletActivityRange('${k}')">${label}</button>`).join('')}</div>`;
+  const kindBtns = kinds.map(k => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_FILTERS.has(k)?'active':''}" onclick="toggleWalletActivityFilter('${k}')">${k}</button>`).join('');
+  const rangeBtns = ranges.map(([k,label]) => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_RANGE===k?'active':''}" onclick="toggleWalletActivityRange('${k}')">${label}</button>`).join('');
+  const filters = `<div class="wallet-activity-filters-row"><div class="wallet-activity-filters">${kindBtns}</div><div class="wallet-activity-filters">${rangeBtns}</div></div>`;
+  const rangeFilters = ''; // merged into the single row above
   if(!eventsAll.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>`;
 
   // Running "tokens held" total — computed over the FULL unfiltered history so
@@ -268,6 +270,12 @@ function walletActivityChartHtml(data){
   const rangeMs = { '1d': 864e5, '7d': 7*864e5, '30d': 30*864e5, 'all': Infinity }[WALLET_ACTIVITY_RANGE] ?? Infinity;
   const cutoff = Date.now() - rangeMs;
   const inRange = withHoldings.filter(e => e.ts >= cutoff);
+  console.log('[WalletActivity DEBUG]', {
+    WALLET_ACTIVITY_RANGE, rangeMs, cutoff, cutoffDate: new Date(cutoff).toString(),
+    eventsAllCount: eventsAll.length, withHoldingsCount: withHoldings.length, inRangeCount: inRange.length,
+    firstEventTs: eventsAll[0]?.ts, firstEventDate: eventsAll[0] ? new Date(eventsAll[0].ts).toString() : null,
+    lastEventTs: eventsAll[eventsAll.length-1]?.ts, lastEventDate: eventsAll.length ? new Date(eventsAll[eventsAll.length-1].ts).toString() : null,
+  });
   if(!inRange.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No activity in this time range. Try a wider range.</div>`;
 
   const events = inRange.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));

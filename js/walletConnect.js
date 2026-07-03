@@ -48,23 +48,19 @@ function renderConnectedHolderPanel(host, stats){
   const type = stats.dominantType ? `${stats.dominantType[0]} (${stats.dominantType[1]})` : '—';
   host.innerHTML = `
     <div class="connected-holder-inner">
-      <div class="connected-holder-row1">
-        <div class="connected-holder-top">
-          <div class="connected-holder-title">Connected holder</div>
-          <div class="connected-holder-addr">${shortAddr(CONNECTED_WALLET.address)}</div>
-        </div>
-        <div class="connected-holder-stats">
-          <div class="connected-holder-stat"><span>Owned</span><b>${stats.total}</b></div>
-          <div class="connected-holder-stat"><span>Best</span><b>${rank}</b></div>
-          <div class="connected-holder-stat"><span>Type</span><b>${comboEsc(type)}</b></div>
-        </div>
+      <div class="connected-holder-top">
+        <div class="connected-holder-title">Connected holder</div>
+        <div class="connected-holder-addr">${shortAddr(CONNECTED_WALLET.address)}</div>
       </div>
-      <div class="connected-holder-tagsrow">
-        <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
-        <div class="connected-holder-actions">
-          <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
-          <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
-        </div>
+      <div class="connected-holder-stats">
+        <div class="connected-holder-stat"><span>Owned</span><b>${stats.total}</b></div>
+        <div class="connected-holder-stat"><span>Best</span><b>${rank}</b></div>
+        <div class="connected-holder-stat"><span>Type</span><b>${comboEsc(type)}</b></div>
+      </div>
+      <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
+      <div class="connected-holder-actions">
+        <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
+        <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
       </div>
     </div>`;
   host.classList.add('is-visible');
