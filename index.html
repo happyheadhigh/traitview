@@ -179,14 +179,14 @@
           <div class="c-body-inner" style="padding:4px 14px 12px">
         <!-- Tab buttons -->
         <div class="top-tabs" style="display:flex;align-items:center">
-          <button class="top-tab active" data-ttab="chart" onclick="switchTopTab('chart')">Trait Distribution</button>
-          <button class="top-tab" data-ttab="sales" onclick="switchTopTab('sales')" style="display:flex;align-items:center;gap:6px">
+          <button class="top-tab active" data-ttab="sales" onclick="switchTopTab('sales')" style="display:flex;align-items:center;gap:6px">
             Recent Sales <span class="sales-count-badge" id="salesCountBadge">–</span>
           </button>
-          <button class="top-tab" data-ttab="burns" onclick="switchTopTab('burns')">Burns</button>
           <button class="top-tab" data-ttab="mispriced" onclick="switchTopTab('mispriced')" style="display:flex;align-items:center;gap:6px">
             Mispriced <span class="sales-count-badge" id="mispricedCountBadge">–</span>
           </button>
+          <button class="top-tab" data-ttab="burns" onclick="switchTopTab('burns')">Burns</button>
+          <button class="top-tab" data-ttab="chart" onclick="switchTopTab('chart')">Trait Distribution</button>
           <button class="top-tab" data-ttab="scatter" onclick="switchTopTab('scatter')">Price vs Rank</button>
           <button class="top-tab" data-ttab="floor" onclick="switchTopTab('floor')">Floor Trend <span id="floorReadyDot" style="display:none;width:6px;height:6px;border-radius:50%;background:#2dd4bf;display:inline-block;margin-left:3px;vertical-align:middle"></span></button>
           <button class="top-tab" data-ttab="holders" onclick="switchTopTab('holders')">Holders</button>
@@ -203,7 +203,7 @@
 
         <!-- Chart tab -->
 
-        <div class="top-tab-panel active" id="ttab-chart" style="padding-top:4px">
+        <div class="top-tab-panel" id="ttab-chart" style="padding-top:4px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
             <div id="chartInfo" class="section" style="font-weight:500"></div>
           </div>
@@ -211,7 +211,7 @@
         </div>
 
         <!-- Recent Sales tab -->
-        <div class="top-tab-panel" id="ttab-sales">
+        <div class="top-tab-panel active" id="ttab-sales">
           <div id="salesFilterNote" style="font-size:11px;color:var(--accent);margin-bottom:6px">⬦ Filtered to selected traits</div>
           <div id="salesGrid" style="max-height:320px;overflow-y:auto;overflow-x:hidden;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(120,130,150,.35) transparent">
             <div style="color:var(--sub);font-size:12px;padding:10px 0">Loading recent sales…</div>
