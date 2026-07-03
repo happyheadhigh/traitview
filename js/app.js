@@ -2442,7 +2442,8 @@ function toggleWalletDrawer(forceState){
     const input = document.getElementById('desktopWalletInput');
     if(input && !input.value){
       const saved = (function(){ try{ return localStorage.getItem('walletDrawerAddress') || ''; }catch{ return ''; } })();
-      if(saved){ input.value = saved; desktopWalletLookup(); }
+      const fallback = saved || CONNECTED_WALLET?.address || '';
+      if(fallback){ input.value = fallback; desktopWalletLookup(); }
     }
   }
 }
