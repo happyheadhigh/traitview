@@ -184,33 +184,33 @@ async function connectTraitViewWallet(){
 }
 // ── Mobile wallet action sheet ──────────────────────────────────────────────
 // Desktop's #walletConnectMenu is a dropdown anchored to a topbar button that
-// doesn't exist in the mobile layout (that button lives inside the mobile
-// menu instead, and just calls connectTraitViewWallet() directly with no
-// menu at all once already connected — meaning Discord Verify was
-// unreachable from "Connect Wallet" on mobile). This reuses the same
-// wallet-launch-modal visual pattern already proven mobile-friendly.
+// doesn't exist in the mobile layout. Crucially, desktop's menu offers BOTH
+// "Connect Wallet" and "Discord Verify" together even BEFORE a wallet is
+// connected — the first version of this mobile fix only showed a menu once
+// already connected, so tapping "Connect Wallet" while unconnected skipped
+// straight into the connection flow and never surfaced Discord Verify at
+// all. This now mirrors desktop's two-state menu exactly.
 function handleMobileWalletConnectButton(){
-  if(!CONNECTED_WALLET?.address){
-    connectTraitViewWallet();
-    return;
-  }
   document.getElementById('mobileWalletActionModal')?.remove();
   const modal = document.createElement('div');
   modal.id = 'mobileWalletActionModal';
   modal.className = 'wallet-launch-modal open';
   modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
-  const addr = CONNECTED_WALLET.address;
+  const addr = CONNECTED_WALLET?.address;
+  const closeAttr = "document.getElementById('mobileWalletActionModal').remove();";
+  const actions = addr
+    ? `<button type="button" onclick="${closeAttr}if(typeof openMobileWalletDrawer==='function') openMobileWalletDrawer('${comboEsc(addr)}')">Wallet View</button>
+       <button type="button" onclick="${closeAttr}if(typeof tvShowDiscordVerifyModal==='function') tvShowDiscordVerifyModal()">🔗 Discord Verify</button>
+       <button type="button" onclick="${closeAttr}disconnectTraitViewWallet()">Disconnect</button>`
+    : `<button type="button" onclick="${closeAttr}connectTraitViewWallet()">Connect Wallet</button>
+       <button type="button" onclick="${closeAttr}if(typeof tvShowDiscordVerifyModal==='function') tvShowDiscordVerifyModal()">🔗 Discord Verify</button>`;
   modal.innerHTML = `
     <div class="wallet-launch-box">
       <div class="wallet-launch-head">
-        <div class="wallet-launch-title">${comboEsc(shortAddr(addr))}</div>
+        <div class="wallet-launch-title">${addr ? comboEsc(shortAddr(addr)) : 'Wallet'}</div>
         <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove()" style="background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer;padding:0;line-height:1">×</button>
       </div>
-      <div class="wallet-launch-actions">
-        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove();if(typeof openMobileWalletDrawer==='function') openMobileWalletDrawer('${comboEsc(addr)}')">Wallet View</button>
-        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove();if(typeof tvShowDiscordVerifyModal==='function') tvShowDiscordVerifyModal()">🔗 Discord Verify</button>
-        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove();disconnectTraitViewWallet()">Disconnect</button>
-      </div>
+      <div class="wallet-launch-actions">${actions}</div>
     </div>`;
   document.body.appendChild(modal);
 }
