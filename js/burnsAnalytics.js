@@ -363,14 +363,34 @@ function computeTraitExtinction(originalFreq, currentFreq){
   rows.sort((a, b) => b.pct - a.pct || b.burned - a.burned);
   return rows;
 }
+// Mirror of computeTraitExtinction — captures the opposite case, where a
+// trait value's current count exceeds its original mint count. Burn
+// survivors get a freshly recombined trait set, so this genuinely happens:
+// a value can gain new holders even while total token count only shrinks.
+function computeTraitGains(originalFreq, currentFreq){
+  const rows = [];
+  for(const [traitName, values] of Object.entries(currentFreq || {})){
+    for(const [value, remaining] of Object.entries(values)){
+      const original = (originalFreq?.[traitName]?.[value]) || 0;
+      if(original < 3) continue; // same noise filter as extinction, for consistency
+      const gained = remaining - original;
+      if(gained <= 0) continue;
+      rows.push({ traitName, value, original, remaining, gained, pct: (gained / original) * 100 });
+    }
+  }
+  rows.sort((a, b) => b.pct - a.pct || b.gained - a.gained);
+  return rows;
+}
 function extinctionBarColor(pct){
   if(pct >= 75) return '#f87171';
   if(pct >= 50) return '#fb923c';
   if(pct >= 25) return '#facc15';
   return '#4ade80';
 }
-function renderTraitExtinction(rows){
-  if(!rows.length) return '<div class="wallet-empty-state">Not enough burn data yet to compute trait extinction.</div>';
+function renderTraitExtinction(rows, gainRows){
+  const hasExtinction = rows.length > 0;
+  const hasGains = gainRows && gainRows.length > 0;
+  if(!hasExtinction && !hasGains) return '<div class="wallet-empty-state">Not enough burn data yet to compute trait extinction.</div>';
   const extinct = rows.filter(r => r.remaining === 0);
   const depleted = rows.filter(r => r.remaining > 0); // no cap — the original>=3 && burned>0 filter already excludes noise
   let html = '';
@@ -393,6 +413,17 @@ function renderTraitExtinction(rows){
       </div>`;
     }).join('')}</div>`;
   }
+  if(hasGains){
+    html += `<div class="gains-section">
+      <div class="gains-title">📈 ${gainRows.length} Trait${gainRows.length===1?'':'s'} On The Rise</div>
+      <div class="gains-sub">Burn survivors rolled these values more than they were lost to burns</div>
+      <div class="extinction-grid">${gainRows.map(r => `<div class="extinction-card gains-card">
+        <div class="extinction-label"><b>${burnsEsc(r.traitName)}</b><span>${burnsEsc(r.value)}</span></div>
+        <div class="extinction-bar-track"><div class="extinction-bar-fill" style="width:${Math.min(100, r.pct)}%;background:#4ade80"></div></div>
+        <div class="extinction-stat">${r.remaining} / ${r.original} original <span class="extinction-pct gains-pct">+${Math.round(r.pct)}%</span></div>
+      </div>`).join('')}</div>
+    </div>`;
+  }
   return html || '<div class="wallet-empty-state">Not enough burn data yet to compute trait extinction.</div>';
 }
 async function loadTraitExtinction(){
@@ -402,7 +433,8 @@ async function loadTraitExtinction(){
     const original = await computeOriginalTraitFreq();
     const current = (typeof TRAIT_FREQ === 'object' && TRAIT_FREQ) || {};
     const rows = computeTraitExtinction(original, current);
-    host.innerHTML = renderTraitExtinction(rows);
+    const gainRows = computeTraitGains(original, current);
+    host.innerHTML = renderTraitExtinction(rows, gainRows);
   }catch(e){
     host.innerHTML = '<div class="wallet-empty-state">Could not compute trait extinction data.</div>';
   }

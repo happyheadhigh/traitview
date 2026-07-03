@@ -245,8 +245,19 @@ function initTraitViewWallet(){
     const saved = JSON.parse(localStorage.getItem(CONNECTED_WALLET_KEY) || 'null');
     if(saved?.address){
       const cached = readConnectedWalletTokenCache(saved.address);
-      if(cached) setConnectedWallet(saved.address, saved.chainId || null, cached);
-      else updateWalletConnectButtons(shortAddr(saved.address));
+      if(cached){
+        setConnectedWallet(saved.address, saved.chainId || null, cached);
+      } else {
+        // Cache is cold (expired after 10min, or first visit this session) —
+        // still fetch fresh and properly reconnect, rather than just showing
+        // the address in the button with CONNECTED_WALLET left unset. Leaving
+        // it unset here meant tvCheckLinkStatus never ran, so "Discord Verify"
+        // always looked unlinked even for an already-linked wallet.
+        updateWalletConnectButtons(shortAddr(saved.address));
+        fetchWalletTokenIdsForAddress(saved.address, false).then(ids => {
+          setConnectedWallet(saved.address, saved.chainId || null, ids);
+        }).catch(()=>{});
+      }
     }
   }catch(_){}
 }

@@ -3527,6 +3527,11 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .extinction-bar-fill{height:100%;border-radius:999px;transition:width .3s ease}
 .extinction-stat{font-size:10px;color:rgba(203,213,225,.75);white-space:nowrap}
 .extinction-pct{display:inline-block;margin-left:4px;font-weight:900;color:#fca5a5}
+.gains-section{margin-top:14px}
+.gains-title{font-size:13px;font-weight:900;color:#86efac;letter-spacing:.01em}
+.gains-sub{font-size:10.5px;color:rgba(203,213,225,.68);margin-top:2px;margin-bottom:9px}
+.gains-card{border-color:rgba(74,222,128,.12)}
+.gains-pct{color:#86efac}
 @media (max-width:640px){
   .extinction-grid{grid-template-columns:1fr}
 }
