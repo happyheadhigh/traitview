@@ -1670,6 +1670,7 @@ a{color:var(--accent)!important}
 .token-history-section{margin-top:12px;border-top:1px solid rgba(255,255,255,.10);padding-top:10px}
 .wallet-analytics-compact{display:flex;flex-direction:column;gap:8px}
 .wallet-activity-filters{display:flex;gap:5px;flex-wrap:wrap;margin:2px 0 6px}
+.wallet-activity-range{margin-top:-2px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.07)}
 /* Wallet Edge */
 .wallet-edge-row{display:flex;align-items:flex-start;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px;line-height:1.35}
 .wallet-edge-row:last-child{border-bottom:none}

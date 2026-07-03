@@ -153,6 +153,13 @@ async function loadWalletAnalytics(address, opts={}){
   }
 }
 const WALLET_ACTIVITY_FILTERS = new Set(['mint','sale','burn','transfer']); // 'listing' omitted — no wallet-scoped listings data source exists yet
+let WALLET_ACTIVITY_RANGE = 'all'; // '1d' | '7d' | '30d' | 'all'
+function toggleWalletActivityRange(range){
+  WALLET_ACTIVITY_RANGE = range;
+  const addr = CONNECTED_WALLET?.address?.toLowerCase();
+  const data = addr ? WALLET_ANALYTICS_CACHE.get(addr) : null;
+  if(data) renderWalletAnalytics(data);
+}
 function walletActivityKind(row, address){
   const raw = String(row?.event_type || row?.type || row?.direction || row?.kind || '').toLowerCase();
   if(raw.includes('mint')) return 'mint';
@@ -243,31 +250,41 @@ function walletActivityChartHtml(data){
   }));
   const kinds = ['mint','sale','burn','transfer'];
   const filters = `<div class="wallet-activity-filters">${kinds.map(k => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_FILTERS.has(k)?'active':''}" onclick="toggleWalletActivityFilter('${k}')">${k}</button>`).join('')}</div>`;
-  if(!eventsAll.length) return `${filters}<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>`;
+  const ranges = [['1d','Day'],['7d','Week'],['30d','Month'],['all','All Time']];
+  const rangeFilters = `<div class="wallet-activity-filters wallet-activity-range">${ranges.map(([k,label]) => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_RANGE===k?'active':''}" onclick="toggleWalletActivityRange('${k}')">${label}</button>`).join('')}</div>`;
+  if(!eventsAll.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>`;
 
-  // Running "tokens held" total — every event gets a valid y-value this way,
-  // instead of the old chart where only priced events (a minority) could be
-  // plotted at all, leaving most of the timeline empty.
+  // Running "tokens held" total — computed over the FULL unfiltered history so
+  // the count is always correct, even when a time range narrows what's shown.
+  // Filtering by kind/range only changes what's *visible*, never re-derives
+  // the running total from a truncated starting point (which would make the
+  // "tokens held" figure wrong at the start of the visible window).
   let running = 0;
   const withHoldings = eventsAll.map(e => {
     running += e.dir;
     return { ...e, held: Math.max(0, running) };
   });
 
-  const events = withHoldings.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));
-  if(!events.length) return `${filters}<div class="wallet-empty-state">No events match the selected activity filters.</div>`;
+  const rangeMs = { '1d': 864e5, '7d': 7*864e5, '30d': 30*864e5, 'all': Infinity }[WALLET_ACTIVITY_RANGE] ?? Infinity;
+  const cutoff = Date.now() - rangeMs;
+  const inRange = withHoldings.filter(e => e.ts >= cutoff);
+  if(!inRange.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No activity in this time range. Try a wider range.</div>`;
+
+  const events = inRange.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));
+  if(!events.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No events match the selected activity filters in this range.</div>`;
 
   const hostId = 'walletActivityPlotly_' + Date.now();
   const kindColors = {mint:'#1CFFAF',sale:'#2dd4bf',listing:'#60a5fa',burn:'#f87171',transfer:'#a78bfa'};
 
-  // Base area/line — ALWAYS the full unfiltered history, so toggling filters
-  // never breaks or shortens the line; it only changes which markers glow.
+  // Base area/line — always the full range-selected history (unaffected by
+  // kind filters), so toggling a kind filter never breaks or shortens the
+  // line; it only changes which markers glow.
   const lineTrace = {
-    x: withHoldings.map(e => new Date(e.ts).toISOString()),
-    y: withHoldings.map(e => e.held),
+    x: inRange.map(e => new Date(e.ts).toISOString()),
+    y: inRange.map(e => e.held),
     mode: 'lines', type: 'scatter', name: 'Tokens Held',
-    line: { color: '#1CFFAF', width: 2, shape: 'hv' },
-    fill: 'tozeroy', fillcolor: 'rgba(28,255,175,0.08)',
+    line: { color: '#1CFFAF', width: 2, shape: 'spline', smoothing: 0.35 },
+    fill: 'tozeroy', fillcolor: 'rgba(28,255,175,0.10)',
     hoverinfo: 'skip', showlegend: false,
   };
   // One marker trace per kind, plotted at the SAME (time, holdings) coordinate
@@ -294,17 +311,20 @@ function walletActivityChartHtml(data){
   const cs = getComputedStyle(document.body);
   const textColor = cs.getPropertyValue('--text').trim()||'#e6edf7';
   const subColor  = cs.getPropertyValue('--sub').trim()||'#7a8fa8';
-  const maxHeld = Math.max(1, ...withHoldings.map(e=>e.held));
+  const cardBg = cs.getPropertyValue('--card').trim() || '#111c2a';
+  const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
+  const maxHeld = Math.max(1, ...inRange.map(e=>e.held));
   const dtick = maxHeld <= 10 ? 1 : Math.ceil(maxHeld/6);
   const layout = {
-    height:240, margin:{l:50,r:14,t:10,b:40},
+    height:260, margin:{l:44,r:12,t:6,b:36},
     paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
     font:{color:textColor,size:11},
-    xaxis:{color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false},
+    xaxis:{color:subColor,showgrid:false,zeroline:false,tickfont:{size:10}},
     yaxis:{title:'Tokens Held',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,rangemode:'tozero',dtick},
     showlegend:true,
-    legend:{x:0,y:1,font:{size:10},bgcolor:'rgba(0,0,0,0)',orientation:'h'},
+    legend:{orientation:'h',y:1.14,x:0,font:{size:10},bgcolor:'rgba(0,0,0,0)'},
     hovermode:'closest',
+    hoverlabel:{bgcolor:cardBg,bordercolor:borderCol,font:{color:textColor,size:12}},
     dragmode:'pan',
   };
   setTimeout(()=>{
@@ -334,7 +354,7 @@ function walletActivityChartHtml(data){
     }
     render();
   }, 60);
-  return `${filters}<div id="${hostId}" style="width:100%;min-height:240px"></div>`;
+  return `${filters}${rangeFilters}<div id="${hostId}" style="width:100%;min-height:260px"></div>`;
 }
 // ── Shared owned-token trait lookup ─────────────────────────────────────────
 // Built once per wallet load, reused by both Rarity Improvement and the
