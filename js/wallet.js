@@ -25,8 +25,7 @@ function openWalletLaunchModal(){
   const modal = document.getElementById('walletLaunchModal');
   const actions = document.getElementById('walletLaunchActions');
   if(!modal || !actions) return;
-  actions.innerHTML = walletLaunchLinks().map(link => `<a href="${comboEsc(link.href)}" rel="noreferrer">${comboEsc(link.label)} <span>↗</span></a>`).join('') +
-    `<button type="button" onclick="closeWalletLaunchModal()">I'll open my wallet manually <span>OK</span></button>`;
+  actions.innerHTML = walletLaunchLinks().map(link => `<a href="${comboEsc(link.href)}" rel="noreferrer">${comboEsc(link.label)} <span>↗</span></a>`).join('');
   modal.classList.add('open');
 }
 function closeWalletLaunchModal(){

@@ -2726,7 +2726,7 @@ function updateActivePills(){
   // Child elements have touch-action:pan-y!important which blocks horizontal touch events
   // on the element itself. Use document-level listeners, only active when drawer is open.
   (function(){
-    const el = document.querySelector('.bar > div:first-child');
+    const el = document.querySelector('#filtersColumn');
     if(!el) return;
     let sx = 0, sy = 0, delta = 0, active = false, tracking = false;
 
@@ -2952,7 +2952,7 @@ function setMispricedMode(mode){
 
 function openMobileFilter(){
   document.getElementById('mobileMenu')?.classList.remove('open');
-  const leftCol = document.querySelector('.bar > div:first-child');
+  const leftCol = document.querySelector('#filtersColumn');
   if(!leftCol) return;
   leftCol.classList.add('drawer-open');
   const overlay = document.getElementById('filterDrawerOverlay');
@@ -2980,7 +2980,7 @@ function openMobileFilter(){
 }
 
 function closeMobileFilter(){
-  const leftCol = document.querySelector('.bar > div:first-child');
+  const leftCol = document.querySelector('#filtersColumn');
   if(!leftCol) return;
   leftCol.classList.remove('drawer-open');
   const overlay = document.getElementById('filterDrawerOverlay');
@@ -2997,7 +2997,7 @@ function closeMobileFilter(){
 // also blocking all pointer events on trait checkboxes beneath it.
 (function injectDrawerCloseBar(){
   if(window.innerWidth > 900) return;
-  const leftCol = document.querySelector('.bar > div:first-child');
+  const leftCol = document.querySelector('#filtersColumn');
   if(!leftCol || document.getElementById('drawerCloseBar')) return;
   const bar = document.createElement('div');
   bar.id = 'drawerCloseBar';
@@ -3043,7 +3043,7 @@ function closeMobileFilter(){
 
   btn.addEventListener('click', e=>{
     if(didDrag){ didDrag = false; return; }
-    const leftCol = document.querySelector('.bar > div:first-child');
+    const leftCol = document.querySelector('#filtersColumn');
     const isOpen = leftCol && leftCol.classList.contains('drawer-open');
     isOpen ? closeMobileFilter() : openMobileFilter();
   });
@@ -6323,7 +6323,7 @@ async function renderHoldersByTrait(){
     const listedCount = listedIds.length;
 
     // Thumbnails of matching listed tokens
-    const thumbsHtml = listedIds.slice(0,20).map(id => {
+    const thumbsHtml = listedIds.map(id => {
       const price = window.LISTINGS[id].opensea.price_eth;
       const priceStr = price >= 1 ? price.toFixed(3) : price.toFixed(4);
       const imgSrc = _getTokenImgSrc(id);
@@ -6339,11 +6339,10 @@ async function renderHoldersByTrait(){
         onmouseleave="_hideChartTooltip('_holderThumbTT')"
       >${imgTag}</div>`;
     }).join('');
-    const moreCount = listedIds.length > 20 ? listedIds.length - 20 : 0;
 
     // Also show non-listed matching tokens as smaller dots
     const unlisted = w.matchingIds.filter(id => !window.LISTINGS?.[id]?.opensea?.price_eth);
-    const unlistedHtml = unlisted.slice(0,20).map(id => {
+    const unlistedHtml = unlisted.map(id => {
       const imgSrc = _getTokenImgSrc(id);
       const rank = RARITY_OBS_RANK.get(id);
       window._holderThumbs[id] = {img: imgSrc, price: null, rank: rank||'?'};
@@ -6376,10 +6375,9 @@ async function renderHoldersByTrait(){
         ${estVal ? `<span>≈ <b style="color:#2dd4bf">${estVal} ETH</b></span>` : ''}
         ${listedCount > 0 ? `<span><b style="color:#f59e0b">${listedCount}</b> listed</span>` : ''}
       </div>
-      ${w.matchingIds.length > 0 ? `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap" onclick="event.stopPropagation()">
+      ${w.matchingIds.length > 0 ? `<div class="holder-thumb-gallery" onclick="event.stopPropagation()">
         ${thumbsHtml}
-        ${moreCount > 0 ? `<div style="font-size:10px;color:var(--sub);padding:0 4px">+${moreCount}</div>` : ''}
-        ${unlistedHtml ? `<div style="width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 4px"></div>${unlistedHtml}` : ''}
+        ${unlistedHtml ? `<div style="width:1px;height:24px;background:rgba(255,255,255,.1);margin:0 4px;flex-shrink:0"></div>${unlistedHtml}` : ''}
       </div>` : ''}
     </div>`;
   }).join('');
@@ -6494,7 +6492,7 @@ function renderHolders(){
       const listedIds = window.LISTINGS
         ? (w.ids || []).filter(id => window.LISTINGS[id]?.opensea?.price_eth != null)
         : [];
-      const thumbsHtml = listedIds.slice(0,20).map(id => {
+      const thumbsHtml = listedIds.map(id => {
         const price = window.LISTINGS[id].opensea.price_eth;
         const priceStr = price >= 1 ? price.toFixed(3) : price.toFixed(4);
         const imgSrc = _getTokenImgSrc(id);
@@ -6511,7 +6509,6 @@ function renderHolders(){
           onmouseleave="_hideChartTooltip('_holderThumbTT')"
         >${imgTag}</div>`;
       }).join('');
-      const moreCount = listedIds.length > 20 ? listedIds.length - 20 : 0;
 
       return `<div style="padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);margin-bottom:2px;cursor:pointer"
         onclick="openWalletView('${addr}')">
@@ -6529,9 +6526,8 @@ function renderHolders(){
           ${listedCount > 0 ? `<span><b style="color:#f59e0b">${listedCount}</b> listed</span>` : '<span style="opacity:.5">none listed</span>'}
         </div>
         ${listedIds.length > 0 ? `
-        <div class="holder-thumbs-row" style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px" onclick="event.stopPropagation()">
+        <div class="holder-thumbs-row" style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:none;padding-bottom:2px" onclick="event.stopPropagation()">
           ${thumbsHtml}
-          ${moreCount > 0 ? `<div style="font-size:10px;color:var(--sub);flex-shrink:0;padding:0 6px;white-space:nowrap">+${moreCount} more</div>` : ''}
         </div>` : ''}
       </div>`;
     }).join('');

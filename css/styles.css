@@ -291,8 +291,8 @@ a{color:var(--accent)!important}
   body.drawer-active{overflow:hidden!important}
   body.drawer-active .wrap,
   body.drawer-active .bar>div:last-child{pointer-events:none!important}
-  body.drawer-active .bar>div:first-child,
-  body.drawer-active .bar>div:first-child *,
+  body.drawer-active #filtersColumn,
+  body.drawer-active #filtersColumn *,
   body.drawer-active #floatFilterBtn{pointer-events:auto!important}
 
   /* ── Topbar ── */
@@ -385,7 +385,7 @@ a{color:var(--accent)!important}
   #mobileMenu{top:96px!important;right:8px!important;min-width:min(280px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important}
 
   /* ── Filter drawer (left column) ── */
-  .bar>div:first-child{
+  #filtersColumn{
     position:fixed!important;top:0!important;left:0!important;bottom:0!important;padding-top:72px!important;
     width:min(320px,86vw)!important;z-index:1001!important;
     /* Transparent so ::before blur shows through */
@@ -406,7 +406,7 @@ a{color:var(--accent)!important}
   /* iOS Safari frosted glass workaround:
      backdrop-filter on position:fixed is broken on iOS.
      Use ::before (position:absolute inside the fixed el) which iOS DOES blur. */
-  .bar>div:first-child::before{
+  #filtersColumn::before{
     content:''!important;
     position:absolute!important;inset:0!important;
     background:rgba(11,15,23,.82)!important;
@@ -415,8 +415,8 @@ a{color:var(--accent)!important}
     z-index:-1!important;
     pointer-events:none!important
   }
-  .bar>div:first-child.drawer-open{transform:translateX(0)!important;pointer-events:auto!important}
-  .bar>div:first-child.drawer-open,.bar>div:first-child.drawer-open *{pointer-events:auto!important}
+  #filtersColumn.drawer-open{transform:translateX(0)!important;pointer-events:auto!important}
+  #filtersColumn.drawer-open,#filtersColumn.drawer-open *{pointer-events:auto!important}
 
   /* ── Filter drawer overlay ── */
   #filterDrawerOverlay{
@@ -1926,7 +1926,7 @@ html[data-theme="ink"] body::before {
 }
 /* Left column filter card — frosted (desktop only; mobile handled in @media block) */
 @media (min-width:901px) {
-  .bar > div:first-child {
+  #filtersColumn {
     background: rgba(255,255,255,0.025);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -2007,7 +2007,7 @@ html[data-theme="ink"] body::before {
 /* ── Left column — no box around the whole filter area ───────────────────── */
 /* Desktop only — strip box around left column filter area */
 @media (min-width:901px) {
-  .bar > div:first-child {
+  #filtersColumn {
     background: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
@@ -2788,7 +2788,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   }
 
   /* ── Left column: consistent gap ── */
-  .bar > div:first-child {
+  #filtersColumn {
     gap: 10px !important;
   }
 }
@@ -3238,7 +3238,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
       align-items:start!important;
     }
 
-    .bar > div:first-child{
+    #filtersColumn{
       position:sticky!important;
       top:0!important;
       max-height:calc(100vh - 54px)!important;
@@ -3493,7 +3493,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-rank-num{font-weight:900;color:#dbe7f5;text-align:right}
 .burn-points{font-weight:900;color:#dbe7f5;text-align:center}
 .burn-token-chip{display:inline-flex;align-items:center;gap:5px;padding:1px 4px 1px 1px;border:0;border-radius:0;background:transparent;line-height:1}
-.burn-chip-list{display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:2px;vertical-align:top;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.burn-chip-list{display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:2px;vertical-align:top;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;touch-action:pan-x;-webkit-overflow-scrolling:touch}
 .burn-chip-list::-webkit-scrollbar{height:4px}
 .burn-chip-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
 .burn-chip-list::-webkit-scrollbar-track{background:transparent}
@@ -3501,7 +3501,8 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-token-thumb:hover{box-shadow:0 0 0 1px rgba(45,212,191,.5)}
 .burn-token-thumb img{width:100%;height:100%;object-fit:contain;display:block}
 .burn-token-id{font-size:11px;font-weight:800}
-.burn-input-gallery{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:3px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.burn-input-gallery{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:3px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;touch-action:pan-x;-webkit-overflow-scrolling:touch}
+.holder-thumb-gallery{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:2px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;-webkit-overflow-scrolling:touch;touch-action:pan-x}
 .burn-input-gallery::-webkit-scrollbar{height:4px}
 .burn-input-gallery::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
 .burn-input-gallery::-webkit-scrollbar-track{background:transparent}

@@ -58,7 +58,8 @@ function burnsRankBadge(rank){
   const n = Number(rank);
   if(!Number.isFinite(n) || n <= 0) return '';
   const cls = n <= 100 ? 'gold' : (n <= 1000 ? 'purple' : 'teal');
-  return `<span class="burn-rank ${cls}">#${burnsMetric(n)}</span>`;
+  const diamond = (typeof rankDiamondHtml === 'function') ? rankDiamondHtml(n) : `#${burnsMetric(n)}`;
+  return `<span class="burn-rank ${cls}">${diamond}</span>`;
 }
 function burnsRankTag(id){
   const n = Number(id);
