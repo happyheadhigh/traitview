@@ -863,10 +863,29 @@ async function computeHolderTags(addr, ids){
   }
 
   const tags = [];
-  const zombieCount = [...typeCounts.entries()].find(([k]) => /zombie/i.test(k))?.[1] || 0;
-  const apeCount = [...typeCounts.entries()].find(([k]) => /ape/i.test(k))?.[1] || 0;
-  if(zombieCount >= 3) holderTagAdd(tags, { label:'Zombie King', cls:'cursed', detail:`Holds ${zombieCount} Zombies`, ids:typeIds.get([...typeCounts.keys()].find(k => /zombie/i.test(k))) || [], score:90 + zombieCount });
-  if(apeCount >= 3) holderTagAdd(tags, { label:'Ape Lord', cls:'grail', detail:`Holds ${apeCount} Apes`, ids:typeIds.get([...typeCounts.keys()].find(k => /ape/i.test(k))) || [], score:88 + apeCount });
+  // Bespoke flavor for known types; anything else still gets tagged via the
+  // generic fallback below instead of being silently skipped (the old code
+  // only ever checked Zombie and Ape specifically, so Skeleton/Alien/Angel/
+  // etc. holders never got a type tag at all, no matter how many they held).
+  const TYPE_TAG_DEFS = [
+    { pattern:/zombie/i,   label:'Zombie King',   cls:'cursed' },
+    { pattern:/ape/i,      label:'Ape Lord',      cls:'grail' },
+    { pattern:/skeleton/i, label:'Bone Collector',cls:'cursed' },
+    { pattern:/alien/i,    label:'Alien Overlord',cls:'combo' },
+    { pattern:/angel/i,    label:'Angel Keeper',  cls:'grail' },
+  ];
+  for(const [typeName, count] of typeCounts.entries()){
+    if(count < 3) continue;
+    if(/human/i.test(typeName)) continue; // baseline/common type — not a distinguishing flex
+    const def = TYPE_TAG_DEFS.find(d => d.pattern.test(typeName));
+    holderTagAdd(tags, {
+      label: def ? def.label : `${typeName} Collector`,
+      cls: def ? def.cls : 'trait',
+      detail: `Holds ${count} ${typeName}`,
+      ids: typeIds.get(typeName) || [],
+      score: (def ? 88 : 80) + count,
+    });
+  }
   if(blindEyes >= 2) holderTagAdd(tags, { label:'Blind Eyes Whale', cls:'combo', detail:`Owns ${blindEyes} Blind Eyes`, ids:blindIds, score:82 + blindEyes });
   if(diamondTraits >= 3) holderTagAdd(tags, { label:'Diamond Baron', cls:'drip', detail:`Owns ${diamondTraits} Diamond traits`, ids:diamondIds, score:84 + diamondTraits });
   if(topRanks >= 2) holderTagAdd(tags, { label:'Grail Keeper', cls:'grail', detail:`Holds ${topRanks} top-ranked OCAS`, ids:topRankIds, score:86 + topRanks });
@@ -1617,13 +1636,19 @@ async function init(){
         RARITY_OBS_RANK = new Map(fastBundle.rank.map(([id,_s], i) => [id, i+1]));
         // Load OS rank from Railway DB (lean endpoint, cached 1hr at CDN)
         if(OS_RANK_MAP.size === 0){
-          dbFetch('/db/os-ranks')
+          const loadOsRanks = () => dbFetch('/db/os-ranks')
             .then(j => {
               if(j?.ok && j.ranks?.length){
                 OS_RANK_MAP = new Map(j.ranks.map(([id,rank]) => [id, rank]));
+                window.OS_RANK_MAP = OS_RANK_MAP;
                 console.log('[OS Rank] Loaded ' + OS_RANK_MAP.size + ' tokens');
               }
             }).catch(()=>{});
+          loadOsRanks();
+          // Ranks now update on a rolling ~1.8-day cycle server-side (see
+          // rank-sync.js) — refresh periodically so a long-lived tab doesn't
+          // get stuck showing whatever ranks were live at page load forever.
+          setInterval(loadOsRanks, 10 * 60 * 1000);
         }
       }
       if(fastBundle.freq){
@@ -2783,6 +2808,17 @@ function updateActivePills(){
 
     let startY = 0, lastY = 0, deltaY = 0, tracking = false, dragging = false;
 
+    function closestHorizontalScroller(node){
+      while(node && node !== el && node !== document.body){
+        if(node.nodeType === 1){
+          const cs = getComputedStyle(node);
+          const canScrollX = /(auto|scroll)/.test(cs.overflowX || '') && node.scrollWidth > node.clientWidth + 2;
+          if(canScrollX) return node;
+        }
+        node = node.parentNode;
+      }
+      return null;
+    }
     function closestScrollable(node){
       while(node && node !== el && node !== document.body){
         if(node.nodeType === 1){
@@ -2810,6 +2846,12 @@ function updateActivePills(){
       deltaY = 0;
       tracking = true;
       dragging = false;
+      // If this touch starts inside a horizontally-scrollable gallery (burn
+      // inputs, holder thumbnails, etc.), never treat it as a drag-to-close
+      // candidate — the old atTop check only looked at vertical scroll
+      // position and would misfire on any diagonal wobble during a
+      // horizontal swipe, hijacking the gallery's own scroll.
+      tracking = !closestHorizontalScroller(e.target);
     }, {passive:true});
 
     el.addEventListener('touchmove', e => {
