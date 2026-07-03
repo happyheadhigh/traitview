@@ -437,6 +437,61 @@ async function loadWalletRarityImprovement(data){
   }
 }
 
+// ── Your Burns (personal burn stats) ────────────────────────────────────────
+// Reuses Burns tab's own card-rendering helpers (burnsTokenChip, burnsInputGallery,
+// burnsTxLink, burnsMetric — all from burnsAnalytics.js, loaded sitewide) so this
+// panel looks and behaves exactly like the Burns tab's own cards, no duplicated UI.
+function renderWalletBurnStats(stats){
+  if(!stats || !stats.burnCount){
+    return '<div class="wallet-empty-state">No burns yet from this wallet. Burn a few tokens together and your personal stats will show up here.</div>';
+  }
+  const angelBanner = stats.angelCount > 0 ? `<div class="extinct-banner" style="background:linear-gradient(135deg,rgba(28,255,175,.14),rgba(28,255,175,.03));border-color:rgba(28,255,175,.28)">
+    <div class="extinct-title" style="color:#1CFFAF">✨ ${stats.angelCount} Angel Result${stats.angelCount===1?'':'s'}</div>
+    <div class="extinct-sub">A rare, best-case burn outcome — you've hit it ${stats.angelCount} time${stats.angelCount===1?'':'s'}</div>
+  </div>` : '';
+  const eventsHtml = (stats.events || []).slice(0, 10).map(ev => {
+    const dateStr = ev.burnedAt ? new Date(ev.burnedAt).toLocaleDateString() : '';
+    const ptsHtml = ev.pointsUsed != null ? `<span class="burn-best-pts">${burnsMetric(ev.pointsUsed)} pts</span>` : '';
+    const angelTag = ev.isAngel ? `<span class="burn-best-tag" style="background:rgba(28,255,175,.15);border-color:rgba(28,255,175,.35);color:#1CFFAF">✨ Angel</span>` : '';
+    return `<div class="burn-best-card">
+      <div class="burn-best-survivor-row">
+        <span class="burn-best-tag survivor">Survivor</span>
+        ${burnsTokenChip(ev.survivorTokenId)}
+        ${angelTag}
+        ${ptsHtml}
+        <span class="burn-best-tx">${burnsTxLink(ev.txHash)}</span>
+        ${dateStr ? `<span style="font-size:10px;color:var(--sub);margin-left:auto">${dateStr}</span>` : ''}
+      </div>
+      <div class="burn-best-burned-row">
+        <span class="burn-best-tag burned">Burned (${burnsMetric((ev.burnedTokenIds||[]).length)})</span>
+        ${burnsInputGallery(ev.burnedTokenIds)}
+      </div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="wallet-stat-row" style="margin-bottom:12px">
+      <div class="wallet-stat-cell"><span>Burns</span><b>${burnsMetric(stats.burnCount)}</b></div>
+      <div class="wallet-stat-cell"><span>Tokens Consumed</span><b>${burnsMetric(stats.tokensConsumed)}</b></div>
+      <div class="wallet-stat-cell"><span>Survivors Created</span><b>${burnsMetric(stats.survivorsCreated)}</b></div>
+      <div class="wallet-stat-cell"><span>Points Earned</span><b>${burnsMetric(stats.totalPoints)}</b></div>
+    </div>
+    ${angelBanner}
+    <div class="burn-best-list" style="max-height:320px">${eventsHtml}</div>
+  `;
+}
+async function loadWalletBurnStats(address){
+  const hosts = ['walletBurnStatsHost', 'mobileWalletBurnStatsHost']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if(!hosts.length || !address) return;
+  try{
+    const data = await dbFetch(`/db/wallet/${encodeURIComponent(address)}/burn-stats`);
+    const html = renderWalletBurnStats(data);
+    hosts.forEach(h => h.innerHTML = html);
+  }catch(e){
+    hosts.forEach(h => h.innerHTML = '<div class="wallet-empty-state">Could not load burn stats.</div>');
+  }
+}
+
 // ── Trait Exposure hover ────────────────────────────────────────────────────
 // Shows thumbnails of exactly which owned tokens carry a given trait value,
 // using the shared _walletOwnedTraitsMap built above.
@@ -494,6 +549,10 @@ function walletMobileAnalyticsHtml(data){
     <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title" style="color:#1CFFAF">Rarity Gained From Burns</div></div>
       <div id="mobileRarityImproveHost"><div class="wallet-empty-state">Calculating…</div></div>
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">🔥 Your Burns</div></div>
+      <div id="mobileWalletBurnStatsHost"><div class="wallet-empty-state">Loading…</div></div>
     </div>
     <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Top Owned Tokens</div></div>
@@ -558,6 +617,10 @@ function walletDesktopAnalyticsHtml(data){
     <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Wallet Activity Timeline</div><div class="wallet-analytics-sub">Real history + transfer rows</div></div>
       ${walletActivityChartHtml(data)}
+    </div>
+    <div class="wallet-analytics-card">
+      <div class="wallet-analytics-head"><div class="wallet-analytics-title">🔥 Your Burns</div></div>
+      <div id="walletBurnStatsHost"><div class="wallet-empty-state">Loading…</div></div>
     </div>
     <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:8px">
       <div class="wallet-analytics-card">
@@ -680,4 +743,5 @@ function renderWalletAnalytics(data){
   if(mobileHost) mobileHost.innerHTML = walletMobileAnalyticsHtml(data);
   setTimeout(flushWalletActivityPlot, 80);
   loadWalletRarityImprovement(data);
+  loadWalletBurnStats(data?.address);
 }
