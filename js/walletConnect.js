@@ -10,8 +10,15 @@ window.addEventListener?.('eip6963:announceProvider', (event) => {
 try{ window.dispatchEvent(new Event('eip6963:requestProvider')); }catch(_){}
 async function buildConnectedWalletStats(addr, ids){
   const cleanIds = [...new Set((ids || []).map(Number).filter(Boolean))];
-  const ranks = cleanIds.map(id => Number(OS_RANK_MAP?.get(id) || RARITY_OBS_RANK?.get(id) || 0)).filter(Boolean);
-  const bestRank = ranks.length ? Math.min(...ranks) : null;
+  // Never mix OS and TV ranks in one comparison — they're different ranking
+  // systems and aren't comparable to each other. Compute "best" purely from
+  // real OS ranks when any exist (OS is always the preferred default), only
+  // falling back to a pure TV-based computation if none of the owned tokens
+  // have an OS rank at all.
+  const osRanks = cleanIds.map(id => Number(OS_RANK_MAP?.get(id) || 0)).filter(Boolean);
+  const tvRanks = cleanIds.map(id => Number(RARITY_OBS_RANK?.get(id) || 0)).filter(Boolean);
+  const bestRank = osRanks.length ? Math.min(...osRanks) : (tvRanks.length ? Math.min(...tvRanks) : null);
+  const bestRankSys = osRanks.length ? 'os' : 'tv';
   const typeCounts = new Map();
   const categoryRareHits = new Map();
   let rarestOwned = null;
@@ -33,27 +40,31 @@ async function buildConnectedWalletStats(addr, ids){
   const strongestCategory = [...categoryRareHits.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
   const tags = await computeHolderTags(addr, cleanIds);
   const personality = tags[0]?.label || (dominantType ? `${dominantType[0]} Collector` : (cleanIds.length ? 'OCAS Holder' : 'Visitor'));
-  return { total:cleanIds.length, bestRank, dominantType, strongestCategory, rarestOwned, tags, personality };
+  return { total:cleanIds.length, bestRank, bestRankSys, dominantType, strongestCategory, rarestOwned, tags, personality };
 }
 function renderConnectedHolderPanel(host, stats){
   if(!host || !stats) return;
-  const rank = stats.bestRank ? rankDiamondHtml(stats.bestRank, 'font-size:13px;font-weight:900;') : '—';
+  const rank = stats.bestRank ? rankDiamondHtml(stats.bestRank, 'font-size:13px;font-weight:900;', stats.bestRankSys) : '—';
   const type = stats.dominantType ? `${stats.dominantType[0]} (${stats.dominantType[1]})` : '—';
   host.innerHTML = `
     <div class="connected-holder-inner">
-      <div class="connected-holder-top">
-        <div class="connected-holder-title">Connected holder</div>
-        <div class="connected-holder-addr">${shortAddr(CONNECTED_WALLET.address)}</div>
+      <div class="connected-holder-row1">
+        <div class="connected-holder-top">
+          <div class="connected-holder-title">Connected holder</div>
+          <div class="connected-holder-addr">${shortAddr(CONNECTED_WALLET.address)}</div>
+        </div>
+        <div class="connected-holder-stats">
+          <div class="connected-holder-stat"><span>Owned</span><b>${stats.total}</b></div>
+          <div class="connected-holder-stat"><span>Best</span><b>${rank}</b></div>
+          <div class="connected-holder-stat"><span>Type</span><b>${comboEsc(type)}</b></div>
+        </div>
       </div>
-      <div class="connected-holder-stats">
-        <div class="connected-holder-stat"><span>Owned</span><b>${stats.total}</b></div>
-        <div class="connected-holder-stat"><span>Best</span><b>${rank}</b></div>
-        <div class="connected-holder-stat"><span>Type</span><b>${comboEsc(type)}</b></div>
-      </div>
-      <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
-      <div class="connected-holder-actions">
-        <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
-        <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
+      <div class="connected-holder-tagsrow">
+        <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
+        <div class="connected-holder-actions">
+          <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
+          <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
+        </div>
       </div>
     </div>`;
   host.classList.add('is-visible');
