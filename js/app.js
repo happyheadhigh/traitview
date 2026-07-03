@@ -529,8 +529,8 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
       }
       const __total = TOKEN_COUNT || (MANIFEST && (MANIFEST.tokenCount || (MANIFEST.files?.at(-1)?.end))) || 10000;
       const __pct = (__count && __total) ? ((__count/__total)*100) : null;
-      const __pctTxt = __pct!=null ? ` <i class="trait-pct" style="opacity:.75;font-style:normal;font-size:12px;margin-left:4px;">— ${__pct < 0.1 ? __pct.toFixed(3) : __pct.toFixed(2)}%</i>` : '';
-      row.innerHTML=`<input type="checkbox" id="${id}"><span>${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}}
+      const __pctTxt = __pct!=null ? `<i class="trait-pct" style="opacity:.75;font-style:normal;font-size:12px;flex-shrink:0;margin-left:auto;padding-left:8px">${__pct < 0.1 ? __pct.toFixed(3) : __pct.toFixed(2)}%</i>` : '';
+      row.innerHTML=`<input type="checkbox" id="${id}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}}
 
 /* tooltip helpers moved to js/tooltip.js */
 

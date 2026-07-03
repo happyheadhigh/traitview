@@ -45,7 +45,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .btn.ghost{background:transparent;border-color:var(--border)}
 .btn.ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn.go{background:rgba(25,195,125,.15);border-color:var(--good);box-shadow:0 0 0 1px var(--good) inset;color:#c7f9df}
-.bar{display:grid;grid-template-columns:360px 1fr;gap:14px}
+.bar{display:grid;grid-template-columns:280px 1fr;gap:14px}
 @media (max-width:1100px){.bar{grid-template-columns:1fr}}
 #desktopBottomStatusBar{display:none}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px}
@@ -1244,6 +1244,8 @@ a{color:var(--accent)!important}
   border-radius: 10px; padding: 7px; cursor: pointer;
   transition: border-color .12s ease;
   display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+  overflow: hidden;
 }
 .sale-card:hover { border-color: rgba(255,255,255,0.18); }
 .sale-card.sales-list-card {
@@ -1331,6 +1333,7 @@ a{color:var(--accent)!important}
   gap: 10px;
   transition: border-color .15s ease;
   min-width: 0;
+  overflow: hidden;
 }
 .mispriced-card:hover { border-color: rgba(255,255,255,0.2); }
 .mispriced-thumb {
@@ -1363,8 +1366,8 @@ a{color:var(--accent)!important}
   border-color: rgba(45,212,191,0.35);
   color: var(--accent);
 }
-.mp-traits{ display:flex; flex-wrap:wrap; gap:2px 14px; margin-top:2px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.07); }
-.mp-trait-row{ font-size:10.5px; line-height:1.5; white-space:nowrap; }
+.mp-traits{ display:flex; flex-direction:column; gap:2px; margin-top:2px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.07); min-width:0; overflow:hidden; }
+.mp-trait-row{ font-size:10.5px; line-height:1.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; max-width:100%; }
 .mp-opensea{ font-size:10px; color:var(--sub); text-decoration:none; margin-top:2px; display:inline-block; }
 
 /* Grid view: compact tiles, image-on-top, info kept (not stripped) but tighter */
@@ -1378,7 +1381,7 @@ a{color:var(--accent)!important}
 }
 #mispricedGrid.mp-grid .mispriced-id,
 #mispricedGrid.mp-grid .mispriced-price{ font-size:11px; }
-#mispricedGrid.mp-grid .mp-traits{ flex-direction:column; gap:1px; margin-top:1px; padding-top:3px; }
+#mispricedGrid.mp-grid .mp-traits{ gap:1px; margin-top:1px; padding-top:3px; }
 #mispricedGrid.mp-grid .mp-trait-row:nth-child(n+3){ display:none; } /* keep top 2 of 3 — still info-rich, just tighter */
 #mispricedGrid.mp-grid .mp-opensea{ font-size:9px; }
 
