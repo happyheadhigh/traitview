@@ -270,12 +270,6 @@ function walletActivityChartHtml(data){
   const rangeMs = { '1d': 864e5, '7d': 7*864e5, '30d': 30*864e5, 'all': Infinity }[WALLET_ACTIVITY_RANGE] ?? Infinity;
   const cutoff = Date.now() - rangeMs;
   const inRange = withHoldings.filter(e => e.ts >= cutoff);
-  console.log('[WalletActivity DEBUG]', {
-    WALLET_ACTIVITY_RANGE, rangeMs, cutoff, cutoffDate: new Date(cutoff).toString(),
-    eventsAllCount: eventsAll.length, withHoldingsCount: withHoldings.length, inRangeCount: inRange.length,
-    firstEventTs: eventsAll[0]?.ts, firstEventDate: eventsAll[0] ? new Date(eventsAll[0].ts).toString() : null,
-    lastEventTs: eventsAll[eventsAll.length-1]?.ts, lastEventDate: eventsAll.length ? new Date(eventsAll[eventsAll.length-1].ts).toString() : null,
-  });
   if(!inRange.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No activity in this time range. Try a wider range.</div>`;
 
   const events = inRange.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));
