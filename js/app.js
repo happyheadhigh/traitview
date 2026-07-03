@@ -417,7 +417,7 @@ async function renderTokenGrid(ids, opts){
     const rankVal = getRankSystem() === 'tv' ? theoVal : (osRankVal || theoVal);
     const rankSys = getRankSystem() === 'tv' ? 'tv' : (osRankVal ? 'os' : 'tv');
     const rankBadge = rankVal ? `<span class=\"chip\">${rankDiamondHtml(rankVal,'',rankSys)}</span>` : '';
-    if (rankVal){ d.dataset.rank = String(rankVal); const t=rankTier(rankVal); if(t) d.dataset.rankTier=t; }
+    if (rankVal){ d.dataset.rank = String(rankVal); d.dataset.rankSys = rankSys; const t=rankTier(rankVal); if(t) d.dataset.rankTier=t; }
     if (osRankVal) d.dataset.osRank = String(osRankVal);
     d.dataset.id = String(id);
 const osCardUrl=`https://opensea.io/assets/ethereum/${LIVE_CONTRACT}/${id}`;
@@ -2394,7 +2394,6 @@ function _renderMobileWalletGrid(ids, grid){
   grid.innerHTML = '';
   const frag = document.createDocumentFragment();
   for(const id of ids){
-    const rank = RARITY_OBS_RANK.get(id);
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : imgForId(id);
@@ -2402,7 +2401,7 @@ function _renderMobileWalletGrid(ids, grid){
     card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
     card.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
-      (rank ? `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${rankDiamondHtml(rank)}</div>` : '') +
+      `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">Ξ${priceStr}</div>` : '');
     card.addEventListener('click', () => { closeMobileWalletDrawer(); openModal(id); });
@@ -2544,7 +2543,6 @@ function _renderDesktopWalletGrid(ids, grid){
   grid.innerHTML = '';
   const frag = document.createDocumentFragment();
   for(const id of ids){
-    const rank = RARITY_OBS_RANK.get(id);
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : imgForId(id);
@@ -2552,7 +2550,7 @@ function _renderDesktopWalletGrid(ids, grid){
     card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
     card.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
-      (rank ? `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${rankDiamondHtml(rank)}</div>` : '') +
+      `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">Ξ${priceStr}</div>` : '');
     card.addEventListener('click', () => { openModal(id); });
@@ -3260,7 +3258,7 @@ function stampMobileBadges(){
     if(!isCompact && card.dataset.rank){
       const r = document.createElement('div');
       r.className = 'mobile-rank-badge';
-      r.innerHTML = rankDiamondHtml(card.dataset.rank);
+      r.innerHTML = rankDiamondHtml(card.dataset.rank, '', card.dataset.rankSys);
       r.style.cssText = BADGE + 'top:4px;left:4px;font-size:9px;padding:2px 5px;background:rgba(8,12,18,.72);';
       card.appendChild(r);
     }
@@ -3499,8 +3497,7 @@ const VS = {
     const rankVal = getRankSystem() === 'tv' ? theoVal2 : (osRankVal2 || theoVal2);
     const rankSys2 = getRankSystem() === 'tv' ? 'tv' : (osRankVal2 ? 'os' : 'tv');
     const rankBadge = rankVal ? `<span class="chip">${rankDiamondHtml(rankVal,'',rankSys2)}</span>` : '';
-    if (rankVal){ d.dataset.rank = String(rankVal); const t=rankTier(rankVal); if(t) d.dataset.rankTier=t; }
-    if (osRankVal2) d.dataset.osRank = String(osRankVal2);
+    if (rankVal){ d.dataset.rank = String(rankVal); d.dataset.rankSys = rankSys2; const t=rankTier(rankVal); if(t) d.dataset.rankTier=t; }
     d.dataset.id = String(id);
     const osCardUrl=`https://opensea.io/assets/ethereum/${LIVE_CONTRACT}/${id}`;
     d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorite(id)?'active':''}" data-fav-id="${id}" title="${isFavorite(id)?'Remove favorite':'Add favorite'}" aria-pressed="${isFavorite(id)?'true':'false'}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg></button><button type="button" class="pinbtn" data-act="A" title="Pin to A">A</button><button type="button" class="pinbtn" data-act="B" title="Pin to B">B</button><button type="button" class="pinbtn" data-act="+" title="Add to pinned">＋</button></div>
@@ -4727,7 +4724,7 @@ async function loadManifest(){
         <div class="sale-thumb">${imgHtml}</div>
         <div class="sale-body">
           <div class="sale-head">
-            <span class="sale-id">#${id} ${rank ? `<span style="font-size:10.5px;font-weight:500">${rankDiamondHtml(rank)}</span>` : ''}</span>
+            <span class="sale-id">#${id} ${id ? `<span style="font-size:10.5px;font-weight:500">${displayRankHtml(+id)}</span>` : ''}</span>
             ${eth ? `<span class="sale-price" style="color:${getSaleCurrencyColor(sale)}">Ξ ${eth} <span style="font-size:10px;opacity:.8">${getSaleCurrency(sale)}</span></span>` : ''}
           </div>
           ${vsFloor}
@@ -5148,7 +5145,7 @@ async function buildMispricedPanel(listedIds){
       <div class="mispriced-thumb">${imgHtml}</div>
       <div class="mispriced-body">
         <div class="mispriced-head">
-          <span class="mispriced-id">#${id} <span style="font-size:10.5px;font-weight:500">${rankDiamondHtml(rank)}</span></span>
+          <span class="mispriced-id">#${id} <span style="font-size:10.5px;font-weight:500">${displayRankHtml(id)}</span></span>
           <span class="mispriced-price">Ξ ${ethFmt}</span>
         </div>
         <span class="${scoreClass}">${scoreTxt}</span>
@@ -5277,7 +5274,7 @@ async function loadSimilarListedTokens(id){
           <div style="padding:3px 4px;font-size:9px">
             <div style="font-weight:700;color:var(--text)">#${t.id}</div>
             <div style="color:#2dd4bf;font-weight:700">Ξ ${t.price.toFixed(4)}</div>
-            ${t.rank ? `<div>${rankDiamondHtml(t.rank, "font-size:9px;font-weight:700;")}</div>` : ''}
+            <div>${displayRankHtml(t.id, "font-size:9px;font-weight:700;")}</div>
           </div>
         </div>`;
       }).join('')}
@@ -5394,7 +5391,7 @@ async function runTwinFinderFromInput(id){
         <div style="padding:6px;font-size:10px;line-height:1.25">
           <div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><b style="color:var(--text)">#${t.id}</b><span style="color:#2dd4bf;font-weight:800">${t.pct}%</span></div>
           <div style="color:var(--sub);margin-top:2px">${label} - ${t.sharedCount} shared</div>
-          ${t.rank ? `<div style="margin-top:2px">${rankDiamondHtml(t.rank, "font-size:9px;font-weight:700;")}</div>` : ''}
+          <div style="margin-top:2px">${displayRankHtml(t.id, "font-size:9px;font-weight:700;")}</div>
           <div style="color:#94a3b8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${t.shared.join(', ')}">${t.shared.join(' - ')}</div>
         </div>
       </div>`;
@@ -5510,7 +5507,7 @@ async function runTwinFinderFromInput(id){
             imgHtml = `<img src="${s}" alt="#${t.id}" loading="lazy" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">`;
           }
         }
-        const rankHtml = t.rank ? `<div class="wallet-rank">${rankDiamondHtml(t.rank.toLocaleString().replace(/,/g,""), "font-size:10px;font-weight:700;")}</div>` : '';
+        const rankHtml = `<div class="wallet-rank">${displayRankHtml(t.id, "font-size:10px;font-weight:700;")}</div>`;
         const priceHtml = (window.LISTINGS && window.LISTINGS[t.id]?.opensea?.price_eth != null)
           ? `<div style="font-size:9px;color:#2dd4bf;font-weight:700">Ξ ${window.LISTINGS[t.id].opensea.price_eth.toFixed(4)}</div>` : '';
         return `<div class="wallet-card" onclick="openModal(${t.id})">
@@ -5755,7 +5752,7 @@ function _holderThumbEnter(id, clientX, clientY){
   _showChartTooltip('_holderThumbTT', clientX, clientY,
     imgH +
     `<div style="font-weight:700;font-size:12px;margin-bottom:2px">#${id}</div>` +
-    `<div style="font-size:10px;margin-bottom:4px">${rankDiamondHtml(d.rank || '')}</div>` +
+    `<div style="font-size:10px;margin-bottom:4px">${rankDiamondHtml(d.rank || '', '', d.rankSys)}</div>` +
     (d.price != null ? `<div style="color:#2dd4bf;font-weight:700;font-size:13px">Ξ ${d.price} ETH</div>` : '') +
     `<div style="color:#7a8fa8;font-size:10px;margin-top:5px">Click to open token</div>`
   );
@@ -6167,7 +6164,7 @@ function renderFloorTrend(){
       const sale = allSalesDots.find(s=>s.id===id) || {};
       const img  = _getTokenImgSrc(id);
       const imgH = img ? `<img src="${img}" style="width:60px;height:60px;object-fit:contain;border-radius:6px;image-rendering:pixelated;display:block;margin-bottom:8px">` : '';
-      const rank = sale.rank ? `<div style="font-size:11px;margin-bottom:3px">${rankDiamondHtml(sale.rank, 'font-weight:700;')}</div>` : '';
+      const rank = `<div style="font-size:11px;margin-bottom:3px">${displayRankHtml(id, 'font-weight:700;')}</div>`;
       const seller = sale.seller ? `<div style="font-size:10px;color:#7a8fa8;margin-top:4px">From: ${sale.seller.slice(0,6)}…${sale.seller.slice(-4)}</div>` : '';
       const buyer  = sale.buyer  ? `<div style="font-size:10px;color:#7a8fa8">To: ${sale.buyer.slice(0,6)}…${sale.buyer.slice(-4)}</div>` : '';
       const ts     = sale.ts ? `<div style="font-size:10px;color:#7a8fa8;margin-top:2px">${new Date(sale.ts*1000).toLocaleString()}</div>` : '';
@@ -6370,8 +6367,8 @@ async function renderHoldersByTrait(){
       const price = window.LISTINGS[id].opensea.price_eth;
       const priceStr = price >= 1 ? price.toFixed(3) : price.toFixed(4);
       const imgSrc = _getTokenImgSrc(id);
-      const rank = RARITY_OBS_RANK.get(id);
-      window._holderThumbs[id] = {img: imgSrc, price: priceStr, rank: rank||'?'};
+      const _dr = displayRankFor(id);
+      window._holderThumbs[id] = {img: imgSrc, price: priceStr, rank: _dr.value||'?', rankSys: _dr.system};
       const imgTag = imgSrc
         ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block">`
         : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:9px">#${id}</div>`;
@@ -6387,8 +6384,8 @@ async function renderHoldersByTrait(){
     const unlisted = w.matchingIds.filter(id => !window.LISTINGS?.[id]?.opensea?.price_eth);
     const unlistedHtml = unlisted.map(id => {
       const imgSrc = _getTokenImgSrc(id);
-      const rank = RARITY_OBS_RANK.get(id);
-      window._holderThumbs[id] = {img: imgSrc, price: null, rank: rank||'?'};
+      const _dr = displayRankFor(id);
+      window._holderThumbs[id] = {img: imgSrc, price: null, rank: _dr.value||'?', rankSys: _dr.system};
       const imgTag = imgSrc
         ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block;opacity:.7">`
         : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:9px">#${id}</div>`;
@@ -6539,9 +6536,9 @@ function renderHolders(){
         const price = window.LISTINGS[id].opensea.price_eth;
         const priceStr = price >= 1 ? price.toFixed(3) : price.toFixed(4);
         const imgSrc = _getTokenImgSrc(id);
-        const rank = RARITY_OBS_RANK.get(id);
+        const _dr = displayRankFor(id);
         // Store data globally so the hover handler can access it cleanly
-        window._holderThumbs[id] = {img: imgSrc, price: priceStr, rank: rank||'?'};
+        window._holderThumbs[id] = {img: imgSrc, price: priceStr, rank: _dr.value||'?', rankSys: _dr.system};
         const imgTag = imgSrc
           ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block">`
           : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:9px">#${id}</div>`;
