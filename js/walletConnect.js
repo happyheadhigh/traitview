@@ -142,6 +142,7 @@ async function setConnectedWallet(addr, chainId, tokenIds, opts={}){
   try{ localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({ address:addr, chainId })); }catch(_){}
   updateWalletConnectButtons();
   if(typeof tvCheckLinkStatus === 'function') tvCheckLinkStatus(addr).catch(()=>{});
+  if(typeof syncFavoritesWithWallet === 'function') syncFavoritesWithWallet(addr).catch(()=>{});
   const desktopInput = document.getElementById('walletInput');
   const mobileInput = document.getElementById('mobileWalletInput');
   if(desktopInput) desktopInput.value = addr;

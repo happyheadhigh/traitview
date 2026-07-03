@@ -3539,7 +3539,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-mini-primary{min-width:0}
 .burn-best-inputs{flex-basis:100%;min-width:0}
 .burn-best-tx{color:rgba(203,213,225,.6);font-size:10px}
-.burn-best-list{display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:4px;scrollbar-width:thin}
+.burn-best-list{display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;overflow-x:visible;padding-right:4px;scrollbar-width:thin}
 .burn-best-card{display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:8px}
 .burn-best-survivor-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .burn-best-burned-row{display:flex;align-items:center;gap:8px}
