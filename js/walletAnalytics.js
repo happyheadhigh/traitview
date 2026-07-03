@@ -305,6 +305,7 @@ function walletActivityChartHtml(data){
     showlegend:true,
     legend:{x:0,y:1,font:{size:10},bgcolor:'rgba(0,0,0,0)',orientation:'h'},
     hovermode:'closest',
+    dragmode:'pan',
   };
   setTimeout(()=>{
     const host = document.getElementById(hostId);
@@ -312,7 +313,8 @@ function walletActivityChartHtml(data){
     const render = () => {
       const currentHost = document.getElementById(hostId);
       if(!currentHost || typeof Plotly === 'undefined') return;
-      Plotly.newPlot(currentHost, traces, layout, {responsive:true,displayModeBar:false});
+      currentHost.style.touchAction = 'none'; // let Plotly own the gesture instead of competing with page scroll
+      Plotly.newPlot(currentHost, traces, layout, {responsive:true,displayModeBar:false,scrollZoom:true});
       currentHost.on('plotly_click', function(eventData){
         const pt = eventData.points?.[0];
         if(!pt || pt.data.mode !== 'markers') return;

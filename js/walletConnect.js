@@ -182,6 +182,39 @@ async function connectTraitViewWallet(){
     if(e?.code !== 4001) alert(e?.message || 'Wallet connection failed.');
   }
 }
+// ── Mobile wallet action sheet ──────────────────────────────────────────────
+// Desktop's #walletConnectMenu is a dropdown anchored to a topbar button that
+// doesn't exist in the mobile layout (that button lives inside the mobile
+// menu instead, and just calls connectTraitViewWallet() directly with no
+// menu at all once already connected — meaning Discord Verify was
+// unreachable from "Connect Wallet" on mobile). This reuses the same
+// wallet-launch-modal visual pattern already proven mobile-friendly.
+function handleMobileWalletConnectButton(){
+  if(!CONNECTED_WALLET?.address){
+    connectTraitViewWallet();
+    return;
+  }
+  document.getElementById('mobileWalletActionModal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'mobileWalletActionModal';
+  modal.className = 'wallet-launch-modal open';
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+  const addr = CONNECTED_WALLET.address;
+  modal.innerHTML = `
+    <div class="wallet-launch-box">
+      <div class="wallet-launch-head">
+        <div class="wallet-launch-title">${comboEsc(shortAddr(addr))}</div>
+        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove()" style="background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer;padding:0;line-height:1">×</button>
+      </div>
+      <div class="wallet-launch-actions">
+        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove();if(typeof openMobileWalletDrawer==='function') openMobileWalletDrawer('${comboEsc(addr)}')">Wallet View</button>
+        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove();if(typeof tvShowDiscordVerifyModal==='function') tvShowDiscordVerifyModal()">🔗 Discord Verify</button>
+        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove();disconnectTraitViewWallet()">Disconnect</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
 function disconnectTraitViewWallet(){
   CONNECTED_WALLET = { address:null, chainId:null, tokenIds:[], tokenSet:new Set(), stats:null };
   window.CONNECTED_WALLET = CONNECTED_WALLET;

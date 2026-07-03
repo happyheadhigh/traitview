@@ -828,6 +828,23 @@ a{color:var(--accent)!important}
   }
   #mobileAnalyticsInner .holder-thumbs-row::-webkit-scrollbar{display:none!important}
 
+  /* Burns tab: same fix — these were being silently clipped by the blanket
+     overflow-x:hidden above, same as holder-thumbs-row needed before it. */
+  #mobileAnalyticsInner .burn-input-gallery,
+  #mobileAnalyticsInner .holder-thumb-gallery,
+  #mobileAnalyticsInner .burn-chip-list{
+    display:flex!important;flex-direction:row!important;
+    overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;
+    scrollbar-width:none!important;flex-wrap:nowrap!important;
+    touch-action:pan-x!important;
+  }
+  #mobileAnalyticsInner .burn-input-gallery::-webkit-scrollbar,
+  #mobileAnalyticsInner .holder-thumb-gallery::-webkit-scrollbar,
+  #mobileAnalyticsInner .burn-chip-list::-webkit-scrollbar{display:none!important}
+  #mobileAnalyticsInner .burn-best-list{
+    overflow-x:visible!important;
+  }
+
   /* ── List view horizontal scroll data row ── */
   .mobile-list-datarow{
     display:flex;gap:0;overflow-x:auto;
