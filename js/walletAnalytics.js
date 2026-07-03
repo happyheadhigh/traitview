@@ -452,15 +452,15 @@ function showTraitExposureTooltip(ev, categoryEnc, valueEnc){
   const tip = document.getElementById('walletTraitTooltip') || document.body.appendChild(
     Object.assign(document.createElement('div'), { id:'walletTraitTooltip', className:'wallet-trait-tooltip' })
   );
-  const shown = matches.slice(0, 10);
+  const shown = matches.slice(0, 8);
   tip.innerHTML = `<div class="wallet-trait-tooltip-label">${shown.length < matches.length ? `${matches.length} tokens` : `${matches.length} token${matches.length===1?'':'s'}`}</div>
     <div class="wallet-trait-tooltip-grid">${shown.map(id => {
       const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
-      return `<img src="${comboEsc(src)}" alt="#${id}" title="#${id}" onclick="openModal(${id})">`;
-    }).join('')}${matches.length > shown.length ? `<span class="wallet-trait-tooltip-more">+${matches.length - shown.length}</span>` : ''}</div>`;
+      return `<div class="wallet-trait-tooltip-item" onclick="openModal(${id})"><img src="${comboEsc(src)}" alt="#${id}"><span>#${id}</span></div>`;
+    }).join('')}${matches.length > shown.length ? `<div class="wallet-trait-tooltip-more">+${matches.length - shown.length}</div>` : ''}</div>`;
   tip.style.display = 'block';
-  const x = Math.min(window.innerWidth - 210, ev.clientX + 14);
-  const y = Math.min(window.innerHeight - 140, ev.clientY + 14);
+  const x = Math.min(window.innerWidth - 296, ev.clientX + 14);
+  const y = Math.min(window.innerHeight - 160, ev.clientY + 14);
   tip.style.left = `${Math.max(8, x)}px`;
   tip.style.top = `${Math.max(8, y)}px`;
 }
@@ -484,11 +484,11 @@ function walletMobileAnalyticsHtml(data){
         <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="loadWalletAnalytics('${comboEsc(data.address)}',{force:true})">Refresh</button>
       </div>
       <div class="wallet-stats-grid">
-        <div class="wallet-stat-chip"><span>Total Owned</span><b>${walletMetric(summary.owned_count)}</b></div>
-        <div class="wallet-stat-chip"><span>Best Rank</span><b>${walletMetric(summary.best_rank)}</b></div>
-        <div class="wallet-stat-chip"><span>Listed</span><b>${walletMetric(summary.listed_count)}</b></div>
-        <div class="wallet-stat-chip"><span>Est. Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
-        <div class="wallet-stat-chip"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
+        <div class="wallet-stat-cell"><span>Total Owned</span><b>${walletMetric(summary.owned_count)}</b></div>
+        <div class="wallet-stat-cell"><span>Best Rank</span><b>${walletMetric(summary.best_rank)}</b></div>
+        <div class="wallet-stat-cell"><span>Listed</span><b>${walletMetric(summary.listed_count)}</b></div>
+        <div class="wallet-stat-cell"><span>Est. Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
+        <div class="wallet-stat-cell"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
       </div>
     </div>
     <div class="wallet-analytics-card">
@@ -546,13 +546,13 @@ function walletDesktopAnalyticsHtml(data){
         <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="loadWalletAnalytics('${comboEsc(data.address)}',{force:true})">Refresh</button>
       </div>
       <div class="wallet-stat-row">
-        <div class="wallet-stat-pill"><span>Owned</span><b>${walletMetric(summary.owned_count)}</b></div>
-        <div class="wallet-stat-pill"><span>Best Rank</span><b>${walletMetric(summary.best_rank)}</b></div>
-        <div class="wallet-stat-pill"><span>Listed</span><b>${walletMetric(summary.listed_count)}</b></div>
-        <div class="wallet-stat-pill"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
-        <div class="wallet-stat-pill"><span>Est Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
-        <div class="wallet-stat-pill"><span>Realized P&L</span><b style="color:${walletPnl(summary.realized_pnl).color}">${walletPnl(summary.realized_pnl).text}</b></div>
-        <div class="wallet-stat-pill"><span>Unrealized P&L</span><b style="color:${walletPnl(summary.unrealized_pnl).color}">${walletPnl(summary.unrealized_pnl).text}</b></div>
+        <div class="wallet-stat-cell"><span>Owned</span><b>${walletMetric(summary.owned_count)}</b></div>
+        <div class="wallet-stat-cell"><span>Best Rank</span><b>${walletMetric(summary.best_rank)}</b></div>
+        <div class="wallet-stat-cell"><span>Listed</span><b>${walletMetric(summary.listed_count)}</b></div>
+        <div class="wallet-stat-cell"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
+        <div class="wallet-stat-cell"><span>Est Value</span><b>${walletEth(summary.estimated_floor_value)}</b></div>
+        <div class="wallet-stat-cell"><span>Realized P&L</span><b style="color:${walletPnl(summary.realized_pnl).color}">${walletPnl(summary.realized_pnl).text}</b></div>
+        <div class="wallet-stat-cell"><span>Unrealized P&L</span><b style="color:${walletPnl(summary.unrealized_pnl).color}">${walletPnl(summary.unrealized_pnl).text}</b></div>
       </div>
     </div>
     <div class="wallet-analytics-card">

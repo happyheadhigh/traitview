@@ -280,7 +280,7 @@ a{color:var(--accent)!important}
 *{scrollbar-width:thin;scrollbar-color:#1e293b #0b1220}
 
 /* === Mobile cleanup === */
-@media (max-width:768px){.top-tab{font-size:11px;padding:7px 10px}.mispriced-card{grid-template-columns:52px 1fr}.mispriced-thumb{width:52px;height:52px}}
+@media (max-width:768px){.top-tab{font-size:11px;padding:7px 10px}.mispriced-thumb{width:52px;height:52px}}
 
 @media (max-width:900px){
 
@@ -639,7 +639,6 @@ a{color:var(--accent)!important}
   #modal .traits{width:100%!important;margin-top:4px!important;overflow-wrap:anywhere;word-break:break-word}
 
   /* ── Mispriced cards ── */
-  .mispriced-card{grid-template-columns:52px 1fr}
   .mispriced-thumb{width:52px;height:52px}
 
   /* ── Hide old float filter button — replaced by bottom bar ── */
@@ -1231,13 +1230,13 @@ a{color:var(--accent)!important}
 /* Sales grid — compact grid mode */
 #salesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 8px; margin-top: 6px;
 }
-/* Sales list mode */
+/* Sales list mode — wide, rich rows */
 #salesGrid.sales-list {
-  grid-template-columns: 1fr;
-  gap: 5px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 8px;
 }
 .sale-card {
   background: rgba(255,255,255,0.03);
@@ -1248,21 +1247,31 @@ a{color:var(--accent)!important}
 }
 .sale-card:hover { border-color: rgba(255,255,255,0.18); }
 .sale-card.sales-list-card {
-  flex-direction: row; align-items: center; gap: 10px; padding: 6px 10px;
+  flex-direction: row; align-items: flex-start; gap: 10px; padding: 8px 10px;
 }
 .sale-thumb {
   width: 100%; aspect-ratio: 1/1; border-radius: 7px;
   overflow: hidden; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  background: rgba(0,0,0,.15);
 }
 .sale-card.sales-list-card .sale-thumb {
-  width: 40px; height: 40px; flex-shrink: 0;
+  width: 76px; height: 76px; flex-shrink: 0;
 }
 .sale-thumb img { width:100%; height:100%; object-fit:contain; }
-.sale-id { font-weight: 700; font-size: 11.5px; font-family: 'Space Grotesk', sans-serif; }
-.sale-price { color: var(--accent); font-size: 12px; font-weight: 700; }
+.sale-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.sale-head{ display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
+.sale-id { font-weight: 700; font-size: 11.5px; font-family: 'Space Grotesk', sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sale-price { color: var(--accent); font-size: 12px; font-weight: 700; white-space:nowrap; flex-shrink:0; }
 .sale-time { color: var(--sub); font-size: 10.5px; }
 .sale-mkt { font-size: 10px; color: var(--sub); opacity: 0.75; }
+.vs-floor-badge{
+  display:inline-block; align-self:flex-start;
+  font-size: 9.5px; font-weight: 700; border-radius: 999px;
+  padding: 1px 6px;
+}
+.vs-floor-badge.above{ background: rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.3); color:#f87171; }
+.vs-floor-badge.below{ background: rgba(45,212,191,.15); border:1px solid rgba(45,212,191,.35); color:#2dd4bf; }
 /* Sales view toggle */
 .sales-view-toggle {
   display: flex; gap: 4px; margin-left: auto;
@@ -1304,34 +1313,43 @@ a{color:var(--accent)!important}
 #floorPill .fp-loading { opacity: .55; font-weight: 400; }
 
 /* === Mispriced Listings Panel === */
+#mispricedGrid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 8px;
+}
+#mispricedGrid.mp-grid{
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+}
 .mispriced-card {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.09);
   border-radius: 12px;
   padding: 10px;
   cursor: pointer;
-  display: grid;
-  grid-template-columns: 60px 1fr;
+  display: flex;
   gap: 10px;
-  align-items: start;
   transition: border-color .15s ease;
   min-width: 0;
 }
 .mispriced-card:hover { border-color: rgba(255,255,255,0.2); }
 .mispriced-thumb {
-  width: 60px; height: 60px;
-  border-radius: 8px;
+  width: 84px; height: 84px;
+  border-radius: 9px;
   overflow: hidden;
   flex-shrink: 0;
+  background: rgba(0,0,0,.15);
   display: flex; align-items: center; justify-content: center;
 }
 .mispriced-thumb img { width:100%; height:100%; object-fit:contain; }
-.mispriced-meta { display:flex; flex-direction:column; gap:3px; font-size:12px; min-width:0; }
-.mispriced-id { font-weight:800; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.mispriced-price { color:var(--accent); font-weight:700; }
+.mispriced-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.mispriced-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.mispriced-id { font-weight:800; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mispriced-price { color:var(--accent); font-weight:800; font-size:13px; white-space:nowrap; flex-shrink:0; }
 .mispriced-rank { color:var(--text); font-weight:600; }
 .mispriced-score {
   display:inline-block;
+  align-self: flex-start;
   background: rgba(122,162,255,0.12);
   border: 1px solid rgba(122,162,255,0.25);
   border-radius: 999px;
@@ -1345,6 +1363,31 @@ a{color:var(--accent)!important}
   border-color: rgba(45,212,191,0.35);
   color: var(--accent);
 }
+.mp-traits{ display:flex; flex-wrap:wrap; gap:2px 14px; margin-top:2px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.07); }
+.mp-trait-row{ font-size:10.5px; line-height:1.5; white-space:nowrap; }
+.mp-opensea{ font-size:10px; color:var(--sub); text-decoration:none; margin-top:2px; display:inline-block; }
+
+/* Grid view: compact tiles, image-on-top, info kept (not stripped) but tighter */
+#mispricedGrid.mp-grid .mispriced-card{
+  flex-direction: column;
+  padding: 7px;
+}
+#mispricedGrid.mp-grid .mispriced-thumb{
+  width: 100%; height: auto; aspect-ratio: 1/1;
+  margin-bottom: 2px;
+}
+#mispricedGrid.mp-grid .mispriced-id,
+#mispricedGrid.mp-grid .mispriced-price{ font-size:11px; }
+#mispricedGrid.mp-grid .mp-traits{ flex-direction:column; gap:1px; margin-top:1px; padding-top:3px; }
+#mispricedGrid.mp-grid .mp-trait-row:nth-child(n+3){ display:none; } /* keep top 2 of 3 — still info-rich, just tighter */
+#mispricedGrid.mp-grid .mp-opensea{ font-size:9px; }
+
+/* Summary bar — clean dividers, no pills */
+.mp-summary-row{display:flex;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.10);margin-bottom:8px}
+.mp-summary-cell{flex:1;min-width:0;padding:7px 10px;border-left:1px solid rgba(255,255,255,.07)}
+.mp-summary-cell:first-child{border-left:0}
+.mp-summary-cell span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:rgba(203,213,225,.74);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mp-summary-cell b{display:block;margin-top:2px;font-size:14px;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ── Rarity Score Breakdown (modal) ─────────────────────────────── */
 #mRarityBreakdown { margin-top: 14px; }
@@ -1558,10 +1601,13 @@ a{color:var(--accent)!important}
 .wallet-analytics-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .wallet-analytics-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text)}
 .wallet-analytics-sub{font-size:11px;color:var(--sub);line-height:1.35}
-.wallet-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
-.wallet-stat-chip{min-width:0;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(255,255,255,.045);padding:8px}
-.wallet-stat-chip span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wallet-stat-chip b{display:block;margin-top:4px;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.10)}
+.wallet-stat-row{display:flex;align-items:stretch;overflow-x:auto;max-width:100%;scrollbar-width:none;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.10)}
+.wallet-stat-row::-webkit-scrollbar{display:none}
+.wallet-stat-cell{flex:1 1 0;min-width:0;padding:7px 10px;border-left:1px solid rgba(255,255,255,.07)}
+.wallet-stat-cell:first-child{border-left:0}
+.wallet-stat-cell span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:rgba(203,213,225,.74);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wallet-stat-cell b{display:block;margin-top:2px;font-size:14px;font-weight:900;color:var(--text);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wallet-top-token-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px}
 .wallet-top-token{cursor:pointer;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(255,255,255,.045);overflow:hidden;min-width:0}
 .wallet-top-token:hover{border-color:rgba(28,255,175,.38);box-shadow:0 0 0 1px rgba(28,255,175,.12)}
@@ -1577,12 +1623,14 @@ a{color:var(--accent)!important}
 .wallet-trait-label b{display:block;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wallet-trait-label span{display:block;font-size:10px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wallet-trait-count{font-size:12px;font-weight:900;color:#1CFFAF}
-.wallet-trait-tooltip{position:fixed;z-index:100000;display:none;width:200px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:rgba(10,15,22,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 16px 34px rgba(0,0,0,.46);padding:8px}
-.wallet-trait-tooltip-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--sub);margin-bottom:6px}
-.wallet-trait-tooltip-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
-.wallet-trait-tooltip-grid img{width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:5px;background:var(--soft);border:1px solid rgba(255,255,255,.10);cursor:pointer}
-.wallet-trait-tooltip-grid img:hover{border-color:rgba(28,255,175,.5)}
-.wallet-trait-tooltip-more{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--sub);background:rgba(255,255,255,.05);border-radius:5px}
+.wallet-trait-tooltip{position:fixed;z-index:100000;display:none;width:280px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:rgba(10,15,22,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 16px 34px rgba(0,0,0,.46);padding:10px}
+.wallet-trait-tooltip-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--sub);margin-bottom:8px}
+.wallet-trait-tooltip-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.wallet-trait-tooltip-item{display:flex;flex-direction:column;gap:2px;cursor:pointer}
+.wallet-trait-tooltip-item img{width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:7px;background:var(--soft);border:1px solid rgba(255,255,255,.10)}
+.wallet-trait-tooltip-item:hover img{border-color:rgba(28,255,175,.5)}
+.wallet-trait-tooltip-item span{font-size:9px;text-align:center;color:var(--sub)}
+.wallet-trait-tooltip-more{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--sub);background:rgba(255,255,255,.05);border-radius:7px;aspect-ratio:1/1}
 .wallet-history-bars{display:flex;align-items:end;gap:3px;height:72px;padding:8px;border-radius:10px;background:rgba(0,0,0,.14);border:1px solid rgba(255,255,255,.08);overflow:hidden}
 .wallet-history-bar{flex:1;min-width:4px;border-radius:999px 999px 0 0;background:linear-gradient(180deg,#1CFFAF,#7c4dff);opacity:.9}
 .wallet-transfer-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto;padding-right:4px}
@@ -1599,11 +1647,6 @@ a{color:var(--accent)!important}
 .wallet-empty-state{border:1px dashed rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.03);color:var(--sub);font-size:12px;line-height:1.4;padding:10px}
 .token-history-section{margin-top:12px;border-top:1px solid rgba(255,255,255,.10);padding-top:10px}
 .wallet-analytics-compact{display:flex;flex-direction:column;gap:8px}
-.wallet-stat-row{display:flex;gap:6px;align-items:center;overflow-x:auto;max-width:100%;padding-bottom:2px;scrollbar-width:none}
-.wallet-stat-row::-webkit-scrollbar{display:none}
-.wallet-stat-pill{flex:1 1 0;min-width:92px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:rgba(255,255,255,.045);padding:6px 9px;display:flex;align-items:center;justify-content:space-between;gap:7px}
-.wallet-stat-pill span{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);font-weight:900;white-space:nowrap}
-.wallet-stat-pill b{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wallet-activity-filters{display:flex;gap:5px;flex-wrap:wrap;margin:2px 0 6px}
 /* Wallet Edge */
 .wallet-edge-row{display:flex;align-items:flex-start;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px;line-height:1.35}
@@ -1612,9 +1655,7 @@ a{color:var(--accent)!important}
 .wallet-edge-value{color:var(--text);font-weight:600;flex:1}
 .wallet-edge-tag{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:900;border:1px solid rgba(28,255,175,.35);background:rgba(28,255,175,.09);color:#1CFFAF;margin-bottom:4px}
 /* Mispriced summary row pills */
-.mp-summary-pill{display:flex;flex-direction:column;gap:1px;padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);min-width:80px}
-.mp-summary-pill span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);font-weight:800}
-.mp-summary-pill b{font-size:12px;color:var(--text)}
+
 .wallet-activity-filter{border:1px solid rgba(255,255,255,.10);border-radius:999px;background:rgba(255,255,255,.04);color:var(--sub);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:5px 8px;cursor:pointer}
 .wallet-activity-filter.active{border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.09);color:#1CFFAF}
 .wallet-activity-chart{position:relative;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(0,0,0,.13);overflow:hidden}
@@ -1648,6 +1689,8 @@ a{color:var(--accent)!important}
   #walletConnectMenu{display:none!important}
   #walletConnectBtn{display:none!important}
   .wallet-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wallet-stats-grid .wallet-stat-cell:nth-child(n+3){border-top:1px solid rgba(255,255,255,.07)}
+  .wallet-stats-grid .wallet-stat-cell:nth-child(even){border-left:1px solid rgba(255,255,255,.07)}
   .wallet-top-token-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .wallet-analytics-card{padding:9px}
 }
@@ -2006,30 +2049,6 @@ html[data-theme="ink"] body::before {
 }
 
 /* ── Token cards — transparent on mobile only ────────────────────────────── */
-
-/* Mispriced grid view */
-#mispricedGrid.mp-grid {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-  flex-direction: unset !important;
-}
-#mispricedGrid.mp-grid .mispriced-card {
-  grid-template-columns: 1fr;
-  padding: 6px;
-}
-#mispricedGrid.mp-grid .mispriced-thumb {
-  width: 100%; height: auto; aspect-ratio: 1/1;
-  margin-bottom: 4px;
-}
-#mispricedGrid.mp-grid .mispriced-meta {
-  font-size: 10.5px;
-}
-/* Hide trait rows and opensea link in grid mode — too narrow */
-#mispricedGrid.mp-grid .mp-traits,
-#mispricedGrid.mp-grid .mp-opensea {
-  display: none;
-}
 
 /* Token grid rank badge — no background, floating text */
 #tokenGrid .token .chip {
@@ -3450,7 +3469,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-card .wallet-analytics-title{font-size:10px;color:#dbe7f5;letter-spacing:.09em}
 .burn-card .wallet-analytics-sub{font-size:10.5px;color:rgba(203,213,225,.66)}
 .burn-table{display:flex;flex-direction:column;gap:0;max-height:250px;overflow:auto;padding-right:4px;scrollbar-width:thin}
-.burn-table-head{display:grid;align-items:center;gap:8px;padding:0 6px 5px;color:rgba(203,213,225,.62);font-size:9px;font-weight:900;letter-spacing:.075em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08)}
+.burn-table-head{position:sticky;top:0;z-index:2;background:var(--bg);display:grid;align-items:center;gap:8px;padding:0 6px 5px;color:rgba(203,213,225,.62);font-size:9px;font-weight:900;letter-spacing:.075em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08)}
 .burn-latest-table .burn-table-head{grid-template-columns:82px minmax(180px,1.55fr) minmax(110px,.85fr) 44px 50px 82px 86px}
 .burn-latest-table .burn-table-head span:nth-child(4),
 .burn-latest-table .burn-table-head span:nth-child(5){text-align:center}

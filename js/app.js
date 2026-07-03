@@ -4579,7 +4579,7 @@ async function loadManifest(){
       }
 
       nextCursor = j.next_cursor || null;
-      renderSales(isAutoRefresh);
+      await renderSales(isAutoRefresh);
       setStatus('idle');
     }catch(e){
       console.warn('[Sales] fetchNewest error:', e);
@@ -4601,7 +4601,7 @@ async function loadManifest(){
       const fresh = incoming.filter(s => !existingKeys.has((s.transaction||s.event_timestamp)+'_'+(s.nft?.identifier||'')));
       ALL_SALES = [...ALL_SALES, ...fresh];
       nextCursor = j.next_cursor || null;
-      renderSales(false);
+      await renderSales(false);
     }catch(e){
       console.warn('[Sales] fetchMore error:', e);
     }finally{
@@ -4615,7 +4615,7 @@ async function loadManifest(){
   }
 
   // ── render ────────────────────────────────────────────────────────────────
-  function renderSales(isRefresh){
+  async function renderSales(isRefresh){
     const traitMap       = getActiveTraitMap();
     const hasTraitFilter = traitMap.size > 0;
 
@@ -4647,8 +4647,14 @@ async function loadManifest(){
       return;
     }
 
+    const rankMap = (typeof RARITY_MODE !== 'undefined' && RARITY_MODE === 'theoretical' && typeof RARITY_THEO_RANK !== 'undefined' && RARITY_THEO_RANK.size)
+      ? RARITY_THEO_RANK : (typeof RARITY_OBS_RANK !== 'undefined' ? RARITY_OBS_RANK : new Map());
+    const floorEl = document.getElementById('floorPillValue');
+    const floorPrice = floorEl ? parseFloat(floorEl.textContent.replace(/[^0-9.]/g,'')) || 0 : 0;
+    const hasTFS = Object.keys(TRAIT_FREQ||{}).length > 0;
+
     const newIds = new Set(toShow.map(s => s.nft?.identifier));
-    grid.innerHTML = toShow.map(sale => {
+    const cards = await Promise.all(toShow.map(async sale => {
       const id     = sale.nft?.identifier;
       const img    = sale.nft?.image_url || sale.nft?.display_image_url || '';
       const eth    = formatSaleEth(sale);
@@ -4662,16 +4668,33 @@ async function loadManifest(){
 
       const isList = window.SALES_VIEW === 'list';
       const cardClass = `sale-card${isNew?' sale-new-flash':''}${isList?' sales-list-card':''}`;
+      const rank = id ? rankMap.get(+id) : null;
+
+      let traitsSection = '';
+      if(id && hasTFS && typeof getTopRareTraits === 'function'){
+        try{
+          const rarest = await getTopRareTraits(+id, 2);
+          if(rarest.length) traitsSection = `<div class="mp-traits">${rareTraitRowsHtml(rarest)}</div>`;
+        }catch(_){}
+      }
+      const ethNum = parseFloat(eth) || 0;
+      const vsFloor = (typeof vsFloorBadgeHtml === 'function') ? vsFloorBadgeHtml(ethNum, floorPrice) : '';
+
       return `<div class="${cardClass}" data-id="${id}" onclick="openModal(${+id})">
         <div class="sale-thumb">${imgHtml}</div>
-        <div style="flex:1;min-width:0">
-          <div class="sale-id">#${id}</div>
-          ${eth ? `<div class="sale-price" style="color:${getSaleCurrencyColor(sale)}">Ξ ${eth} <span style="font-size:10px;opacity:.8">${getSaleCurrency(sale)}</span></div>` : ''}
+        <div class="sale-body">
+          <div class="sale-head">
+            <span class="sale-id">#${id} ${rank ? `<span style="font-size:10.5px;font-weight:500">${rankDiamondHtml(rank)}</span>` : ''}</span>
+            ${eth ? `<span class="sale-price" style="color:${getSaleCurrencyColor(sale)}">Ξ ${eth} <span style="font-size:10px;opacity:.8">${getSaleCurrency(sale)}</span></span>` : ''}
+          </div>
+          ${vsFloor}
+          ${traitsSection}
           <div class="sale-time" title="${date}">${ago}</div>
         </div>
       </div>`;
-    }).join('');
+    }));
 
+    grid.innerHTML = cards.join('');
     salesKnownIds = newIds;
     updateLoadMoreBtn();
   }
@@ -5070,45 +5093,24 @@ async function buildMispricedPanel(listedIds){
     // Show only the rarest 3 traits that make this token stand out
     let traitsSection = '';
     try{
-      let rowCard = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || null;
-      if(!rowCard && typeof ensureChunk === 'function' && typeof chunkIndexFor === 'function'){
-        const chCard = await ensureChunk(chunkIndexFor(id));
-        rowCard = chCard && chCard[String(id)] ? chCard[String(id)] : null;
-      }
-      if(rowCard && Object.keys(TRAIT_FREQ||{}).length > 0){
-        const traitsCard = typeof keepEntries === 'function' ? keepEntries(rowCard.traits) : Object.entries(rowCard.traits||{});
-        const tot = TOKEN_COUNT || 10000;
-        const rarest = traitsCard.map(function(pair){
-          const tn=pair[0], tv=pair[1];
-          const cnt = (TRAIT_FREQ[tn]&&TRAIT_FREQ[tn][tv]) || tot;
-          return {tn:tn, tv:tv, pct:cnt/tot*100};
-        }).sort(function(a,b){return a.pct-b.pct;}).slice(0,3);
-        const rowParts = [];
-        for(var ri=0;ri<rarest.length;ri++){
-          var r=rarest[ri];
-          var pctStr = r.pct < 1 ? r.pct.toFixed(2)+'%' : r.pct.toFixed(1)+'%';
-          var col = r.pct < 5 ? '#2dd4bf' : '#a8b3c9';
-          var fw = r.pct < 5 ? '700' : '400';
-          rowParts.push('<div style="font-size:10.5px;line-height:1.5;word-break:break-word">'
-            +'<span style="color:#6b7a99">'+r.tn+': </span>'
-            +'<span style="color:'+col+';font-weight:'+fw+'">'+r.tv+'</span>'
-            +' <span style="color:#6b7a99;font-size:10px">'+pctStr+'</span>'
-            +'</div>');
-        }
-        if(rowParts.length){
-          traitsSection = '<div class="mp-traits" style="margin-top:5px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.07)">'+rowParts.join('')+'</div>';
+      if(typeof getTopRareTraits === 'function' && Object.keys(TRAIT_FREQ||{}).length > 0){
+        const rarest = await getTopRareTraits(id, 3);
+        if(rarest.length){
+          traitsSection = `<div class="mp-traits">${rareTraitRowsHtml(rarest)}</div>`;
         }
       }
     }catch(e){ console.warn('traitSection err',e); }
 
     return `<div class="mispriced-card" data-id="${id}" onclick="openModal(${id})">
       <div class="mispriced-thumb">${imgHtml}</div>
-      <div class="mispriced-meta">
-        <div class="mispriced-id">#${id} <span style="font-size:10.5px;font-weight:500">${rankDiamondHtml(rank)}</span></div>
-        <div class="mispriced-price">Ξ ${ethFmt} ETH</div>
+      <div class="mispriced-body">
+        <div class="mispriced-head">
+          <span class="mispriced-id">#${id} <span style="font-size:10.5px;font-weight:500">${rankDiamondHtml(rank)}</span></span>
+          <span class="mispriced-price">Ξ ${ethFmt}</span>
+        </div>
         <span class="${scoreClass}">${scoreTxt}</span>
         ${traitsSection}
-        ${url ? `<a class="mp-opensea" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:10px;color:var(--sub);text-decoration:none;margin-top:3px;display:inline-block">OpenSea ↗</a>` : ''}
+        ${url ? `<a class="mp-opensea" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OpenSea ↗</a>` : ''}
       </div>
     </div>`;
   }));
