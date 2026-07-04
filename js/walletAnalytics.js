@@ -276,53 +276,54 @@ function walletActivityChartHtml(data){
   if(!events.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No events match the selected activity filters in this range.</div>`;
 
   const hostId = 'walletActivityPlotly_' + Date.now();
-  const kindColors = {mint:'#1CFFAF',sale:'#2dd4bf',listing:'#60a5fa',burn:'#f87171',transfer:'#a78bfa'};
+  const kindColors = {mint:'#1CFFAF',sale:'#2dd4bf',burn:'#f87171',transfer:'#a78bfa'};
+  const kindLabels = {mint:'Mint',sale:'Sale',burn:'Burn',transfer:'Transfer'};
 
-  // Base area/line — always the full range-selected history (unaffected by
-  // kind filters), so toggling a kind filter never breaks or shortens the
-  // line; it only changes which markers glow.
-  const lineTrace = {
-    x: inRange.map(e => new Date(e.ts).toISOString()),
-    y: inRange.map(e => e.held),
-    mode: 'lines', type: 'scatter', name: 'Tokens Held',
-    line: { color: '#1CFFAF', width: 2, shape: 'spline', smoothing: 0.35 },
-    fill: 'tozeroy', fillcolor: 'rgba(28,255,175,0.10)',
-    hoverinfo: 'skip', showlegend: false,
-  };
-  // One marker trace per kind, plotted at the SAME (time, holdings) coordinate
-  // as the line — so every dot sits meaningfully on the story, not floating
-  // in empty space tied only to price.
-  const byKind = {};
-  for(const e of events){
-    if(!byKind[e.kind]) byKind[e.kind] = {x:[],y:[],ids:[],dates:[],prices:[]};
-    byKind[e.kind].x.push(new Date(e.ts).toISOString());
-    byKind[e.kind].y.push(e.held);
-    byKind[e.kind].ids.push(e.id||0);
-    byKind[e.kind].dates.push(new Date(e.ts).toLocaleDateString());
-    byKind[e.kind].prices.push(e.price > 0 ? e.price : null);
+  // Four separate lines — one per kind — each a running count of how many of
+  // that kind have happened over time (source-of-change breakdown, not a
+  // single "tokens held" figure). All four start from a shared zero point at
+  // the earliest visible timestamp so they read as one consistent story.
+  const startTs = inRange[0].ts;
+  const traces = [];
+  for(const kind of ['mint','sale','burn','transfer']){
+    if(!WALLET_ACTIVITY_FILTERS.has(kind)) continue;
+    const kindEvents = events.filter(e => e.kind === kind);
+    let count = 0;
+    const x = [new Date(startTs).toISOString()];
+    const y = [0];
+    const ids = [null]; const dates = ['']; const prices = [null];
+    for(const e of kindEvents){
+      count++;
+      x.push(new Date(e.ts).toISOString());
+      y.push(count);
+      ids.push(e.id||0);
+      dates.push(new Date(e.ts).toLocaleDateString());
+      prices.push(e.price > 0 ? e.price : null);
+    }
+    traces.push({
+      x, y, mode:'lines+markers', type:'scatter', name:kindLabels[kind],
+      line:{ color:kindColors[kind], width:2, shape:'spline', smoothing:0.3 },
+      marker:{ size:9, color:kindColors[kind], symbol:'circle', opacity:.95,
+                line:{color:'rgba(0,0,0,.35)',width:1.5} },
+      customdata: ids.map((id,i)=>({id, kind, date:dates[i], eth:prices[i]})),
+      hoverinfo:'none', // custom image tooltip below replaces Plotly's plain-text hover
+    });
   }
-  const markerTraces = Object.entries(byKind).map(([kind,d])=>({
-    x:d.x, y:d.y, mode:'markers', type:'scatter', name:kind,
-    marker:{size:9,color:kindColors[kind]||'#9aa4b2',symbol:'circle',opacity:.95,
-            line:{color:'rgba(0,0,0,.35)',width:1.5}},
-    customdata:d.ids.map((id,i)=>({id, kind, date:d.dates[i], eth:d.prices[i]})),
-    hoverinfo:'none', // custom image tooltip below replaces Plotly's plain-text hover
-  }));
-  const traces = [lineTrace, ...markerTraces];
+  if(!traces.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No events match the selected activity filters in this range.</div>`;
 
   const cs = getComputedStyle(document.body);
   const textColor = cs.getPropertyValue('--text').trim()||'#e6edf7';
   const subColor  = cs.getPropertyValue('--sub').trim()||'#7a8fa8';
   const cardBg = cs.getPropertyValue('--card').trim() || '#111c2a';
   const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
-  const maxHeld = Math.max(1, ...inRange.map(e=>e.held));
-  const dtick = maxHeld <= 10 ? 1 : Math.ceil(maxHeld/6);
+  const maxCount = Math.max(1, ...traces.map(t => Math.max(...t.y)));
+  const dtick = maxCount <= 10 ? 1 : Math.ceil(maxCount/6);
   const layout = {
     height:260, margin:{l:44,r:12,t:6,b:36},
     paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
     font:{color:textColor,size:11},
     xaxis:{color:subColor,showgrid:false,zeroline:false,tickfont:{size:10}},
-    yaxis:{title:'Tokens Held',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,rangemode:'tozero',dtick},
+    yaxis:{title:'Cumulative Events',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,rangemode:'tozero',dtick},
     showlegend:true,
     legend:{orientation:'h',y:1.14,x:0,font:{size:10},bgcolor:'rgba(0,0,0,0)'},
     hovermode:'closest',
@@ -339,13 +340,13 @@ function walletActivityChartHtml(data){
       Plotly.newPlot(currentHost, traces, layout, {responsive:true,displayModeBar:false,scrollZoom:true});
       currentHost.on('plotly_click', function(eventData){
         const pt = eventData.points?.[0];
-        if(!pt || pt.data.mode !== 'markers') return;
+        if(!pt) return;
         const item = pt.customdata;
         if(item?.id) openModal(item.id);
       });
       currentHost.on('plotly_hover', function(eventData){
         const pt = eventData.points?.[0];
-        if(!pt || pt.data.mode !== 'markers' || !eventData.event) return;
+        if(!pt || !pt.customdata?.id || !eventData.event) return;
         showWalletActivityTooltip(eventData.event, encodeURIComponent(JSON.stringify(pt.customdata)));
       });
       currentHost.on('plotly_unhover', hideWalletActivityTooltip);
