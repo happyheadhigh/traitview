@@ -286,7 +286,7 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs, comparison){
   if(comparison && comparison.x?.length){
     traces.push({
       x: comparison.x, y: comparison.y, name: comparison.name, type:'scatter', mode:'lines',
-      yaxis:'y2', line:{ color: comparison.color, width:2, shape: comparison.shape || 'hv' },
+      yaxis:'y2', line:{ color: comparison.color, width:2, shape: comparison.shape || 'spline', smoothing: 0.4 },
       hovertemplate: comparison.hoverSuffix ? `%{y}${comparison.hoverSuffix}<extra></extra>` : undefined,
     });
   }
@@ -345,7 +345,7 @@ async function walletFloorComparisonTrace(days){
     let last = null;
     const y = days.map(d => { if(byDay[d] != null) last = byDay[d]; return last; });
     if(!y.some(v => v != null)) return null;
-    return { name:'Collection Floor', color:'#f59e0b', x:days, y, shape:'hv', axisTitle:'Floor (ETH)', hoverSuffix:' ETH' };
+    return { name:'Collection Floor', color:'#f59e0b', x:days, y, shape:'spline', axisTitle:'Floor (ETH)', hoverSuffix:' ETH' };
   }catch(_){ return null; }
 }
 // Collection-wide daily burn count, for a comparison line on the Burns chart
