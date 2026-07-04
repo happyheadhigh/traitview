@@ -219,8 +219,16 @@ function hideWalletActivityTooltip(){
 }
 const WALLET_TIMELINE_RANGES = [['1d','Day'],['7d','Week'],['30d','Month'],['all','All Time']];
 let WALLET_TIMELINE_RANGE = 'all';
+let WALLET_TIMELINE_MONTH = ''; // '' = not using a specific month; else 'YYYY-MM'
 function toggleWalletTimelineRange(range){
   WALLET_TIMELINE_RANGE = range;
+  WALLET_TIMELINE_MONTH = '';
+  const addr = CONNECTED_WALLET?.address?.toLowerCase();
+  const data = addr ? WALLET_ANALYTICS_CACHE.get(addr) : null;
+  if(data) renderWalletAnalytics(data);
+}
+function setWalletTimelineMonth(month){
+  WALLET_TIMELINE_MONTH = month || '';
   const addr = CONNECTED_WALLET?.address?.toLowerCase();
   const data = addr ? WALLET_ANALYTICS_CACHE.get(addr) : null;
   if(data) renderWalletAnalytics(data);
@@ -287,7 +295,7 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs, comparison){
     traces.push({
       x: comparison.x, y: comparison.y, name: comparison.name, type:'scatter', mode:'lines',
       yaxis:'y2', line:{ color: comparison.color, width:2, shape: comparison.shape || 'spline', smoothing: 0.4 },
-      hovertemplate: comparison.hoverSuffix ? `%{y}${comparison.hoverSuffix}<extra></extra>` : undefined,
+      hoverinfo:'skip',
     });
   }
   setTimeout(() => {
@@ -380,7 +388,7 @@ async function walletCollectionBurnsComparisonTrace(days){
 // meaningful question), Sales needs to show actual ETH price so it can be
 // compared directly against Collection Floor on the same axis -- a count of
 // sale events tells you nothing about whether you sold above or below floor.
-function renderWalletSalesPriceChart(hostId, salesEvents, floorComparison){
+function renderWalletSalesPriceChart(hostId, salesEvents, mintEvents, floorComparison){
   const x = salesEvents.map(e => new Date(e.ts).toISOString());
   const y = salesEvents.map(e => e.price);
   const customdata = salesEvents.map(e => ({ id:e.id, kind:'sale', date:new Date(e.ts).toLocaleDateString(), eth:e.price, count:1 }));
@@ -392,10 +400,21 @@ function renderWalletSalesPriceChart(hostId, salesEvents, floorComparison){
     customdata, hoverinfo:'none',
   };
   const traces = [priceTrace];
+  if(mintEvents && mintEvents.length){
+    traces.push({
+      x: mintEvents.map(e => new Date(e.ts).toISOString()),
+      y: mintEvents.map(e => e.price),
+      name:'Mint cost', type:'scatter', mode:'markers',
+      marker:{ size:9, color:'#1CFFAF', symbol:'diamond', opacity:.95, line:{color:'rgba(0,0,0,.35)',width:1.5} },
+      customdata: mintEvents.map(e => ({ id:e.id, kind:'mint', date:new Date(e.ts).toLocaleDateString(), eth:e.price, count:1 })),
+      hoverinfo:'none',
+    });
+  }
   if(floorComparison && floorComparison.x?.length){
     traces.push({
       x: floorComparison.x, y: floorComparison.y, name: floorComparison.name, type:'scatter', mode:'lines',
       line:{ color: floorComparison.color, width:2, shape: floorComparison.shape || 'spline', smoothing:0.4 },
+      hoverinfo:'skip',
     });
   }
   setTimeout(() => {
@@ -440,35 +459,59 @@ function walletActivityChartHtml(data){
   const eventsAll = walletActivityEvents(data);
   if(!eventsAll.length) return '<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>';
 
-  const rangeBtns = `<div class="wallet-timeline-ranges">${WALLET_TIMELINE_RANGES.map(([k,label]) => `<button class="wallet-timeline-range-btn ${WALLET_TIMELINE_RANGE===k?'active':''}" onclick="toggleWalletTimelineRange('${k}')">${label}</button>`).join('')}</div>`;
+  // Build the list of months this wallet actually has activity in, oldest first
+  const monthSet = new Set();
+  for(const e of eventsAll) monthSet.add(new Date(e.ts).toISOString().slice(0,7));
+  const monthOptions = [...monthSet].sort().reverse();
+  const monthLabel = m => new Date(m + '-02').toLocaleDateString(undefined, { month:'long', year:'numeric' });
+  const monthPicker = monthOptions.length > 1 ? `
+    <select class="wallet-timeline-month-picker" onchange="setWalletTimelineMonth(this.value)">
+      <option value="">Pick a month…</option>
+      ${monthOptions.map(m => `<option value="${m}" ${WALLET_TIMELINE_MONTH===m?'selected':''}>${monthLabel(m)}</option>`).join('')}
+    </select>` : '';
+  const rangeBtns = `<div class="wallet-timeline-ranges">${WALLET_TIMELINE_RANGES.map(([k,label]) => `<button class="wallet-timeline-range-btn ${(!WALLET_TIMELINE_MONTH && WALLET_TIMELINE_RANGE===k)?'active':''}" onclick="toggleWalletTimelineRange('${k}')">${label}</button>`).join('')}${monthPicker}</div>`;
 
-  const rangeMs = { '1d': 864e5, '7d': 7*864e5, '30d': 30*864e5, 'all': Infinity }[WALLET_TIMELINE_RANGE] ?? Infinity;
-  const cutoff = Date.now() - rangeMs;
-  const inRange = eventsAll.filter(e => e.ts >= cutoff);
+  let inRange;
+  if(WALLET_TIMELINE_MONTH){
+    inRange = eventsAll.filter(e => new Date(e.ts).toISOString().slice(0,7) === WALLET_TIMELINE_MONTH);
+  } else {
+    const rangeMs = { '1d': 864e5, '7d': 7*864e5, '30d': 30*864e5, 'all': Infinity }[WALLET_TIMELINE_RANGE] ?? Infinity;
+    const cutoff = Date.now() - rangeMs;
+    inRange = eventsAll.filter(e => e.ts >= cutoff);
+  }
   if(!inRange.length) return `${rangeBtns}<div class="wallet-empty-state">No activity in this time range. Try a wider range.</div>`;
+
+  const summary = data?.summary?.summary || data?.summary || {};
+  const ownedTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
+  const costByTokenId = new Map(ownedTokens.filter(t => t.cost_eth > 0).map(t => [t.token_id, t.cost_eth]));
 
   const salesHostId = 'walletSalesPlotly_' + Date.now();
   const burnsHostId = 'walletBurnsPlotly_' + Date.now();
 
-  const { days: salesDays } = walletDailyBuckets(inRange, ['sale']);
+  const { days: salesDays } = walletDailyBuckets(inRange, ['sale', 'mint']);
   const { days: burnDays, series: burnSeries, eventsByDayKind: burnEBDK } = walletDailyBuckets(inRange, ['burn','transfer']);
 
   const salesEvents = inRange.filter(e => e.kind === 'sale' && e.price > 0).sort((a,b) => a.ts - b.ts);
-  const salesHtml = salesEvents.length
+  // Mint events don't carry a price in the raw transfer stream (only sales
+  // get joined against the sales table for price) -- cross-reference against
+  // the wallet's own per-token cost basis, which IS reliably resolved
+  // (including a mint-transaction-value fallback) for the wallet summary.
+  const mintEvents = inRange
+    .filter(e => e.kind === 'mint' && e.id && costByTokenId.has(e.id))
+    .map(e => ({ ...e, price: costByTokenId.get(e.id) }))
+    .sort((a,b) => a.ts - b.ts);
+  const salesHtml = (salesEvents.length || mintEvents.length)
     ? `<div id="${salesHostId}" style="width:100%;min-height:260px"></div>`
-    : '<div class="wallet-empty-state">No sales in this range.</div>';
+    : '<div class="wallet-empty-state">No sales or mints with known cost basis in this range.</div>';
   const burnsHtml = burnDays.length
     ? `<div id="${burnsHostId}" style="width:100%;min-height:260px"></div>`
     : '<div class="wallet-empty-state">No burns or transfers in this range.</div>';
-
-  const summary = data?.summary?.summary || data?.summary || {};
-  const ownedTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
   const traitsHostId = 'walletTraitsPlotly_' + Date.now();
   const floorVsPaidHostId = 'walletFloorVsPaidHost_' + Date.now();
 
-  if(salesEvents.length){
+  if(salesEvents.length || mintEvents.length){
     walletFloorComparisonTrace(salesDays).then(comparison => {
-      renderWalletSalesPriceChart(salesHostId, salesEvents, comparison);
+      renderWalletSalesPriceChart(salesHostId, salesEvents, mintEvents, comparison);
     });
   }
   if(burnDays.length){
@@ -536,8 +579,8 @@ async function loadWalletRarestTraitsChart(hostId, ownedIds){
       const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
       const trace = {
         x: top.map(t => t.pct), y: top.map(t => `${t.category}: ${t.value}`),
-        type:'bar', orientation:'h', width: 0.55,
-        marker:{ color: top.map(t => t.pct < 1 ? '#2dd4bf' : t.pct < 5 ? '#1CFFAF' : '#94a3b8') },
+        type:'bar', orientation:'h', width: 0.35,
+        marker:{ color: top.map(t => t.pct < 1 ? '#1f9d90' : t.pct < 5 ? '#159b6e' : '#7c8ba0'), cornerradius: 6 },
         text: top.map(t => `${t.pct < 1 ? t.pct.toFixed(2) : t.pct.toFixed(1)}%`),
         textposition:'outside', textfont:{color:textCol, size:10},
         hovertemplate: '%{y}<br>%{x:.2f}% of collection<extra></extra>',
@@ -552,7 +595,7 @@ async function loadWalletRarestTraitsChart(hostId, ownedIds){
       };
       Plotly.newPlot(el, [trace], layout, { displayModeBar:false, responsive:true });
       const barsLayer = el.querySelector('.barlayer');
-      if(barsLayer) barsLayer.style.filter = 'drop-shadow(0 0 5px rgba(45,212,191,0.45))';
+      if(barsLayer) barsLayer.style.filter = 'drop-shadow(0 0 3px rgba(45,212,191,0.2))';
       el.on('plotly_click', ev => { const id = top[ev.points?.[0]?.pointNumber]?.tokenId; if(id) openModal(id); });
     };
     if(!walletAnalyticsElementIsVisible(document.getElementById(hostId))){
