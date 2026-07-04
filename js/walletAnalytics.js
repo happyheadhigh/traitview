@@ -152,14 +152,6 @@ async function loadWalletAnalytics(address, opts={}){
     return null;
   }
 }
-const WALLET_ACTIVITY_FILTERS = new Set(['mint','sale','burn','transfer']); // 'listing' omitted — no wallet-scoped listings data source exists yet
-let WALLET_ACTIVITY_RANGE = 'all'; // '1d' | '7d' | '30d' | 'all'
-function toggleWalletActivityRange(range){
-  WALLET_ACTIVITY_RANGE = range;
-  const addr = CONNECTED_WALLET?.address?.toLowerCase();
-  const data = addr ? WALLET_ANALYTICS_CACHE.get(addr) : null;
-  if(data) renderWalletAnalytics(data);
-}
 function walletActivityKind(row, address){
   const raw = String(row?.event_type || row?.type || row?.direction || row?.kind || '').toLowerCase();
   if(raw.includes('mint')) return 'mint';
@@ -208,156 +200,109 @@ function walletActivityEvents(data){
 function walletActivityColor(kind){
   return { mint:'#1CFFAF', sale:'#7dd3fc', listing:'#c084fc', burn:'#fb7185', transfer:'#94a3b8' }[kind] || '#94a3b8';
 }
-function toggleWalletActivityFilter(kind){
-  if(WALLET_ACTIVITY_FILTERS.has(kind) && WALLET_ACTIVITY_FILTERS.size > 1) WALLET_ACTIVITY_FILTERS.delete(kind);
-  else WALLET_ACTIVITY_FILTERS.add(kind);
-  const addr = CONNECTED_WALLET?.address?.toLowerCase();
-  const data = addr ? WALLET_ANALYTICS_CACHE.get(addr) : null;
-  if(data) renderWalletAnalytics(data);
-}
-function showWalletActivityTooltip(ev, encoded){
-  const tip = document.getElementById('walletActivityTooltip') || document.body.appendChild(Object.assign(document.createElement('div'), { id:'walletActivityTooltip', className:'wallet-activity-tooltip' }));
-  let item = {};
-  try{ item = JSON.parse(decodeURIComponent(encoded)); }catch(_){}
-  const img = item.id ? `<img src="${comboEsc((typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(item.id) : imgForId(item.id))}" alt="#${item.id}">` : '';
-  tip.innerHTML = `${img}<b>${item.id ? `#${item.id}` : 'Wallet Event'}</b><span>${comboEsc(item.kind || 'transfer')}</span><span>${item.eth ? walletEth(item.eth) : 'No ETH price'}</span><span>${comboEsc(item.date || '')}</span>`;
-  tip.style.display = 'block';
-  const x = Math.min(window.innerWidth - 210, ev.clientX + 14);
-  const y = Math.min(window.innerHeight - 120, ev.clientY + 14);
-  tip.style.left = `${Math.max(8,x)}px`;
-  tip.style.top = `${Math.max(8,y)}px`;
-}
-function hideWalletActivityTooltip(){
-  const tip = document.getElementById('walletActivityTooltip');
-  if(tip) tip.style.display = 'none';
-}
-function walletActivityDirection(row, kind, address){
-  const from = String(row?.from_address || '').toLowerCase();
-  const to   = String(row?.to_address || '').toLowerCase();
-  const addr = String(address || '').toLowerCase();
-  if(addr && to === addr) return 1;   // token entered this wallet
-  if(addr && from === addr) return -1; // token left this wallet
-  // No address info on the row — fall back to kind semantics
-  if(kind === 'mint') return 1;
-  if(kind === 'burn') return -1;
-  if(kind === 'sale') return -1; // most wallet-scoped sale rows are this wallet selling
-  return 0; // listings and undetermined transfers don't change holdings
-}
-function walletActivityChartHtml(data){
-  const address = data?.address || '';
-  const eventsAll = walletActivityEvents(data).map(e => ({
-    ...e, dir: walletActivityDirection(e.row, e.kind, address)
-  }));
-  const kinds = ['mint','sale','burn','transfer'];
-  const ranges = [['1d','Day'],['7d','Week'],['30d','Month'],['all','All Time']];
-  const kindBtns = kinds.map(k => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_FILTERS.has(k)?'active':''}" onclick="toggleWalletActivityFilter('${k}')">${k}</button>`).join('');
-  const rangeBtns = ranges.map(([k,label]) => `<button class="wallet-activity-filter ${WALLET_ACTIVITY_RANGE===k?'active':''}" onclick="toggleWalletActivityRange('${k}')">${label}</button>`).join('');
-  const filters = `<div class="wallet-activity-filters-row"><div class="wallet-activity-filters">${kindBtns}</div><div class="wallet-activity-filters">${rangeBtns}</div></div>`;
-  const rangeFilters = ''; // merged into the single row above
-  if(!eventsAll.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>`;
-
-  // Running "tokens held" total — computed over the FULL unfiltered history so
-  // the count is always correct, even when a time range narrows what's shown.
-  // Filtering by kind/range only changes what's *visible*, never re-derives
-  // the running total from a truncated starting point (which would make the
-  // "tokens held" figure wrong at the start of the visible window).
-  let running = 0;
-  const withHoldings = eventsAll.map(e => {
-    running += e.dir;
-    return { ...e, held: Math.max(0, running) };
-  });
-
-  const rangeMs = { '1d': 864e5, '7d': 7*864e5, '30d': 30*864e5, 'all': Infinity }[WALLET_ACTIVITY_RANGE] ?? Infinity;
-  const cutoff = Date.now() - rangeMs;
-  const inRange = withHoldings.filter(e => e.ts >= cutoff);
-  if(!inRange.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No activity in this time range. Try a wider range.</div>`;
-
-  const events = inRange.filter(e => WALLET_ACTIVITY_FILTERS.has(e.kind));
-  if(!events.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No events match the selected activity filters in this range.</div>`;
-
-  const hostId = 'walletActivityPlotly_' + Date.now();
-  const kindColors = {mint:'#1CFFAF',sale:'#2dd4bf',burn:'#f87171',transfer:'#a78bfa'};
-  const kindLabels = {mint:'Mint',sale:'Sale',burn:'Burn',transfer:'Transfer'};
-
-  // Four separate lines — one per kind — each a running count of how many of
-  // that kind have happened over time (source-of-change breakdown, not a
-  // single "tokens held" figure). All four start from a shared zero point at
-  // the earliest visible timestamp so they read as one consistent story.
-  const startTs = inRange[0].ts;
-  const traces = [];
-  for(const kind of ['mint','sale','burn','transfer']){
-    if(!WALLET_ACTIVITY_FILTERS.has(kind)) continue;
-    const kindEvents = events.filter(e => e.kind === kind);
-    let count = 0;
-    const x = [new Date(startTs).toISOString()];
-    const y = [0];
-    const ids = [null]; const dates = ['']; const prices = [null];
-    for(const e of kindEvents){
-      count++;
-      x.push(new Date(e.ts).toISOString());
-      y.push(count);
-      ids.push(e.id||0);
-      dates.push(new Date(e.ts).toLocaleDateString());
-      prices.push(e.price > 0 ? e.price : null);
-    }
-    traces.push({
-      x, y, mode:'lines+markers', type:'scatter', name:kindLabels[kind],
-      line:{ color:kindColors[kind], width:2, shape:'spline', smoothing:0.3 },
-      marker:{ size:9, color:kindColors[kind], symbol:'circle', opacity:.95,
-                line:{color:'rgba(0,0,0,.35)',width:1.5} },
-      customdata: ids.map((id,i)=>({id, kind, date:dates[i], eth:prices[i]})),
-      hoverinfo:'none', // custom image tooltip below replaces Plotly's plain-text hover
-    });
+// Buckets a wallet's events into daily counts per kind, filling every day in
+// range with 0 (not just days that had activity) so the line correctly sits
+// flat at zero during quiet periods instead of interpolating across gaps.
+function walletDailyBuckets(events, kinds){
+  if(!events.length) return { days: [], series: {} };
+  const dayKey = ts => new Date(ts).toISOString().slice(0,10);
+  const counts = {};
+  for(const kind of kinds) counts[kind] = {};
+  for(const e of events){
+    if(!counts[e.kind]) continue;
+    const day = dayKey(e.ts);
+    counts[e.kind][day] = (counts[e.kind][day] || 0) + 1;
   }
-  if(!traces.length) return `${filters}${rangeFilters}<div class="wallet-empty-state">No events match the selected activity filters in this range.</div>`;
-
-  const cs = getComputedStyle(document.body);
-  const textColor = cs.getPropertyValue('--text').trim()||'#e6edf7';
-  const subColor  = cs.getPropertyValue('--sub').trim()||'#7a8fa8';
-  const cardBg = cs.getPropertyValue('--card').trim() || '#111c2a';
-  const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
-  const maxCount = Math.max(1, ...traces.map(t => Math.max(...t.y)));
-  const dtick = maxCount <= 10 ? 1 : Math.ceil(maxCount/6);
-  const layout = {
-    height:260, margin:{l:44,r:12,t:6,b:36},
-    paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
-    font:{color:textColor,size:11},
-    xaxis:{color:subColor,showgrid:false,zeroline:false,tickfont:{size:10}},
-    yaxis:{title:'Cumulative Events',color:subColor,gridcolor:'rgba(255,255,255,.06)',zeroline:false,rangemode:'tozero',dtick},
-    showlegend:true,
-    legend:{orientation:'h',y:1.14,x:0,font:{size:10},bgcolor:'rgba(0,0,0,0)'},
-    hovermode:'closest',
-    hoverlabel:{bgcolor:cardBg,bordercolor:borderCol,font:{color:textColor,size:12}},
-    dragmode:'pan',
-  };
-  setTimeout(()=>{
-    const host = document.getElementById(hostId);
-    if(!host || typeof Plotly === 'undefined') return;
+  const startDay = new Date(dayKey(events[0].ts));
+  const endDay = new Date(dayKey(Date.now()));
+  const days = [];
+  for(let d = new Date(startDay); d <= endDay; d.setDate(d.getDate()+1)){
+    days.push(d.toISOString().slice(0,10));
+  }
+  const series = {};
+  for(const kind of kinds) series[kind] = days.map(d => counts[kind][d] || 0);
+  return { days, series };
+}
+// Exact same Plotly trace/layout style as Burn Timeline (burnsAnalytics.js
+// renderBurnActivity/drawBurnActivityChart) -- smooth filled spline lines,
+// native x-unified hover, no per-event markers, fixed (non-pannable) axes.
+function walletTimelineTraceHtml(hostId, days, seriesDefs){
+  const traces = seriesDefs.map(({key, name, color, series}) => ({
+    x: days, y: series, name, type:'scatter', mode:'lines',
+    line:{ color, width:2, shape:'spline', smoothing:0.4 },
+    fill:'tozeroy', fillcolor: color.startsWith('#')
+      ? `rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},0.12)`
+      : 'rgba(255,255,255,0.08)',
+    hovertemplate: `%{y} ${name.toLowerCase()}<extra></extra>`,
+  }));
+  setTimeout(() => {
     const render = () => {
-      const currentHost = document.getElementById(hostId);
-      if(!currentHost || typeof Plotly === 'undefined') return;
-      currentHost.style.touchAction = 'none'; // let Plotly own the gesture instead of competing with page scroll
-      Plotly.newPlot(currentHost, traces, layout, {responsive:true,displayModeBar:false,scrollZoom:true});
-      currentHost.on('plotly_click', function(eventData){
-        const pt = eventData.points?.[0];
-        if(!pt) return;
-        const item = pt.customdata;
-        if(item?.id) openModal(item.id);
-      });
-      currentHost.on('plotly_hover', function(eventData){
-        const pt = eventData.points?.[0];
-        if(!pt || !pt.customdata?.id || !eventData.event) return;
-        showWalletActivityTooltip(eventData.event, encodeURIComponent(JSON.stringify(pt.customdata)));
-      });
-      currentHost.on('plotly_unhover', hideWalletActivityTooltip);
+      const el = document.getElementById(hostId);
+      if(!el || typeof Plotly === 'undefined') return;
+      const cs = getComputedStyle(document.body);
+      const textCol = cs.getPropertyValue('--text').trim() || '#e6edf7';
+      const cardBg = cs.getPropertyValue('--card').trim() || '#111c2a';
+      const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
+      const layout = {
+        height:260, showlegend:true,
+        legend:{ orientation:'h', y:1.15, x:0, font:{size:11} },
+        margin:{ l:44, r:12, t:6, b:36 },
+        paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+        font:{ color:textCol },
+        xaxis:{ title:'', showgrid:false, fixedrange:true, tickfont:{size:10} },
+        yaxis:{ title:'Count', rangemode:'tozero', gridcolor:'rgba(255,255,255,0.06)', fixedrange:true },
+        hovermode:'x unified', autosize:true,
+        hoverlabel:{ bgcolor:cardBg, bordercolor:borderCol, font:{color:textCol, size:12} },
+      };
+      Plotly.newPlot(el, traces, layout, { displayModeBar:false, responsive:true, scrollZoom:false });
     };
-    if(!walletAnalyticsElementIsVisible(host)){
+    if(!walletAnalyticsElementIsVisible(document.getElementById(hostId))){
       WALLET_ACTIVITY_PLOT_PENDING = { hostId, render };
       return;
     }
     render();
   }, 60);
-  return `${filters}${rangeFilters}<div id="${hostId}" style="width:100%;min-height:260px"></div>`;
+}
+function walletActivityChartHtml(data){
+  const address = data?.address || '';
+  const eventsAll = walletActivityEvents(data);
+  if(!eventsAll.length) return '<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>';
+
+  const salesHostId = 'walletSalesPlotly_' + Date.now();
+  const burnsHostId = 'walletBurnsPlotly_' + Date.now();
+
+  const { days: salesDays, series: salesSeries } = walletDailyBuckets(eventsAll, ['sale']);
+  const { days: burnDays, series: burnSeries } = walletDailyBuckets(eventsAll, ['burn','transfer']);
+
+  const salesHtml = salesDays.length
+    ? `<div id="${salesHostId}" style="width:100%;min-height:260px"></div>`
+    : '<div class="wallet-empty-state">No sales yet from this wallet.</div>';
+  const burnsHtml = burnDays.length
+    ? `<div id="${burnsHostId}" style="width:100%;min-height:260px"></div>`
+    : '<div class="wallet-empty-state">No burns or transfers yet from this wallet.</div>';
+
+  if(salesDays.length){
+    walletTimelineTraceHtml(salesHostId, salesDays, [
+      { key:'sale', name:'Sale events', color:'#2dd4bf', series:salesSeries.sale },
+    ]);
+  }
+  if(burnDays.length){
+    walletTimelineTraceHtml(burnsHostId, burnDays, [
+      { key:'burn', name:'Burn events', color:'#f87171', series:burnSeries.burn },
+      { key:'transfer', name:'Transfer events', color:'#a78bfa', series:burnSeries.transfer },
+    ]);
+  }
+
+  return `
+    <div class="wallet-timeline-sub">
+      <div class="wallet-timeline-sub-title">Sales</div>
+      ${salesHtml}
+    </div>
+    <div class="wallet-timeline-sub">
+      <div class="wallet-timeline-sub-title">Burns &amp; Transfers</div>
+      ${burnsHtml}
+    </div>
+  `;
 }
 // ── Shared owned-token trait lookup ─────────────────────────────────────────
 // Built once per wallet load, reused by both Rarity Improvement and the
