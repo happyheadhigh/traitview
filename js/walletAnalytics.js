@@ -393,6 +393,11 @@ function walletActivityChartHtml(data){
     ? `<div id="${burnsHostId}" style="width:100%;min-height:260px"></div>`
     : '<div class="wallet-empty-state">No burns or transfers in this range.</div>';
 
+  const summary = data?.summary?.summary || data?.summary || {};
+  const ownedTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
+  const traitsHostId = 'walletTraitsPlotly_' + Date.now();
+  const floorVsPaidHostId = 'walletFloorVsPaidHost_' + Date.now();
+
   if(salesDays.length){
     walletFloorComparisonTrace(salesDays).then(comparison => {
       walletTimelineTraceHtml(salesHostId, salesDays, [
@@ -408,6 +413,10 @@ function walletActivityChartHtml(data){
       ], comparison);
     });
   }
+  if(ownedTokens.length){
+    loadWalletRarestTraitsChart(traitsHostId, ownedTokens.map(t => t.token_id));
+    loadWalletTraitFloorVsPaid(floorVsPaidHostId, ownedTokens);
+  }
 
   return `
     ${rangeBtns}
@@ -420,8 +429,139 @@ function walletActivityChartHtml(data){
         <div class="wallet-timeline-sub-title">Burns &amp; Transfers</div>
         ${burnsHtml}
       </div>
+      <div class="wallet-timeline-sub">
+        <div class="wallet-timeline-sub-title">Your Rarest Traits</div>
+        ${ownedTokens.length ? `<div id="${traitsHostId}" style="width:100%;min-height:260px"></div>` : '<div class="wallet-empty-state">No owned tokens yet.</div>'}
+      </div>
+      <div class="wallet-timeline-sub">
+        <div class="wallet-timeline-sub-title">Trait Floor vs. What You Paid</div>
+        <div id="${floorVsPaidHostId}">${ownedTokens.length ? '<div class="wallet-empty-state">Calculating…</div>' : '<div class="wallet-empty-state">No owned tokens yet.</div>'}</div>
+      </div>
     </div>
   `;
+}
+
+// ── Your Rarest Traits ───────────────────────────────────────────────────────
+async function loadWalletRarestTraitsChart(hostId, ownedIds){
+  const seen = new Map();
+  for(const id of ownedIds){
+    if(!id) continue;
+    try{
+      const entries = await getRowTraitsFor(id);
+      const tot = (typeof TOKEN_COUNT !== 'undefined' && TOKEN_COUNT) || 10000;
+      const freq = (typeof TRAIT_FREQ !== 'undefined' && TRAIT_FREQ) || {};
+      for(const [cat, val] of entries){
+        const key = cat + '|' + val;
+        if(seen.has(key)) continue;
+        const cnt = (freq[cat] && freq[cat][val]) || tot;
+        seen.set(key, { category:cat, value:val, pct: cnt / tot * 100, tokenId:id });
+      }
+    }catch(_){}
+  }
+  const top = [...seen.values()].sort((a,b) => a.pct - b.pct).slice(0, 10).reverse();
+  if(!top.length) return;
+  setTimeout(() => {
+    const render = () => {
+      const el = document.getElementById(hostId);
+      if(!el || typeof Plotly === 'undefined') return;
+      const cs = getComputedStyle(document.body);
+      const textCol = cs.getPropertyValue('--text').trim() || '#e6edf7';
+      const cardBg = cs.getPropertyValue('--card').trim() || '#111c2a';
+      const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
+      const trace = {
+        x: top.map(t => t.pct), y: top.map(t => `${t.category}: ${t.value}`),
+        type:'bar', orientation:'h',
+        marker:{ color: top.map(t => t.pct < 1 ? '#2dd4bf' : t.pct < 5 ? '#1CFFAF' : '#94a3b8') },
+        text: top.map(t => `${t.pct < 1 ? t.pct.toFixed(2) : t.pct.toFixed(1)}%`),
+        textposition:'outside', textfont:{color:textCol, size:10},
+        hovertemplate: '%{y}<br>%{x:.2f}% of collection<extra></extra>',
+      };
+      const layout = {
+        height:260, margin:{ l:150, r:36, t:6, b:30 },
+        paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+        font:{ color:textCol, size:10.5 },
+        xaxis:{ title:'% of collection', showgrid:true, gridcolor:'rgba(255,255,255,0.06)', fixedrange:true, tickfont:{size:10} },
+        yaxis:{ automargin:true, fixedrange:true },
+        hoverlabel:{ bgcolor:cardBg, bordercolor:borderCol, font:{color:textCol, size:12} },
+      };
+      Plotly.newPlot(el, [trace], layout, { displayModeBar:false, responsive:true });
+      el.on('plotly_click', ev => { const id = top[ev.points?.[0]?.pointNumber]?.tokenId; if(id) openModal(id); });
+    };
+    if(!walletAnalyticsElementIsVisible(document.getElementById(hostId))){
+      WALLET_ACTIVITY_PLOT_PENDING = { hostId, render };
+      return;
+    }
+    render();
+  }, 60);
+}
+
+// ── Trait Floor vs. What You Paid (Dumbbell rows) ───────────────────────────
+async function findTraitFloorForToken(id){
+  const rarest = await getTopRareTraits(id, 1);
+  if(!rarest.length) return null;
+  const { tn, tv } = rarest[0];
+  let minPrice = Infinity;
+  const listings = (typeof window !== 'undefined' && window.LISTINGS) || {};
+  for(const [lid, l] of Object.entries(listings)){
+    const price = l?.opensea?.price_eth;
+    if(price == null || !(price < minPrice)) continue;
+    try{
+      const entries = await getRowTraitsFor(+lid);
+      if(entries.some(([k,v]) => k === tn && v === tv)) minPrice = price;
+    }catch(_){}
+  }
+  return minPrice === Infinity ? null : { traitCat: tn, traitVal: tv, floorNow: minPrice };
+}
+async function loadWalletTraitFloorVsPaid(hostId, ownedTokens){
+  const withCost = ownedTokens.filter(t => t.cost_eth > 0);
+  if(!withCost.length){
+    const el = document.getElementById(hostId);
+    if(el) el.innerHTML = '<div class="wallet-empty-state">No cost-basis data available for your owned tokens yet.</div>';
+    return;
+  }
+  const rows = [];
+  for(const t of withCost){
+    const floor = await findTraitFloorForToken(t.token_id);
+    if(!floor) continue;
+    rows.push({ id:t.token_id, paid:t.cost_eth, floorNow:floor.floorNow, traitCat:floor.traitCat, trait:floor.traitVal });
+  }
+  const el = document.getElementById(hostId);
+  if(!el) return;
+  if(!rows.length){
+    el.innerHTML = '<div class="wallet-empty-state">Could not match trait floors for your owned tokens right now.</div>';
+    return;
+  }
+  const maxVal = Math.max(...rows.map(r => Math.max(r.paid, r.floorNow))) * 1.08;
+  el.innerHTML = `
+    <div class="wallet-dumbbell-legend">
+      <span><i style="background:#f59e0b"></i>Paid</span>
+      <span><i style="background:#2dd4bf"></i>Trait floor now</span>
+    </div>
+    <div class="wallet-dumbbell-list">
+      ${rows.map(r => walletDumbbellRowHtml(r, maxVal)).join('')}
+    </div>
+  `;
+}
+function walletDumbbellRowHtml(r, maxVal){
+  const good = r.floorNow >= r.paid;
+  const pct = (((r.floorNow - r.paid) / r.paid) * 100).toFixed(0);
+  const leftPct = (Math.min(r.paid, r.floorNow) / maxVal) * 100;
+  const widthPct = (Math.abs(r.floorNow - r.paid) / maxVal) * 100;
+  const paidX = (r.paid / maxVal) * 100;
+  const floorX = (r.floorNow / maxVal) * 100;
+  return `<div class="wallet-dumbbell-row" onclick="openModal(${r.id})">
+    <div class="wallet-dumbbell-head">
+      <span><b>#${r.id}</b> <span class="wallet-dumbbell-trait">· ${comboEsc(r.traitCat)}: ${comboEsc(r.trait)}</span></span>
+      <span class="wallet-dumbbell-badge ${good?'good':'bad'}">${good?'+':''}${pct}%</span>
+    </div>
+    <div class="wallet-dumbbell-track">
+      <div class="wallet-dumbbell-bar ${good?'good':'bad'}" style="left:${leftPct}%;width:${widthPct}%"></div>
+      <div class="wallet-dumbbell-dot paid" style="left:${paidX}%" title="Paid Ξ${r.paid.toFixed(4)}"></div>
+      <div class="wallet-dumbbell-label paid" style="left:${paidX}%">Ξ${r.paid.toFixed(3)}</div>
+      <div class="wallet-dumbbell-dot floor" style="left:${floorX}%" title="Trait floor now Ξ${r.floorNow.toFixed(4)}"></div>
+      <div class="wallet-dumbbell-label floor" style="left:${floorX}%">Ξ${r.floorNow.toFixed(3)}</div>
+    </div>
+  </div>`;
 }
 // ── Shared owned-token trait lookup ─────────────────────────────────────────
 // Built once per wallet load, reused by both Rarity Improvement and the
