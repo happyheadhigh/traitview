@@ -80,7 +80,7 @@ function walletTopTokenCard(t){
   const tvRank = t.obs_rank ?? t.tv_rank ?? getRankLabel(id, 'tv');
   const price = t.price_eth ?? t.listed_price ?? t.listing_price ?? null;
   const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
-  return `<div class="wallet-top-token" onclick="openModal(${id})">
+  return `<div class="wallet-top-token" data-id="${id}" onclick="openModal(${id})">
     <div class="wallet-top-token-img"><img src="${comboEsc(src)}" alt="#${id}" loading="lazy"></div>
     <div class="wallet-top-token-body">
       <div class="wallet-token-id">#${id}</div>
@@ -200,18 +200,47 @@ function walletActivityEvents(data){
 function walletActivityColor(kind){
   return { mint:'#1CFFAF', sale:'#7dd3fc', listing:'#c084fc', burn:'#fb7185', transfer:'#94a3b8' }[kind] || '#94a3b8';
 }
-// Buckets a wallet's events into daily counts per kind, filling every day in
-// range with 0 (not just days that had activity) so the line correctly sits
-// flat at zero during quiet periods instead of interpolating across gaps.
+function showWalletActivityTooltip(ev, encoded){
+  const tip = document.getElementById('walletActivityTooltip') || document.body.appendChild(Object.assign(document.createElement('div'), { id:'walletActivityTooltip', className:'wallet-activity-tooltip' }));
+  let item = {};
+  try{ item = JSON.parse(decodeURIComponent(encoded)); }catch(_){}
+  const img = item.id ? `<img src="${comboEsc((typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(item.id) : imgForId(item.id))}" alt="#${item.id}">` : '';
+  const more = item.count > 1 ? ` <span style="opacity:.7">(+${item.count-1} more that day)</span>` : '';
+  tip.innerHTML = `${img}<b>${item.id ? `#${item.id}` : 'Wallet Event'}${more}</b><span>${comboEsc(item.kind || '')}</span><span>${item.eth ? walletEth(item.eth) : 'No ETH price'}</span><span>${comboEsc(item.date || '')}</span>`;
+  tip.style.display = 'block';
+  const x = Math.min(window.innerWidth - 210, ev.clientX + 14);
+  const y = Math.min(window.innerHeight - 120, ev.clientY + 14);
+  tip.style.left = `${Math.max(8,x)}px`;
+  tip.style.top = `${Math.max(8,y)}px`;
+}
+function hideWalletActivityTooltip(){
+  const tip = document.getElementById('walletActivityTooltip');
+  if(tip) tip.style.display = 'none';
+}
+const WALLET_TIMELINE_RANGES = [['1d','Day'],['7d','Week'],['30d','Month'],['all','All Time']];
+let WALLET_TIMELINE_RANGE = 'all';
+function toggleWalletTimelineRange(range){
+  WALLET_TIMELINE_RANGE = range;
+  const addr = CONNECTED_WALLET?.address?.toLowerCase();
+  const data = addr ? WALLET_ANALYTICS_CACHE.get(addr) : null;
+  if(data) renderWalletAnalytics(data);
+}
+// Buckets a wallet's events into daily counts per kind (for the smooth line),
+// filling every day in range with 0 so the line correctly sits flat at zero
+// during quiet periods instead of interpolating across gaps. Also keeps the
+// individual events for each day/kind so hoverable dots can show the real
+// token that occurred that day.
 function walletDailyBuckets(events, kinds){
-  if(!events.length) return { days: [], series: {} };
+  if(!events.length) return { days: [], series: {}, eventsByDayKind: {} };
   const dayKey = ts => new Date(ts).toISOString().slice(0,10);
   const counts = {};
-  for(const kind of kinds) counts[kind] = {};
+  const eventsByDayKind = {};
+  for(const kind of kinds){ counts[kind] = {}; eventsByDayKind[kind] = {}; }
   for(const e of events){
     if(!counts[e.kind]) continue;
     const day = dayKey(e.ts);
     counts[e.kind][day] = (counts[e.kind][day] || 0) + 1;
+    (eventsByDayKind[e.kind][day] ||= []).push(e);
   }
   const startDay = new Date(dayKey(events[0].ts));
   const endDay = new Date(dayKey(Date.now()));
@@ -221,20 +250,39 @@ function walletDailyBuckets(events, kinds){
   }
   const series = {};
   for(const kind of kinds) series[kind] = days.map(d => counts[kind][d] || 0);
-  return { days, series };
+  return { days, series, eventsByDayKind };
 }
-// Exact same Plotly trace/layout style as Burn Timeline (burnsAnalytics.js
-// renderBurnActivity/drawBurnActivityChart) -- smooth filled spline lines,
-// native x-unified hover, no per-event markers, fixed (non-pannable) axes.
+// Same smooth filled-spline visual style as Burn Timeline, plus a marker
+// trace overlaid on each line — one dot per calendar day that had a real
+// event, sitting at that day's actual line height, hoverable with the same
+// image-thumbnail tooltip used elsewhere on the site.
 function walletTimelineTraceHtml(hostId, days, seriesDefs){
-  const traces = seriesDefs.map(({key, name, color, series}) => ({
+  const lineTraces = seriesDefs.map(({name, color, series}) => ({
     x: days, y: series, name, type:'scatter', mode:'lines',
     line:{ color, width:2, shape:'spline', smoothing:0.4 },
     fill:'tozeroy', fillcolor: color.startsWith('#')
       ? `rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},0.12)`
       : 'rgba(255,255,255,0.08)',
-    hovertemplate: `%{y} ${name.toLowerCase()}<extra></extra>`,
+    hoverinfo:'skip', showlegend:true,
   }));
+  const markerTraces = seriesDefs.map(({name, color, series, eventsByDay}) => {
+    const mx = [], my = [], customdata = [];
+    days.forEach((day, i) => {
+      const dayEvents = eventsByDay?.[day];
+      if(dayEvents && dayEvents.length){
+        mx.push(day);
+        my.push(series[i]);
+        const first = dayEvents[0];
+        customdata.push({ id:first.id, kind:first.kind, date:new Date(first.ts).toLocaleDateString(), eth:first.price>0?first.price:null, count:dayEvents.length });
+      }
+    });
+    return {
+      x:mx, y:my, mode:'markers', type:'scatter', name, showlegend:false,
+      marker:{ size:8, color, symbol:'circle', opacity:.95, line:{color:'rgba(0,0,0,.35)',width:1.5} },
+      customdata, hoverinfo:'none',
+    };
+  });
+  const traces = [...lineTraces, ...markerTraces];
   setTimeout(() => {
     const render = () => {
       const el = document.getElementById(hostId);
@@ -251,10 +299,20 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs){
         font:{ color:textCol },
         xaxis:{ title:'', showgrid:false, fixedrange:true, tickfont:{size:10} },
         yaxis:{ title:'Count', rangemode:'tozero', gridcolor:'rgba(255,255,255,0.06)', fixedrange:true },
-        hovermode:'x unified', autosize:true,
+        hovermode:'closest', autosize:true,
         hoverlabel:{ bgcolor:cardBg, bordercolor:borderCol, font:{color:textCol, size:12} },
       };
       Plotly.newPlot(el, traces, layout, { displayModeBar:false, responsive:true, scrollZoom:false });
+      el.on('plotly_click', function(eventData){
+        const pt = eventData.points?.[0];
+        if(pt?.customdata?.id) openModal(pt.customdata.id);
+      });
+      el.on('plotly_hover', function(eventData){
+        const pt = eventData.points?.[0];
+        if(!pt?.customdata?.id || !eventData.event) return;
+        showWalletActivityTooltip(eventData.event, encodeURIComponent(JSON.stringify(pt.customdata)));
+      });
+      el.on('plotly_unhover', hideWalletActivityTooltip);
     };
     if(!walletAnalyticsElementIsVisible(document.getElementById(hostId))){
       WALLET_ACTIVITY_PLOT_PENDING = { hostId, render };
@@ -264,43 +322,52 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs){
   }, 60);
 }
 function walletActivityChartHtml(data){
-  const address = data?.address || '';
   const eventsAll = walletActivityEvents(data);
   if(!eventsAll.length) return '<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>';
+
+  const rangeBtns = `<div class="wallet-timeline-ranges">${WALLET_TIMELINE_RANGES.map(([k,label]) => `<button class="wallet-timeline-range-btn ${WALLET_TIMELINE_RANGE===k?'active':''}" onclick="toggleWalletTimelineRange('${k}')">${label}</button>`).join('')}</div>`;
+
+  const rangeMs = { '1d': 864e5, '7d': 7*864e5, '30d': 30*864e5, 'all': Infinity }[WALLET_TIMELINE_RANGE] ?? Infinity;
+  const cutoff = Date.now() - rangeMs;
+  const inRange = eventsAll.filter(e => e.ts >= cutoff);
+  if(!inRange.length) return `${rangeBtns}<div class="wallet-empty-state">No activity in this time range. Try a wider range.</div>`;
 
   const salesHostId = 'walletSalesPlotly_' + Date.now();
   const burnsHostId = 'walletBurnsPlotly_' + Date.now();
 
-  const { days: salesDays, series: salesSeries } = walletDailyBuckets(eventsAll, ['sale']);
-  const { days: burnDays, series: burnSeries } = walletDailyBuckets(eventsAll, ['burn','transfer']);
+  const { days: salesDays, series: salesSeries, eventsByDayKind: salesEBDK } = walletDailyBuckets(inRange, ['sale']);
+  const { days: burnDays, series: burnSeries, eventsByDayKind: burnEBDK } = walletDailyBuckets(inRange, ['burn','transfer']);
 
   const salesHtml = salesDays.length
     ? `<div id="${salesHostId}" style="width:100%;min-height:260px"></div>`
-    : '<div class="wallet-empty-state">No sales yet from this wallet.</div>';
+    : '<div class="wallet-empty-state">No sales in this range.</div>';
   const burnsHtml = burnDays.length
     ? `<div id="${burnsHostId}" style="width:100%;min-height:260px"></div>`
-    : '<div class="wallet-empty-state">No burns or transfers yet from this wallet.</div>';
+    : '<div class="wallet-empty-state">No burns or transfers in this range.</div>';
 
   if(salesDays.length){
     walletTimelineTraceHtml(salesHostId, salesDays, [
-      { key:'sale', name:'Sale events', color:'#2dd4bf', series:salesSeries.sale },
+      { key:'sale', name:'Sale events', color:'#2dd4bf', series:salesSeries.sale, eventsByDay:salesEBDK.sale },
     ]);
   }
   if(burnDays.length){
     walletTimelineTraceHtml(burnsHostId, burnDays, [
-      { key:'burn', name:'Burn events', color:'#f87171', series:burnSeries.burn },
-      { key:'transfer', name:'Transfer events', color:'#a78bfa', series:burnSeries.transfer },
+      { key:'burn', name:'Burn events', color:'#f87171', series:burnSeries.burn, eventsByDay:burnEBDK.burn },
+      { key:'transfer', name:'Transfer events', color:'#a78bfa', series:burnSeries.transfer, eventsByDay:burnEBDK.transfer },
     ]);
   }
 
   return `
-    <div class="wallet-timeline-sub">
-      <div class="wallet-timeline-sub-title">Sales</div>
-      ${salesHtml}
-    </div>
-    <div class="wallet-timeline-sub">
-      <div class="wallet-timeline-sub-title">Burns &amp; Transfers</div>
-      ${burnsHtml}
+    ${rangeBtns}
+    <div class="wallet-timeline-grid">
+      <div class="wallet-timeline-sub">
+        <div class="wallet-timeline-sub-title">Sales</div>
+        ${salesHtml}
+      </div>
+      <div class="wallet-timeline-sub">
+        <div class="wallet-timeline-sub-title">Burns &amp; Transfers</div>
+        ${burnsHtml}
+      </div>
     </div>
   `;
 }
@@ -375,7 +442,7 @@ function renderRarityImprovement(result){
     </div>
     <div class="rarity-improve-tokens">${top.map(t => {
       const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(t.id) : imgForId(t.id);
-      return `<div class="rarity-improve-token" onclick="openModal(${t.id})">
+      return `<div class="rarity-improve-token" data-id="${t.id}" onclick="openModal(${t.id})">
         <img src="${comboEsc(src)}" alt="#${t.id}" loading="lazy">
         <div class="rarity-improve-token-body">
           <b>#${t.id}</b>
