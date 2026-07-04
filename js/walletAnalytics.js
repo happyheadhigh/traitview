@@ -219,7 +219,7 @@ function hideWalletActivityTooltip(){
 }
 const WALLET_TIMELINE_RANGES = [['1d','Day'],['7d','Week'],['30d','Month'],['all','All Time']];
 let WALLET_TIMELINE_RANGE = 'all';
-let WALLET_TIMELINE_MONTH = ''; // '' = not using a specific month; else 'YYYY-MM'
+let WALLET_TIMELINE_MONTH = new Date().toISOString().slice(0,7); // defaults to current month, not 'All Time'
 function toggleWalletTimelineRange(range){
   WALLET_TIMELINE_RANGE = range;
   WALLET_TIMELINE_MONTH = '';
@@ -459,10 +459,20 @@ function walletActivityChartHtml(data){
   const eventsAll = walletActivityEvents(data);
   if(!eventsAll.length) return '<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>';
 
-  // Build the list of months this wallet actually has activity in, oldest first
-  const monthSet = new Set();
-  for(const e of eventsAll) monthSet.add(new Date(e.ts).toISOString().slice(0,7));
-  const monthOptions = [...monthSet].sort().reverse();
+  // Continuous month list from the wallet's first-ever activity through the
+  // current real-world month -- no gaps, even for months with zero activity,
+  // so the dropdown reads as a complete calendar instead of a confusing
+  // jump between unrelated months.
+  const nowMonthStr = new Date().toISOString().slice(0,7);
+  const firstMonthStr = new Date(Math.min(...eventsAll.map(e => e.ts))).toISOString().slice(0,7);
+  const monthOptions = [];
+  const cursor = new Date(firstMonthStr + '-01T00:00:00Z');
+  const endCursor = new Date(nowMonthStr + '-01T00:00:00Z');
+  while(cursor <= endCursor){
+    monthOptions.push(cursor.toISOString().slice(0,7));
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  monthOptions.reverse(); // most recent first
   const monthLabel = m => new Date(m + '-02').toLocaleDateString(undefined, { month:'long', year:'numeric' });
   const monthPicker = monthOptions.length > 1 ? `
     <select class="wallet-timeline-month-picker" onchange="setWalletTimelineMonth(this.value)">
@@ -582,11 +592,11 @@ async function loadWalletRarestTraitsChart(hostId, ownedIds){
         type:'bar', orientation:'h', width: 0.35,
         marker:{ color: top.map(t => t.pct < 1 ? '#1f9d90' : t.pct < 5 ? '#159b6e' : '#7c8ba0'), cornerradius: 6 },
         text: top.map(t => `${t.pct < 1 ? t.pct.toFixed(2) : t.pct.toFixed(1)}%`),
-        textposition:'outside', textfont:{color:textCol, size:10},
+        textposition:'outside', textfont:{color:textCol, size:13},
         hovertemplate: '%{y}<br>%{x:.2f}% of collection<extra></extra>',
       };
       const layout = {
-        height:260, margin:{ l:150, r:36, t:6, b:30 },
+        height:260, margin:{ l:150, r:44, t:6, b:30 },
         paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
         font:{ color:textCol, size:10.5 },
         xaxis:{ title:'% of collection', showgrid:true, gridcolor:'rgba(255,255,255,0.06)', fixedrange:true, tickfont:{size:10} },

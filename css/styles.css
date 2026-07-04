@@ -1693,7 +1693,7 @@ a{color:var(--accent)!important}
 .wallet-dumbbell-label.floor{top:14px;color:#2dd4bf}
 .wallet-timeline-sub-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);margin-bottom:4px}
 .wallet-timeline-ranges{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:2px 0 10px}
-.wallet-timeline-month-picker{border:1px solid rgba(255,255,255,.10);border-radius:6px;background:var(--card);color:var(--text);font-size:10px;font-weight:800;padding:5px 8px;cursor:pointer;margin-left:auto}
+.wallet-timeline-month-picker{border:1px solid rgba(255,255,255,.10);border-radius:6px;background:var(--card);color:var(--text);font-size:10px;font-weight:800;padding:5px 8px;cursor:pointer}
 .wallet-timeline-range-btn{border:1px solid rgba(255,255,255,.10);border-radius:6px;background:rgba(255,255,255,.04);color:var(--sub);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:5px 9px;cursor:pointer}
 .wallet-timeline-range-btn.active{border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.09);color:#1CFFAF}
 .wallet-activity-tooltip{position:fixed;z-index:100000;display:none;pointer-events:none;width:190px;border:1px solid rgba(255,255,255,.13);border-radius:12px;background:rgba(10,15,22,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 16px 34px rgba(0,0,0,.46);padding:8px;color:var(--text)}
