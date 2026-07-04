@@ -344,6 +344,13 @@ async function walletFloorComparisonTrace(days){
     for(const p of rows) byDay[dayKey(p.recorded_at)] = p.floor_eth;
     let last = null;
     const y = days.map(d => { if(byDay[d] != null) last = byDay[d]; return last; });
+    // Back-fill any leading nulls (before the first real snapshot) with the
+    // earliest known value, so the line spans the full chart instead of only
+    // appearing partway through once real data starts.
+    const firstKnown = y.find(v => v != null);
+    if(firstKnown != null){
+      for(let i = 0; i < y.length && y[i] == null; i++) y[i] = firstKnown;
+    }
     if(!y.some(v => v != null)) return null;
     return { name:'Collection Floor', color:'#f59e0b', x:days, y, shape:'spline', axisTitle:'Floor (ETH)', hoverSuffix:' ETH' };
   }catch(_){ return null; }
@@ -369,6 +376,66 @@ async function walletCollectionBurnsComparisonTrace(days){
     return { name:'Collection Burns', color:'#FFD700', x:days, y, shape:'spline', axisTitle:'Collection Burns', hoverSuffix:' burns' };
   }catch(_){ return null; }
 }
+// Sales chart: unlike Burns/Transfers (where "how many happened" is the
+// meaningful question), Sales needs to show actual ETH price so it can be
+// compared directly against Collection Floor on the same axis -- a count of
+// sale events tells you nothing about whether you sold above or below floor.
+function renderWalletSalesPriceChart(hostId, salesEvents, floorComparison){
+  const x = salesEvents.map(e => new Date(e.ts).toISOString());
+  const y = salesEvents.map(e => e.price);
+  const customdata = salesEvents.map(e => ({ id:e.id, kind:'sale', date:new Date(e.ts).toLocaleDateString(), eth:e.price, count:1 }));
+  const priceTrace = {
+    x, y, name:'Sale price', type:'scatter', mode:'lines+markers',
+    line:{ color:'#2dd4bf', width:2, shape:'spline', smoothing:0.4 },
+    marker:{ size:8, color:'#2dd4bf', symbol:'circle', opacity:.95, line:{color:'rgba(0,0,0,.35)',width:1.5} },
+    fill:'tozeroy', fillcolor:'rgba(45,212,191,0.12)',
+    customdata, hoverinfo:'none',
+  };
+  const traces = [priceTrace];
+  if(floorComparison && floorComparison.x?.length){
+    traces.push({
+      x: floorComparison.x, y: floorComparison.y, name: floorComparison.name, type:'scatter', mode:'lines',
+      line:{ color: floorComparison.color, width:2, shape: floorComparison.shape || 'spline', smoothing:0.4 },
+    });
+  }
+  setTimeout(() => {
+    const render = () => {
+      const el = document.getElementById(hostId);
+      if(!el || typeof Plotly === 'undefined') return;
+      const cs = getComputedStyle(document.body);
+      const textCol = cs.getPropertyValue('--text').trim() || '#e6edf7';
+      const cardBg = cs.getPropertyValue('--card').trim() || '#111c2a';
+      const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
+      const layout = {
+        height:260, showlegend:true,
+        legend:{ orientation:'h', y:1.15, x:0, font:{size:11} },
+        margin:{ l:44, r:12, t:6, b:36 },
+        paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+        font:{ color:textCol },
+        xaxis:{ title:'', showgrid:false, fixedrange:true, tickfont:{size:10} },
+        yaxis:{ title:'ETH', rangemode:'tozero', gridcolor:'rgba(255,255,255,0.06)', fixedrange:true },
+        hovermode:'closest', autosize:true,
+        hoverlabel:{ bgcolor:cardBg, bordercolor:borderCol, font:{color:textCol, size:12} },
+      };
+      Plotly.newPlot(el, traces, layout, { displayModeBar:false, responsive:true, scrollZoom:false });
+      el.on('plotly_click', function(eventData){
+        const pt = eventData.points?.[0];
+        if(pt?.customdata?.id) openModal(pt.customdata.id);
+      });
+      el.on('plotly_hover', function(eventData){
+        const pt = eventData.points?.[0];
+        if(!pt?.customdata?.id || !eventData.event) return;
+        showWalletActivityTooltip(eventData.event, encodeURIComponent(JSON.stringify(pt.customdata)));
+      });
+      el.on('plotly_unhover', hideWalletActivityTooltip);
+    };
+    if(!walletAnalyticsElementIsVisible(document.getElementById(hostId))){
+      WALLET_ACTIVITY_PLOT_PENDING = { hostId, render };
+      return;
+    }
+    render();
+  }, 60);
+}
 function walletActivityChartHtml(data){
   const eventsAll = walletActivityEvents(data);
   if(!eventsAll.length) return '<div class="wallet-empty-state">History sync is still building. Summary data is available now.</div>';
@@ -383,10 +450,11 @@ function walletActivityChartHtml(data){
   const salesHostId = 'walletSalesPlotly_' + Date.now();
   const burnsHostId = 'walletBurnsPlotly_' + Date.now();
 
-  const { days: salesDays, series: salesSeries, eventsByDayKind: salesEBDK } = walletDailyBuckets(inRange, ['sale']);
+  const { days: salesDays } = walletDailyBuckets(inRange, ['sale']);
   const { days: burnDays, series: burnSeries, eventsByDayKind: burnEBDK } = walletDailyBuckets(inRange, ['burn','transfer']);
 
-  const salesHtml = salesDays.length
+  const salesEvents = inRange.filter(e => e.kind === 'sale' && e.price > 0).sort((a,b) => a.ts - b.ts);
+  const salesHtml = salesEvents.length
     ? `<div id="${salesHostId}" style="width:100%;min-height:260px"></div>`
     : '<div class="wallet-empty-state">No sales in this range.</div>';
   const burnsHtml = burnDays.length
@@ -398,11 +466,9 @@ function walletActivityChartHtml(data){
   const traitsHostId = 'walletTraitsPlotly_' + Date.now();
   const floorVsPaidHostId = 'walletFloorVsPaidHost_' + Date.now();
 
-  if(salesDays.length){
+  if(salesEvents.length){
     walletFloorComparisonTrace(salesDays).then(comparison => {
-      walletTimelineTraceHtml(salesHostId, salesDays, [
-        { key:'sale', name:'Sale events', color:'#2dd4bf', series:salesSeries.sale, eventsByDay:salesEBDK.sale },
-      ], comparison);
+      renderWalletSalesPriceChart(salesHostId, salesEvents, comparison);
     });
   }
   if(burnDays.length){
@@ -470,7 +536,7 @@ async function loadWalletRarestTraitsChart(hostId, ownedIds){
       const borderCol = cs.getPropertyValue('--border').trim() || 'rgba(255,255,255,0.15)';
       const trace = {
         x: top.map(t => t.pct), y: top.map(t => `${t.category}: ${t.value}`),
-        type:'bar', orientation:'h',
+        type:'bar', orientation:'h', width: 0.55,
         marker:{ color: top.map(t => t.pct < 1 ? '#2dd4bf' : t.pct < 5 ? '#1CFFAF' : '#94a3b8') },
         text: top.map(t => `${t.pct < 1 ? t.pct.toFixed(2) : t.pct.toFixed(1)}%`),
         textposition:'outside', textfont:{color:textCol, size:10},
@@ -485,6 +551,8 @@ async function loadWalletRarestTraitsChart(hostId, ownedIds){
         hoverlabel:{ bgcolor:cardBg, bordercolor:borderCol, font:{color:textCol, size:12} },
       };
       Plotly.newPlot(el, [trace], layout, { displayModeBar:false, responsive:true });
+      const barsLayer = el.querySelector('.barlayer');
+      if(barsLayer) barsLayer.style.filter = 'drop-shadow(0 0 5px rgba(45,212,191,0.45))';
       el.on('plotly_click', ev => { const id = top[ev.points?.[0]?.pointNumber]?.tokenId; if(id) openModal(id); });
     };
     if(!walletAnalyticsElementIsVisible(document.getElementById(hostId))){
@@ -501,16 +569,17 @@ async function findTraitFloorForToken(id){
   if(!rarest.length) return null;
   const { tn, tv } = rarest[0];
   let minPrice = Infinity;
+  let minId = null;
   const listings = (typeof window !== 'undefined' && window.LISTINGS) || {};
   for(const [lid, l] of Object.entries(listings)){
     const price = l?.opensea?.price_eth;
     if(price == null || !(price < minPrice)) continue;
     try{
       const entries = await getRowTraitsFor(+lid);
-      if(entries.some(([k,v]) => k === tn && v === tv)) minPrice = price;
+      if(entries.some(([k,v]) => k === tn && v === tv)){ minPrice = price; minId = +lid; }
     }catch(_){}
   }
-  return minPrice === Infinity ? null : { traitCat: tn, traitVal: tv, floorNow: minPrice };
+  return minPrice === Infinity ? null : { traitCat: tn, traitVal: tv, floorNow: minPrice, floorTokenId: minId };
 }
 async function loadWalletTraitFloorVsPaid(hostId, ownedTokens){
   const withCost = ownedTokens.filter(t => t.cost_eth > 0);
@@ -523,7 +592,7 @@ async function loadWalletTraitFloorVsPaid(hostId, ownedTokens){
   for(const t of withCost){
     const floor = await findTraitFloorForToken(t.token_id);
     if(!floor) continue;
-    rows.push({ id:t.token_id, paid:t.cost_eth, floorNow:floor.floorNow, traitCat:floor.traitCat, trait:floor.traitVal });
+    rows.push({ id:t.token_id, paid:t.cost_eth, floorNow:floor.floorNow, floorTokenId:floor.floorTokenId, traitCat:floor.traitCat, trait:floor.traitVal });
   }
   const el = document.getElementById(hostId);
   if(!el) return;
@@ -549,6 +618,8 @@ function walletDumbbellRowHtml(r, maxVal){
   const widthPct = (Math.abs(r.floorNow - r.paid) / maxVal) * 100;
   const paidX = (r.paid / maxVal) * 100;
   const floorX = (r.floorNow / maxVal) * 100;
+  const paidData = encodeURIComponent(JSON.stringify({ id:r.id, kind:'Your token', date:'', eth:r.paid, count:1 }));
+  const floorData = r.floorTokenId ? encodeURIComponent(JSON.stringify({ id:r.floorTokenId, kind:'Cheapest with this trait', date:'', eth:r.floorNow, count:1 })) : null;
   return `<div class="wallet-dumbbell-row" onclick="openModal(${r.id})">
     <div class="wallet-dumbbell-head">
       <span><b>#${r.id}</b> <span class="wallet-dumbbell-trait">· ${comboEsc(r.traitCat)}: ${comboEsc(r.trait)}</span></span>
@@ -556,9 +627,14 @@ function walletDumbbellRowHtml(r, maxVal){
     </div>
     <div class="wallet-dumbbell-track">
       <div class="wallet-dumbbell-bar ${good?'good':'bad'}" style="left:${leftPct}%;width:${widthPct}%"></div>
-      <div class="wallet-dumbbell-dot paid" style="left:${paidX}%" title="Paid Ξ${r.paid.toFixed(4)}"></div>
+      <div class="wallet-dumbbell-dot paid" style="left:${paidX}%"
+           onmouseenter="event.stopPropagation();showWalletActivityTooltip(event,'${paidData}')"
+           onmouseleave="hideWalletActivityTooltip()"></div>
       <div class="wallet-dumbbell-label paid" style="left:${paidX}%">Ξ${r.paid.toFixed(3)}</div>
-      <div class="wallet-dumbbell-dot floor" style="left:${floorX}%" title="Trait floor now Ξ${r.floorNow.toFixed(4)}"></div>
+      ${r.floorTokenId ? `<div class="wallet-dumbbell-dot floor" style="left:${floorX}%"
+           onclick="event.stopPropagation();openModal(${r.floorTokenId})"
+           onmouseenter="event.stopPropagation();showWalletActivityTooltip(event,'${floorData}')"
+           onmouseleave="hideWalletActivityTooltip()"></div>` : `<div class="wallet-dumbbell-dot floor" style="left:${floorX}%"></div>`}
       <div class="wallet-dumbbell-label floor" style="left:${floorX}%">Ξ${r.floorNow.toFixed(3)}</div>
     </div>
   </div>`;
