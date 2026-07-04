@@ -256,7 +256,7 @@ function walletDailyBuckets(events, kinds){
 // trace overlaid on each line — one dot per calendar day that had a real
 // event, sitting at that day's actual line height, hoverable with the same
 // image-thumbnail tooltip used elsewhere on the site.
-function walletTimelineTraceHtml(hostId, days, seriesDefs){
+function walletTimelineTraceHtml(hostId, days, seriesDefs, comparison){
   const lineTraces = seriesDefs.map(({name, color, series}) => ({
     x: days, y: series, name, type:'scatter', mode:'lines',
     line:{ color, width:2, shape:'spline', smoothing:0.4 },
@@ -283,6 +283,13 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs){
     };
   });
   const traces = [...lineTraces, ...markerTraces];
+  if(comparison && comparison.x?.length){
+    traces.push({
+      x: comparison.x, y: comparison.y, name: comparison.name, type:'scatter', mode:'lines',
+      yaxis:'y2', line:{ color: comparison.color, width:2, shape: comparison.shape || 'hv' },
+      hovertemplate: comparison.hoverSuffix ? `%{y}${comparison.hoverSuffix}<extra></extra>` : undefined,
+    });
+  }
   setTimeout(() => {
     const render = () => {
       const el = document.getElementById(hostId);
@@ -294,7 +301,7 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs){
       const layout = {
         height:260, showlegend:true,
         legend:{ orientation:'h', y:1.15, x:0, font:{size:11} },
-        margin:{ l:44, r:12, t:6, b:36 },
+        margin:{ l:44, r: comparison ? 44 : 12, t:6, b:36 },
         paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
         font:{ color:textCol },
         xaxis:{ title:'', showgrid:false, fixedrange:true, tickfont:{size:10} },
@@ -302,6 +309,9 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs){
         hovermode:'closest', autosize:true,
         hoverlabel:{ bgcolor:cardBg, bordercolor:borderCol, font:{color:textCol, size:12} },
       };
+      if(comparison && comparison.x?.length){
+        layout.yaxis2 = { title:comparison.axisTitle||'', overlaying:'y', side:'right', showgrid:false, rangemode:'tozero', fixedrange:true, tickfont:{size:10} };
+      }
       Plotly.newPlot(el, traces, layout, { displayModeBar:false, responsive:true, scrollZoom:false });
       el.on('plotly_click', function(eventData){
         const pt = eventData.points?.[0];
@@ -320,6 +330,44 @@ function walletTimelineTraceHtml(hostId, days, seriesDefs){
     }
     render();
   }, 60);
+}
+// Collection floor price history, for a comparison line on the Sales chart —
+// same "True Floor" line style used on the Floor Trend tab (color, step
+// shape) so it reads as the same concept wherever it appears.
+async function walletFloorComparisonTrace(days){
+  try{
+    const fh = await dbFetch('/db/floor-history', { hours: 24 * 400 });
+    const rows = fh?.history || [];
+    if(!rows.length) return null;
+    const dayKey = ts => new Date(ts).toISOString().slice(0,10);
+    const byDay = {};
+    for(const p of rows) byDay[dayKey(p.recorded_at)] = p.floor_eth;
+    let last = null;
+    const y = days.map(d => { if(byDay[d] != null) last = byDay[d]; return last; });
+    if(!y.some(v => v != null)) return null;
+    return { name:'Collection Floor', color:'#f59e0b', x:days, y, shape:'hv', axisTitle:'Floor (ETH)', hoverSuffix:' ETH' };
+  }catch(_){ return null; }
+}
+// Collection-wide daily burn count, for a comparison line on the Burns chart
+// — reuses the exact same endpoint and flexible field-name fallback that
+// Burn Timeline itself uses (drawBurnActivityChart), just re-bucketed to the
+// wallet chart's own day range.
+async function walletCollectionBurnsComparisonTrace(days){
+  try{
+    const ba = await dbFetch('/db/burn-activity');
+    const rows = ba?.activity || ba?.rows || (Array.isArray(ba) ? ba : []);
+    if(!rows.length) return null;
+    const dayKey = ts => new Date(ts).toISOString().slice(0,10);
+    const byDay = {};
+    for(const r of rows){
+      const raw = r.day || r.date || r.bucket || r.month;
+      if(!raw) continue;
+      byDay[dayKey(raw)] = Number(r.burn_events || r.count || r.burns || 0);
+    }
+    const y = days.map(d => byDay[d] || 0);
+    if(!y.some(v => v > 0)) return null;
+    return { name:'Collection Burns', color:'#FFD700', x:days, y, shape:'spline', axisTitle:'Collection Burns', hoverSuffix:' burns' };
+  }catch(_){ return null; }
 }
 function walletActivityChartHtml(data){
   const eventsAll = walletActivityEvents(data);
@@ -346,15 +394,19 @@ function walletActivityChartHtml(data){
     : '<div class="wallet-empty-state">No burns or transfers in this range.</div>';
 
   if(salesDays.length){
-    walletTimelineTraceHtml(salesHostId, salesDays, [
-      { key:'sale', name:'Sale events', color:'#2dd4bf', series:salesSeries.sale, eventsByDay:salesEBDK.sale },
-    ]);
+    walletFloorComparisonTrace(salesDays).then(comparison => {
+      walletTimelineTraceHtml(salesHostId, salesDays, [
+        { key:'sale', name:'Sale events', color:'#2dd4bf', series:salesSeries.sale, eventsByDay:salesEBDK.sale },
+      ], comparison);
+    });
   }
   if(burnDays.length){
-    walletTimelineTraceHtml(burnsHostId, burnDays, [
-      { key:'burn', name:'Burn events', color:'#f87171', series:burnSeries.burn, eventsByDay:burnEBDK.burn },
-      { key:'transfer', name:'Transfer events', color:'#a78bfa', series:burnSeries.transfer, eventsByDay:burnEBDK.transfer },
-    ]);
+    walletCollectionBurnsComparisonTrace(burnDays).then(comparison => {
+      walletTimelineTraceHtml(burnsHostId, burnDays, [
+        { key:'burn', name:'Burn events', color:'#f87171', series:burnSeries.burn, eventsByDay:burnEBDK.burn },
+        { key:'transfer', name:'Transfer events', color:'#a78bfa', series:burnSeries.transfer, eventsByDay:burnEBDK.transfer },
+      ], comparison);
+    });
   }
 
   return `
