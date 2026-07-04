@@ -219,7 +219,7 @@ function hideWalletActivityTooltip(){
 }
 const WALLET_TIMELINE_RANGES = [['1d','Day'],['7d','Week'],['30d','Month'],['all','All Time']];
 let WALLET_TIMELINE_RANGE = 'all';
-let WALLET_TIMELINE_MONTH = new Date().toISOString().slice(0,7); // defaults to current month, not 'All Time'
+let WALLET_TIMELINE_MONTH = ''; // '' = not using a specific month (defaults to All Time via WALLET_TIMELINE_RANGE)
 function toggleWalletTimelineRange(range){
   WALLET_TIMELINE_RANGE = range;
   WALLET_TIMELINE_MONTH = '';
