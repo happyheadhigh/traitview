@@ -144,7 +144,7 @@ async function loadWalletAnalytics(address, opts={}){
       dbFetch(`/db/wallet/${enc}/transfers`, { limit: 500 }).catch(e => ({ ok:false, error:e.message }))
     ]);
     const data = { address:addr, summary, traits, history, transfers, loadedAt:Date.now() };
-    WALLET_ANALYTICS_CACHE.set(key, data);
+    boundedMapSet(WALLET_ANALYTICS_CACHE, key, data, 50);
     renderWalletAnalytics(data);
     return data;
   }catch(e){

@@ -819,6 +819,16 @@ async function hydrateMarketPersonalityTags(id, row){
   }
 }
 
+// Simple insertion-order eviction for caches keyed by something with no
+// natural ceiling (wallet addresses looked up over a long session), unlike
+// token-ID-keyed caches which are already bounded by the collection size.
+function boundedMapSet(map, key, value, maxSize){
+  if(!map.has(key) && map.size >= maxSize){
+    const oldestKey = map.keys().next().value;
+    map.delete(oldestKey);
+  }
+  map.set(key, value);
+}
 const HOLDER_TAG_CACHE = new Map();
 function holderTagAdd(list, tag){
   if(!tag || !tag.label) return;
@@ -894,7 +904,7 @@ async function computeHolderTags(addr, ids){
   if(cleanIds.length >= 8 && rareTraitHits >= cleanIds.length * 2) holderTagAdd(tags, { label:'One-of-One Hunter', cls:'combo', detail:`${rareTraitHits} rare trait hits`, ids:rareIds, score:76 + rareTraitHits / 3 });
 
   const result = tags.sort((a,b)=>b.score-a.score).slice(0, 5);
-  HOLDER_TAG_CACHE.set(key, result);
+  boundedMapSet(HOLDER_TAG_CACHE, key, result, 50);
   return result;
 }
 function renderHolderTags(tags){
