@@ -840,11 +840,15 @@ a{color:var(--accent)!important}
   }
   #mobileAnalyticsInner .burn-best-card{min-width:0!important}
   #mobileAnalyticsInner .burn-best-burned-row{
-    overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;
-    touch-action:pan-x!important;
+    overflow-x:visible!important;touch-action:auto!important;min-width:0!important;
   }
   #mobileAnalyticsInner .burn-best-burned-row .burn-best-tag{flex-shrink:0!important}
-  #mobileAnalyticsInner .burn-best-burned-row .burn-input-gallery{flex:1!important;min-width:0!important}
+  #mobileAnalyticsInner .burn-best-burned-row .burn-input-gallery{
+    flex:1 1 auto!important;width:100%!important;max-width:100%!important;
+    overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;
+    touch-action:pan-x!important;overscroll-behavior-x:contain!important;min-width:0!important;
+  }
+  #mobileAnalyticsInner .burn-input-gallery .burn-token-chip{flex:0 0 auto!important}
   #mobileAnalyticsInner .burn-input-gallery::-webkit-scrollbar,
   #mobileAnalyticsInner .holder-thumb-gallery::-webkit-scrollbar,
   #mobileAnalyticsInner .burn-chip-list::-webkit-scrollbar{display:none!important}
@@ -3589,9 +3593,10 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-best-list{display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;overflow-x:visible;padding-right:4px;scrollbar-width:thin}
 .burn-best-card{display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:8px;min-width:0}
 .burn-best-survivor-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.burn-best-burned-row{display:flex;align-items:center;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:thin;padding-bottom:2px}
+.burn-best-burned-row{display:flex;align-items:center;gap:8px;overflow-x:visible;touch-action:auto;min-width:0}
 .burn-best-burned-row .burn-best-tag{flex-shrink:0}
-.burn-best-burned-row .burn-input-gallery{flex:1;min-width:0}
+.burn-best-burned-row .burn-input-gallery{flex:1 1 auto;width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain}
+.burn-input-gallery .burn-token-chip{flex:0 0 auto}
 .burn-best-burned-row > *{min-width:0}
 .burn-best-tag{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:999px;flex:0 0 auto}
 .burn-best-tag.survivor{color:#86efac;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.28)}
