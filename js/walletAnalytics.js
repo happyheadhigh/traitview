@@ -592,11 +592,11 @@ async function loadWalletRarestTraitsChart(hostId, ownedIds){
         type:'bar', orientation:'h', width: 0.35,
         marker:{ color: top.map(t => t.pct < 1 ? '#1f9d90' : t.pct < 5 ? '#159b6e' : '#7c8ba0'), cornerradius: 6 },
         text: top.map(t => `${t.pct < 1 ? t.pct.toFixed(2) : t.pct.toFixed(1)}%`),
-        textposition:'outside', textfont:{color:textCol, size:16},
+        textposition:'outside', textfont:{color:textCol, size:22},
         hovertemplate: '%{y}<br>%{x:.2f}% of collection<extra></extra>',
       };
       const layout = {
-        height:260, margin:{ l:150, r:52, t:6, b:30 },
+        height:260, margin:{ l:150, r:64, t:6, b:30 },
         paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
         font:{ color:textCol, size:10.5 },
         xaxis:{ title:'% of collection', showgrid:true, gridcolor:'rgba(255,255,255,0.06)', fixedrange:true, tickfont:{size:10} },
