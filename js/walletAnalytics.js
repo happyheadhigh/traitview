@@ -617,22 +617,41 @@ async function loadWalletRarestTraitsChart(hostId, ownedIds){
 }
 
 // ── Trait Floor vs. What You Paid (Dumbbell rows) ───────────────────────────
-async function findTraitFloorForToken(id){
-  const rarest = await getTopRareTraits(id, 1);
-  if(!rarest.length) return null;
-  const { tn, tv } = rarest[0];
-  let minPrice = Infinity;
-  let minId = null;
+// Builds a single reverse index (trait "category|value" -> cheapest listed
+// token with it) by scanning the listings ONCE, instead of re-scanning all
+// listings separately for every owned token. The old approach was
+// O(ownedTokens x listings) -- for ~20 owned tokens against ~400 listings,
+// that's up to 8,000 sequential lookups. This is O(listings + ownedTokens).
+let _traitFloorIndexCache = null;
+let _traitFloorIndexBuiltAt = 0;
+async function buildTraitFloorIndex(){
+  const now = Date.now();
+  if(_traitFloorIndexCache && (now - _traitFloorIndexBuiltAt) < 60000) return _traitFloorIndexCache;
+  const index = new Map(); // "category|value" -> { price, tokenId }
   const listings = (typeof window !== 'undefined' && window.LISTINGS) || {};
   for(const [lid, l] of Object.entries(listings)){
     const price = l?.opensea?.price_eth;
-    if(price == null || !(price < minPrice)) continue;
+    if(price == null) continue;
     try{
       const entries = await getRowTraitsFor(+lid);
-      if(entries.some(([k,v]) => k === tn && v === tv)){ minPrice = price; minId = +lid; }
+      for(const [k,v] of entries){
+        const key = k + '|' + v;
+        const existing = index.get(key);
+        if(!existing || price < existing.price) index.set(key, { price, tokenId:+lid });
+      }
     }catch(_){}
   }
-  return minPrice === Infinity ? null : { traitCat: tn, traitVal: tv, floorNow: minPrice, floorTokenId: minId };
+  _traitFloorIndexCache = index;
+  _traitFloorIndexBuiltAt = now;
+  return index;
+}
+async function findTraitFloorForToken(id, index){
+  const rarest = await getTopRareTraits(id, 1);
+  if(!rarest.length) return null;
+  const { tn, tv } = rarest[0];
+  const hit = index.get(tn + '|' + tv);
+  if(!hit) return null;
+  return { traitCat: tn, traitVal: tv, floorNow: hit.price, floorTokenId: hit.tokenId };
 }
 async function loadWalletTraitFloorVsPaid(hostId, ownedTokens){
   const withCost = ownedTokens.filter(t => t.cost_eth > 0);
@@ -642,8 +661,9 @@ async function loadWalletTraitFloorVsPaid(hostId, ownedTokens){
     return;
   }
   const rows = [];
+  const traitFloorIndex = await buildTraitFloorIndex();
   for(const t of withCost){
-    const floor = await findTraitFloorForToken(t.token_id);
+    const floor = await findTraitFloorForToken(t.token_id, traitFloorIndex);
     if(!floor) continue;
     rows.push({ id:t.token_id, paid:t.cost_eth, floorNow:floor.floorNow, floorTokenId:floor.floorTokenId, traitCat:floor.traitCat, trait:floor.traitVal });
   }
