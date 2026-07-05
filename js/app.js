@@ -1652,6 +1652,22 @@ async function init(){
                 OS_RANK_MAP = new Map(j.ranks.map(([id,rank]) => [id, rank]));
                 window.OS_RANK_MAP = OS_RANK_MAP;
                 console.log('[OS Rank] Loaded ' + OS_RANK_MAP.size + ' tokens');
+                // If a wallet connected before this finished loading, its
+                // "Best" rank stat was computed with an empty OS_RANK_MAP and
+                // silently fell back to TV rank -- that fallback was correct
+                // behavior for the data available at the time, it just never
+                // got a chance to re-run once the real OS data showed up.
+                // Recompute now so it self-corrects instead of staying wrong
+                // until the next full reconnect.
+                if(CONNECTED_WALLET?.address && typeof buildConnectedWalletStats === 'function'){
+                  buildConnectedWalletStats(CONNECTED_WALLET.address, CONNECTED_WALLET.tokenIds).then(stats => {
+                    CONNECTED_WALLET.stats = stats;
+                    if(typeof renderConnectedHolderPanel === 'function'){
+                      renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
+                      renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
+                    }
+                  }).catch(()=>{});
+                }
               }
             }).catch(()=>{});
           loadOsRanks();

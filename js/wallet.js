@@ -94,7 +94,7 @@ async function fetchWalletTokenIdsForAddress(addr, useCache=true){
     }
     tokenIds = allNfts.map(n => +n.identifier);
   }
-  tokenIds = [...new Set(tokenIds.map(Number).filter(id => id >= 1 && id <= (TOKEN_COUNT || 10000)))];
+  tokenIds = [...new Set(tokenIds.map(Number).filter(id => id >= 1 && id <= 10000))];
   writeConnectedWalletTokenCache(addr, tokenIds);
   return tokenIds;
 }
