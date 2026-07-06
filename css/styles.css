@@ -692,6 +692,10 @@ a{color:var(--accent)!important}
   }
   .mbb-btn svg{width:20px;height:20px;stroke:currentColor;transition:stroke .15s}
   .mbb-btn:active,.mbb-btn.active{color:#2dd4bf}
+  .mbb-btn-glow{position:relative}
+  .mbb-btn-glow::before{content:'';position:absolute;inset:2px 8px;border-radius:10px;background:rgba(28,255,175,.14);z-index:-1}
+  .mbb-btn-glow{color:#1CFFAF!important}
+  .mbb-btn-glow svg{stroke:#1CFFAF!important}
   .mbb-btn:active svg,.mbb-btn.active svg{stroke:#2dd4bf}
 
   /* ── Wallet right drawer overlay ── */
