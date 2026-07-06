@@ -1001,7 +1001,7 @@ function walletDesktopAnalyticsHtml(data){
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">🔥 Your Burns</div></div>
       <div id="walletBurnStatsHost"><div class="wallet-empty-state">Loading…</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:8px">
+    <div class="wallet-owned-edge-grid">
       <div class="wallet-analytics-card">
         <div class="wallet-analytics-head">
           <div class="wallet-analytics-title">Owned Tokens</div>

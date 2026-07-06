@@ -1629,6 +1629,17 @@ a{color:var(--accent)!important}
 /* Wallet Analytics */
 .wallet-analytics{display:flex;flex-direction:column;gap:10px;max-width:100%;overflow:hidden}
 .wallet-analytics-card{border:1px solid rgba(255,255,255,.10);border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.065),rgba(28,255,175,.035));box-shadow:0 12px 28px rgba(0,0,0,.20);padding:10px;max-width:100%;overflow:hidden}
+.wallet-owned-edge-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:8px}
+@media (max-width:900px){
+  /* This never collapsed on mobile -- Wallet Edge (plus Rarity Gained and
+     Trait Exposure above it) was permanently squeezed into a ~.75fr column,
+     maybe 140px wide on a real phone screen. Long values like "Trait
+     Specialist" or "#1262 OS Rank #111" had nowhere near enough room and
+     wrapped/crammed badly. Stacking to full width on mobile fixes this
+     directly instead of working around it by shrinking the Owned Tokens
+     thumbnails to free up a few more pixels for the narrow column. */
+  .wallet-owned-edge-grid{grid-template-columns:1fr}
+}
 .wallet-analytics-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .wallet-analytics-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text)}
 .wallet-analytics-sub{font-size:11px;color:var(--sub);line-height:1.35}
@@ -3662,6 +3673,19 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
      to fit the un-scrolled gallery width, stretching the whole card/page
      wide instead of letting the inner gallery scroll on its own. */
   .burn-best-grid{grid-template-columns:minmax(0,1fr)}
+  /* Biggest Burns (group 1) needs the full row -- survivor chip + burned
+     gallery + points + tx. Rarest Inputs and Best Survivors (groups 2/3)
+     are each just a short list of single-chip rows though, and were each
+     taking a full mobile-width row for very little content, while the
+     narrower stacked chip (thumb/ID/rank underneath, not side by side)
+     freed up horizontal space that was just going unused in the middle of
+     each row. Pairing 2 and 3 side by side actually uses that space. */
+  .burn-best-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .burn-best-grid .burn-best-group{flex:1 1 100%;min-width:0}
+  .burn-best-grid .burn-best-group:nth-child(2),
+  .burn-best-grid .burn-best-group:nth-child(3){flex:1 1 calc(50% - 4px)}
+  .burn-mini-row{flex-direction:column;align-items:flex-start;gap:2px}
+  .burn-mini-row .burn-best-tx{font-size:9px;color:var(--sub)}
   .burn-main{justify-content:flex-start}
   .burn-token-thumb{width:32px;height:32px}
   .burn-table-head{display:none}
