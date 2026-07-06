@@ -115,11 +115,15 @@ function burnsTokenChip(id, row, overrideSrc=null, burnEventId=null){
   const n = Number(id);
   if(!Number.isFinite(n) || n <= 0) return '';
   const rankHtml = row ? burnsRowRankTag(row, n) : burnsRankTag(n);
+  // Tried overlaying the rank on the thumbnail corner, then as a bottom
+  // gradient bar -- both either covered real artwork (faces/hats sit right
+  // in that zone) or had to be shrunk so small the rank became unreadable.
+  // Simplest fix wins: leave the thumbnail completely clean, ID and rank as
+  // two stacked plain-text lines underneath.
   return `<span class="burn-token-chip">
-    <span class="burn-token-thumb-wrap">
-      ${burnsTokenThumb(n, '', overrideSrc, burnEventId)}${rankHtml ? `<span class="burn-token-rank-overlay">${rankHtml}</span>` : ''}
-    </span>
+    ${burnsTokenThumb(n, '', overrideSrc, burnEventId)}
     <span class="burn-token-id">${burnsTokenLink(n)}</span>
+    ${rankHtml || ''}
   </span>`;
 }
 function burnsTokenChipList(ids){

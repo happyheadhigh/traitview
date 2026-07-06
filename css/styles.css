@@ -1635,21 +1635,23 @@ a{color:var(--accent)!important}
 .wallet-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.10)}
 .wallet-stat-row{display:flex;align-items:stretch;overflow-x:auto;max-width:100%;scrollbar-width:none;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(0,0,0,.10)}
 .wallet-stat-row::-webkit-scrollbar{display:none}
+.wallet-stat-cell{flex:1 1 0;min-width:0;padding:7px 10px;border-left:1px solid rgba(255,255,255,.07)}
+.wallet-stat-cell:first-child{border-left:0}
 @media (max-width:900px){
-  /* The row was relying on horizontal scroll to fit 6-7 stat cells, but a
-     conflicting overflow:hidden on the same rule silently disabled that
-     scroll entirely -- every cell got squeezed to fit, forcing labels like
-     "Owned"/"Best Rank" and values into ellipsis truncation. Fixed the
-     conflict above, but scroll with no visible scrollbar is also just a
-     bad, easy-to-miss mobile pattern for a stats row. Wrapping into a grid
-     is more readable and discoverable than scrolling either way. */
+  /* This block previously sat BEFORE the two unconditional .wallet-stat-cell
+     rules above (moved here 2026-07-06) -- same specificity, later source
+     order always wins in CSS regardless of the media query, so the plain
+     "flex:1 1 0" rule was silently overriding this mobile wrap fix on every
+     load, mobile included. Confirmed via three separate live screenshots
+     all showing the exact same truncation the first fix was supposed to
+     have already resolved. Moving this block after the conflicting rule
+     (rather than adding !important, which just hides the next version of
+     this same class-ordering mistake) is what actually makes it win now. */
   .wallet-stat-row{flex-wrap:wrap;overflow-x:visible}
   .wallet-stat-cell{flex:1 1 33.333%;min-width:33.333%;border-bottom:1px solid rgba(255,255,255,.07)}
   .wallet-stat-cell:nth-child(3n+1){border-left:0}
   .wallet-stat-cell span,.wallet-stat-cell b{white-space:normal;overflow:visible;text-overflow:clip}
 }
-.wallet-stat-cell{flex:1 1 0;min-width:0;padding:7px 10px;border-left:1px solid rgba(255,255,255,.07)}
-.wallet-stat-cell:first-child{border-left:0}
 .wallet-stat-cell span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:rgba(203,213,225,.74);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wallet-stat-cell b{display:block;margin-top:2px;font-size:14px;font-weight:900;color:var(--text);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wallet-top-token-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:7px}
@@ -3561,23 +3563,19 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-chip-list::-webkit-scrollbar{height:4px}
 .burn-chip-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
 .burn-chip-list::-webkit-scrollbar-track{background:transparent}
-.burn-token-thumb-wrap{position:relative;display:inline-flex;border-radius:7px;overflow:hidden}
 .burn-token-thumb{width:36px;height:36px;border:1px solid rgba(255,255,255,.08);border-radius:7px;overflow:hidden;padding:0;background:rgba(255,255,255,.055);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--sub);font-size:9px;flex:0 0 auto;transition:width .15s ease,height .15s ease}
 .burn-token-thumb:hover{box-shadow:0 0 0 1px rgba(45,212,191,.5)}
 .burn-token-thumb img{width:100%;height:100%;object-fit:contain;display:block}
 .burn-token-id{font-size:11px;font-weight:800}
-.burn-token-rank-overlay{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;justify-content:center;padding:0 2px 2px;height:40%;background:linear-gradient(to top,rgba(0,0,0,.78),rgba(0,0,0,0));border-radius:0 0 7px 7px;line-height:1;pointer-events:none}
-.burn-token-rank-overlay .burn-rank{background:transparent!important;border:0!important;padding:0!important;font-size:7px;font-weight:800;white-space:nowrap;line-height:1;text-shadow:0 1px 1px rgba(0,0,0,.7)}
+.burn-token-chip .burn-rank{font-size:9px;padding:1px 5px}
 .burn-input-gallery{display:flex;align-items:flex-start;gap:8px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;min-width:0;padding-bottom:3px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;touch-action:pan-x;-webkit-overflow-scrolling:touch}
 .holder-thumb-gallery{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:2px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;-webkit-overflow-scrolling:touch;touch-action:pan-x}
 .burn-input-gallery::-webkit-scrollbar{height:4px}
 .burn-input-gallery::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
 .burn-input-gallery::-webkit-scrollbar-track{background:transparent}
 .burn-thumbs-md .burn-token-thumb{width:52px;height:52px;border-radius:9px}
-.burn-thumbs-md .burn-token-thumb-wrap{border-radius:9px}
 .burn-thumbs-md .burn-input-gallery{gap:10px}
 .burn-thumbs-lg .burn-token-thumb{width:96px;height:96px;border-radius:12px}
-.burn-thumbs-lg .burn-token-thumb-wrap{border-radius:12px}
 .burn-thumbs-lg .burn-input-gallery{gap:12px}
 .burn-icon-btn{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
 .burn-created-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
@@ -3666,8 +3664,6 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   .burn-best-grid{grid-template-columns:minmax(0,1fr)}
   .burn-main{justify-content:flex-start}
   .burn-token-thumb{width:32px;height:32px}
-  .burn-token-rank-overlay{height:32%;padding-bottom:1px}
-  .burn-token-rank-overlay .burn-rank{font-size:6px}
   .burn-table-head{display:none}
   .burn-latest-row,.burn-leader-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .burn-cell{white-space:normal}
