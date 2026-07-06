@@ -542,7 +542,73 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
 /* tooltip helpers moved to js/tooltip.js */
 
 /* modal */
-async function openModal(id){
+function survivorChipHtml(id){
+  const n = Number(id);
+  const count = SURVIVOR_COUNT_MAP.get(n);
+  if(!count || count < 1) return '';
+  const label = count > 1 ? `🛡️ Survivor x${count}` : '🛡️ Survivor';
+  return `<span class="chip survivor-chip">${label}</span>`;
+}
+
+// ── Burn history timeline (modal pre-burn toggle) ────────────────────────────
+const _burnHistoryCache = new Map();
+async function fetchTokenBurnHistory(id){
+  const key = +id;
+  if(_burnHistoryCache.has(key)) return _burnHistoryCache.get(key);
+  try{
+    const data = await dbFetch(`/db/token/${key}/burn-history`);
+    _burnHistoryCache.set(key, data);
+    return data;
+  }catch(e){
+    return null;
+  }
+}
+
+function _applyBurnHistoryEntry(entry){
+  const imgBox = document.getElementById('mImg');
+  if(imgBox && entry.image){
+    const s = String(entry.image).trim();
+    if(s.startsWith('<svg')) imgBox.innerHTML = `<div class="svg-wrap" style="width:100%;height:100%">${s}</div>`;
+    else if(/^data:image\//i.test(s)) imgBox.innerHTML = `<img src="${s}" alt="#${entry.token_id||''}">`;
+    else imgBox.innerHTML = `<img src="${ipfsToHttp(s)}" alt="#${entry.token_id||''}">`;
+  }
+  if(entry.traits){
+    const kv = keepEntries(entry.traits);
+    const mTraits = document.getElementById('mTraits');
+    if(mTraits) mTraits.innerHTML = kv.length ? kv.map(([k,v])=>`<div><span>${traitDisplayLabel(k)}</span><b>${v}</b></div>`).join('') : '<div style="color:var(--muted)">No traits</div>';
+  }
+}
+
+function renderBurnHistoryToggle(container, entries, activePosition){
+  if(!container) return;
+  if(!Array.isArray(entries) || entries.length <= 1){
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+  const idx = Math.max(0, entries.findIndex(e => e.position === activePosition));
+  const entry = entries[idx];
+  const isMint = entry.position === 0;
+  const badge = isMint ? '' : `<span class="chip survivor-chip" style="font-size:9px;padding:1px 6px">🛡️ Survivor</span>`;
+  container.style.display = 'flex';
+  container.innerHTML = `
+    <button type="button" class="burn-hist-nav" ${idx<=0?'disabled':''} onclick="_navBurnHistory(-1)" aria-label="Earlier">‹</button>
+    <span class="burn-hist-label">${burnsEsc(entry.label)}${badge}</span>
+    <button type="button" class="burn-hist-nav" ${idx>=entries.length-1?'disabled':''} onclick="_navBurnHistory(1)" aria-label="Later">›</button>
+  `;
+}
+
+function _navBurnHistory(delta){
+  const h = window._modalBurnHistory;
+  if(!h) return;
+  const next = h.index + delta;
+  if(next < 0 || next >= h.entries.length) return;
+  h.index = next;
+  _applyBurnHistoryEntry(h.entries[next]);
+  renderBurnHistoryToggle(document.getElementById('mBurnHistoryToggle'), h.entries, h.entries[next].position);
+}
+
+async function openModal(id, opts={}){
   window._modalCurrentId = +id;
   const row = await fetchRow(id);
   const m   = $('#modal');
@@ -555,7 +621,8 @@ async function openModal(id){
   const _tvChip  = _tvR ? `<span class='chip'>${rankDiamondHtml(_tvR,'','tv')}</span>` : '';
   const _ownedChip = connectedWalletOwns(id) ? `<span class="chip" style="color:#1CFFAF;border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.08)">Owned</span>` : '';
   const _burnedChip = (window._BURNED_IDS && window._BURNED_IDS.has(+id)) ? `<span class="chip" style="color:#f87171;border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.08)">🔥 Burned</span>` : '';
-  $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}${_ownedChip}${_burnedChip}`;
+  const _survivorChip = survivorChipHtml(id);
+  $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}${_ownedChip}${_burnedChip}${_survivorChip}`;
   hydrateMarketPersonalityTags(id, row);
   const links = $('#mLinks'); links.innerHTML = '';
   const listing = (window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null;
@@ -685,12 +752,41 @@ async function openModal(id){
       if(fresh){
         const currentModal = document.getElementById('modal');
         const titleEl = document.getElementById('mTitle');
-        if(currentModal?.style.display !== 'none' && titleEl?.textContent?.includes(`#${id}`)){
+        // Don't clobber a historical toggle position the user has navigated
+        // to -- only apply the fresh "current" image if we're still parked
+        // at the latest position (or the history toggle never loaded at all).
+        const h = window._modalBurnHistory;
+        const atLatest = !h || h.tokenId !== +id || h.index === h.entries.length - 1;
+        if(atLatest && currentModal?.style.display !== 'none' && titleEl?.textContent?.includes(`#${id}`)){
           imgBox.innerHTML = `<img src="${fresh}" alt="#${id}" style="max-width:100%;max-height:100%;object-fit:contain">`;
         }
       }
     }).catch(()=>{});
   }
+
+  // ── Pre-burn history toggle ───────────────────────────────────────────────
+  // Reset immediately so a previous token's toggle state can't bleed into
+  // this one while the fetch below is in flight.
+  window._modalBurnHistory = null;
+  const histContainer = document.getElementById('mBurnHistoryToggle');
+  if(histContainer){ histContainer.style.display = 'none'; histContainer.innerHTML = ''; }
+  fetchTokenBurnHistory(id).then(history => {
+    // Bail if the modal moved on to a different token while this was loading.
+    if(window._modalCurrentId !== +id) return;
+    if(!history || !Array.isArray(history.timeline) || history.timeline.length <= 1) return;
+    const entries = history.timeline;
+    // If opened from a specific burn row (opts.burnEventId), jump straight to
+    // that position and actually apply it -- otherwise leave the
+    // already-rendered current/live image and traits alone, and just show
+    // the toggle parked at the latest known position for reference.
+    const targetEntry = opts.burnEventId != null
+      ? entries.find(e => e.burn_event_id === opts.burnEventId)
+      : null;
+    const startIndex = targetEntry ? entries.indexOf(targetEntry) : entries.length - 1;
+    window._modalBurnHistory = { entries, index: startIndex, tokenId: +id };
+    if(targetEntry) _applyBurnHistoryEntry(targetEntry);
+    renderBurnHistoryToggle(histContainer, entries, entries[startIndex].position);
+  });
 
   // ── Tab: Traits ──────────────────────────────────────────────
   const kv = keepEntries(row.traits);
@@ -948,13 +1044,20 @@ function initHolderTagPreview(){
     if(burnThumb){
       const id = Number(burnThumb.dataset.burnTokenId);
       if(!id) return;
-      const src = typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : (typeof imgForId === 'function' ? imgForId(id) : '');
+      // If this specific thumb is showing a frozen/historical image (e.g. a
+      // burn row's pre-burn snapshot), preview THAT image, not the token's
+      // current live one -- reading it straight off the actual rendered
+      // <img> avoids re-deriving state that's already sitting right there.
+      const frozenImg = burnThumb.dataset.burnFrozenImg ? burnThumb.querySelector('img') : null;
+      const src = frozenImg ? frozenImg.src
+        : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : (typeof imgForId === 'function' ? imgForId(id) : ''));
       const osRank = typeof OS_RANK_MAP !== 'undefined' ? OS_RANK_MAP.get(id) : null;
       const tvRank = typeof RARITY_OBS_RANK !== 'undefined' ? RARITY_OBS_RANK.get(id) : null;
       const rank = osRank || tvRank;
       const row = typeof ROW_CACHE !== 'undefined' ? ROW_CACHE.get(id) : null;
       const traits = row && typeof getTraitCount === 'function' ? getTraitCount(row) : null;
-      tip.innerHTML = `<div class="holder-tag-preview-title">Token #${id}</div><div class="holder-tag-preview-token">${src ? `<img src="${comboEsc(src)}" alt="#${id}">` : ''}<div><b>#${id}</b>${rank ? `<span>Rank #${comboEsc(rank)}</span>` : ''}${traits != null ? `<span>${comboEsc(traits)} traits</span>` : ''}</div></div>`;
+      const historyNote = frozenImg ? '<span style="color:var(--sub)">Historical snapshot</span>' : '';
+      tip.innerHTML = `<div class="holder-tag-preview-title">Token #${id}</div><div class="holder-tag-preview-token">${src ? `<img src="${comboEsc(src)}" alt="#${id}">` : ''}<div><b>#${id}</b>${rank ? `<span>Rank #${comboEsc(rank)}</span>` : ''}${traits != null ? `<span>${comboEsc(traits)} traits</span>` : ''}${historyNote}</div></div>`;
       tip.style.display = 'block';
       move(e.clientX, e.clientY);
       return;
@@ -1679,6 +1782,19 @@ async function init(){
               }
             }).catch(()=>{});
           loadOsRanks();
+          // Survivor counts for the "Survivor" / "Survivor x2" badge (modal +
+          // grid). Same fire-and-forget, cached-on-server pattern as OS ranks.
+          if(SURVIVOR_COUNT_MAP.size === 0){
+            const loadSurvivorCounts = () => dbFetch('/db/survivor-counts')
+              .then(j => {
+                if(j?.ok && j.counts){
+                  SURVIVOR_COUNT_MAP = new Map(Object.entries(j.counts).map(([id,c]) => [+id, +c]));
+                  window.SURVIVOR_COUNT_MAP = SURVIVOR_COUNT_MAP;
+                }
+              }).catch(()=>{});
+            loadSurvivorCounts();
+            setInterval(loadSurvivorCounts, 10 * 60 * 1000);
+          }
           // Ranks now update on a rolling ~1.8-day cycle server-side (see
           // rank-sync.js) — refresh periodically so a long-lived tab doesn't
           // get stuck showing whatever ranks were live at page load forever.
@@ -5743,7 +5859,9 @@ async function refreshLiveTokenData(){
         if(data.image !== current){
           IMAGES_MAP?.set(id, data.image);
           document.querySelectorAll(`[data-id="${id}"] img, [data-burn-token-id="${id}"]:not([data-burn-frozen-img]) img`).forEach(img => { img.src = data.image; });
-          if(window._modalCurrentId === id){
+          const _h1 = window._modalBurnHistory;
+          const _atLatest1 = !_h1 || _h1.tokenId !== id || _h1.index === _h1.entries.length - 1;
+          if(window._modalCurrentId === id && _atLatest1){
             const imgBox = document.getElementById('mImg');
             if(imgBox){
               const s = String(data.image).trim();
@@ -5761,7 +5879,9 @@ async function refreshLiveTokenData(){
         const changed = !cachedRow || JSON.stringify(cachedRow.traits) !== JSON.stringify(data.traits);
         if(changed){
           ROW_CACHE.set(id, { traits: data.traits });
-          if(window._modalCurrentId === id){
+          const _h2 = window._modalBurnHistory;
+          const _atLatest2 = !_h2 || _h2.tokenId !== id || _h2.index === _h2.entries.length - 1;
+          if(window._modalCurrentId === id && _atLatest2){
             const kv = keepEntries(data.traits);
             const mTraits = document.getElementById('mTraits');
             if(mTraits) mTraits.innerHTML = kv.length ? kv.map(([k,v])=>`<div><span>${traitDisplayLabel(k)}</span><b>${v}</b></div>`).join('') : '<div style="color:var(--muted)">No traits</div>';

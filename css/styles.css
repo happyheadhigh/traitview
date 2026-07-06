@@ -3606,6 +3606,12 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-rank.gold{color:#FFD700;background:rgba(255,215,0,.09)}
 .burn-rank.purple{color:#d8b4fe;background:rgba(168,85,247,.10)}
 .burn-rank.teal{color:#2dd4bf;background:rgba(45,212,191,.10)}
+.burn-hist-toggle{display:none;align-items:center;justify-content:center;gap:8px;margin:6px 0 2px;padding:6px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;font-size:11px}
+.burn-hist-toggle .burn-hist-nav{width:24px;height:24px;padding:0;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--text);cursor:pointer;font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+.burn-hist-toggle .burn-hist-nav:disabled{opacity:.3;cursor:default}
+.burn-hist-toggle .burn-hist-nav:not(:disabled):hover{border-color:rgba(255,255,255,.35)}
+.burn-hist-label{display:inline-flex;align-items:center;gap:6px;color:rgba(203,213,225,.85);font-weight:700;letter-spacing:.02em}
+.survivor-chip{color:#86efac;border-color:rgba(74,222,128,.28);background:rgba(74,222,128,.08)}
 .burn-best-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .burn-best-group h4{margin:0 0 4px;color:rgba(203,213,225,.74);font-size:9.5px;text-transform:uppercase;letter-spacing:.075em}
 .burn-mini-row{justify-content:space-between;border-top:1px solid rgba(255,255,255,.055);padding:4px 0;font-size:11px}

@@ -93,7 +93,7 @@ function burnsNormalizeImgSrc(raw){
   if(s.startsWith('data:')) return s;
   return typeof ipfsToHttp === 'function' ? ipfsToHttp(s) : s;
 }
-function burnsTokenThumb(id, extraClass='', overrideSrc=null){
+function burnsTokenThumb(id, extraClass='', overrideSrc=null, burnEventId=null){
   const n = Number(id);
   if(!Number.isFinite(n) || n <= 0) return '';
   const src = overrideSrc ? burnsNormalizeImgSrc(overrideSrc) : burnsTokenImgSrc(n);
@@ -104,26 +104,31 @@ function burnsTokenThumb(id, extraClass='', overrideSrc=null){
   // it would overwrite this intentional historical image with the token's
   // current one on its next periodic pass.
   const frozenAttr = overrideSrc ? ' data-burn-frozen-img="1"' : '';
-  return `<button type="button" class="burn-token-thumb ${burnsEsc(extraClass)}" data-burn-token-id="${n}"${frozenAttr} title="Open token #${n}" aria-label="Open token #${n}" onclick="event.stopPropagation(); if(typeof openModal==='function') openModal(${n});">${img}</button>`;
+  // burnEventId, when known, opens the modal parked at THIS specific burn's
+  // position in the token's history toggle rather than its current state --
+  // e.g. clicking a survivor's thumbnail in its "Burn 2" row shows the
+  // token as it looked right after burn 2, tagged Survivor, not today's form.
+  const openCall = burnEventId ? `openModal(${n}, {burnEventId:${Number(burnEventId)}})` : `openModal(${n})`;
+  return `<button type="button" class="burn-token-thumb ${burnsEsc(extraClass)}" data-burn-token-id="${n}"${frozenAttr} title="Open token #${n}" aria-label="Open token #${n}" onclick="event.stopPropagation(); if(typeof openModal==='function') ${openCall};">${img}</button>`;
 }
-function burnsTokenChip(id, row, overrideSrc=null){
+function burnsTokenChip(id, row, overrideSrc=null, burnEventId=null){
   const n = Number(id);
   if(!Number.isFinite(n) || n <= 0) return '';
-  return `<span class="burn-token-chip">${burnsTokenThumb(n, '', overrideSrc)}<span class="burn-token-id">${burnsTokenLink(n)}</span>${row ? burnsRowRankTag(row, n) : burnsRankTag(n)}</span>`;
+  return `<span class="burn-token-chip">${burnsTokenThumb(n, '', overrideSrc, burnEventId)}<span class="burn-token-id">${burnsTokenLink(n)}</span>${row ? burnsRowRankTag(row, n) : burnsRankTag(n)}</span>`;
 }
 function burnsTokenChipList(ids){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
   const chips = clean.map(id => burnsTokenChip(id)).join('');
   return `<span class="burn-chip-list">${chips || '-'}</span>`;
 }
-function burnsInputGallery(ids, snapshotMap=null){
+function burnsInputGallery(ids, snapshotMap=null, burnEventId=null){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
   // These IDs were destroyed by burning — they no longer represent their
   // original selves, so a "current" image lookup is meaningless/wrong for
   // them. Use the pre-burn snapshot when we have one; burnsTokenChip falls
   // back to the normal live lookup if no snapshot exists for a given id
   // (e.g. an older burn from before snapshotting was in place).
-  const chips = clean.map(id => burnsTokenChip(id, null, snapshotMap?.[String(id)] || null)).join('');
+  const chips = clean.map(id => burnsTokenChip(id, null, snapshotMap?.[String(id)] || null, burnEventId)).join('');
   return `<div class="burn-input-gallery">${chips || '-'}</div>`;
 }
 function burnsInputIds(row){
@@ -220,8 +225,8 @@ function renderLatestBurns(rows, snapshotMap=null){
     const created = row.created_token_id || row.survivor_token_id;
     return `<div class="burn-row burn-latest-row">
       <div class="burn-cell burn-tx"><b>${burnsTxLink(row.tx_hash)}</b></div>
-      <div class="burn-cell burn-inputs">${burnsInputGallery(ids, snapshotMap)}</div>
-      <div class="burn-cell burn-created">${burnsTokenChip(created, row, row.snapshot_image || null)}</div>
+      <div class="burn-cell burn-inputs">${burnsInputGallery(ids, snapshotMap, row.burn_event_id)}</div>
+      <div class="burn-cell burn-created">${burnsTokenChip(created, row, row.snapshot_image || null, row.burn_event_id)}</div>
       <div class="burn-cell burn-count">${burnsMetric(row.input_count ?? ids.length)}</div>
       <div class="burn-cell burn-points">${row.points_used != null ? burnsMetric(row.points_used) : '-'}</div>
       <div class="burn-cell burn-time">${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</div>
@@ -259,13 +264,13 @@ function renderBestBurns(best, snapshotMap=null){
         return `<div class="burn-best-card">
           <div class="burn-best-survivor-row">
             <span class="burn-best-tag survivor">Survivor</span>
-            ${burnsTokenChip(survivor, row, row.snapshot_image || null)}
+            ${burnsTokenChip(survivor, row, row.snapshot_image || null, row.burn_event_id)}
             ${ptsHtml}
             <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
           </div>
           <div class="burn-best-burned-row">
             <span class="burn-best-tag burned">Burned (${burnsMetric(row.input_count ?? ids.length)})</span>
-            ${burnsInputGallery(ids, snapshotMap)}
+            ${burnsInputGallery(ids, snapshotMap, row.burn_event_id)}
           </div>
         </div>`;
       }
@@ -276,8 +281,9 @@ function renderBestBurns(best, snapshotMap=null){
       // Best Survivors are still-alive tokens, so no override — they use
       // the normal live image path via burnsTokenChip's default behavior.
       const overrideSrc = kind === 'input' ? (row.snapshot_image || null) : null;
+      const burnEventId = kind === 'input' ? (row.burn_event_id || null) : null;
       return `<div class="burn-mini-row">
-        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row, overrideSrc)}</span>
+        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row, overrideSrc, burnEventId)}</span>
         <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
       </div>`;
     }).join('');

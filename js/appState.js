@@ -14,6 +14,7 @@ let currentTraitCount = null, activeTraits = new Map(), AVAILABLE_DOMAIN = null;
 
 let RARITY_OBS_RANK = new Map(), RARITY_THEO_RANK = new Map(), RARITY_MODE = 'observed', PROB_DATA = null;
 let OS_RANK_MAP = new Map(); // token_id → os_rank from Railway DB
+let SURVIVOR_COUNT_MAP = new Map(); // token_id → number of times it has ever survived a burn
 
 let pinnedA = null, pinnedB = null, pinnedSet = [];
 const OPEN_GROUPS = new Set();
