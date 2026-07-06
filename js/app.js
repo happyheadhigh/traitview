@@ -546,7 +546,7 @@ function survivorChipHtml(id){
   const n = Number(id);
   const count = SURVIVOR_COUNT_MAP.get(n);
   if(!count || count < 1) return '';
-  const label = count > 1 ? `🛡️ Survivor x${count}` : '🛡️ Survivor';
+  const label = count > 1 ? `Survivor x${count}` : 'Survivor';
   return `<span class="chip survivor-chip">${label}</span>`;
 }
 
@@ -589,7 +589,7 @@ function renderBurnHistoryToggle(container, entries, activePosition){
   const idx = Math.max(0, entries.findIndex(e => e.position === activePosition));
   const entry = entries[idx];
   const isMint = entry.position === 0;
-  const badge = isMint ? '' : `<span class="chip survivor-chip" style="font-size:9px;padding:1px 6px">🛡️ Survivor</span>`;
+  const badge = isMint ? '' : `<span class="chip survivor-chip" style="padding:2px 8px;font-size:11px">Survivor</span>`;
   container.style.display = 'flex';
   container.innerHTML = `
     <button type="button" class="burn-hist-nav" ${idx<=0?'disabled':''} onclick="_navBurnHistory(-1)" aria-label="Earlier">‹</button>
