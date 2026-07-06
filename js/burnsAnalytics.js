@@ -114,7 +114,13 @@ function burnsTokenThumb(id, extraClass='', overrideSrc=null, burnEventId=null){
 function burnsTokenChip(id, row, overrideSrc=null, burnEventId=null){
   const n = Number(id);
   if(!Number.isFinite(n) || n <= 0) return '';
-  return `<span class="burn-token-chip">${burnsTokenThumb(n, '', overrideSrc, burnEventId)}<span class="burn-token-id">${burnsTokenLink(n)}</span>${row ? burnsRowRankTag(row, n) : burnsRankTag(n)}</span>`;
+  const rankHtml = row ? burnsRowRankTag(row, n) : burnsRankTag(n);
+  return `<span class="burn-token-chip">
+    <span class="burn-token-thumb-wrap">
+      ${burnsTokenThumb(n, '', overrideSrc, burnEventId)}${rankHtml ? `<span class="burn-token-rank-overlay">${rankHtml}</span>` : ''}
+    </span>
+    <span class="burn-token-id">${burnsTokenLink(n)}</span>
+  </span>`;
 }
 function burnsTokenChipList(ids){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
