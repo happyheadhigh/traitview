@@ -85,12 +85,13 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .pinbar{position:absolute;right:6px;top:6px;display:flex;gap:6px;opacity:.98;z-index:10}
 .pinbtn{font-size:11px;padding:2px 6px;border:1px solid var(--chip-b);border-radius:999px;background:var(--soft);color:var(--sub)}
 .pinbtn.flash{outline:2px solid var(--accent);border-radius:6px}
-.view-switch{display:flex;gap:8px;align-items:center}
-.viewbtn{background:#11161d;border:1px solid #2a2f3a;padding:6px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
-.viewbtn svg{width:16px;height:16px;fill:#9aa4b2}
-.viewbtn:hover svg{fill:#c7d0dc}
-.viewbtn.active{border-color:var(--accent);box-shadow:0 0 0 1px rgba(51,153,255,.18)}
-.viewbtn.active svg{fill:#e0e7f1}
+.view-switch{display:inline-flex;border:1px solid var(--border,#2a2f3a);border-radius:6px;overflow:hidden}
+.viewbtn{background:var(--chip,#11161d);border:0;padding:6px 8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.viewbtn+.viewbtn{border-left:1px solid var(--border,#2a2f3a)}
+.viewbtn svg{width:15px;height:15px;fill:var(--sub,#9aa4b2)}
+.viewbtn:hover:not(.active) svg{fill:var(--text,#c7d0dc)}
+.viewbtn.active{background:rgba(28,255,175,.14)}
+.viewbtn.active svg{fill:#1CFFAF}
 .token-trait-search{display:flex;align-items:center;gap:6px;min-width:260px;max-width:420px;flex:1 1 280px}
 .token-trait-search #tokenTraitSearch{width:100%;min-width:220px;height:34px}
 .token-trait-search #tokenTraitSearchClear{height:30px;min-height:30px;width:30px;padding:0;display:inline-flex;align-items:center;justify-content:center}

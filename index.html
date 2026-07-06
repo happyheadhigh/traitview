@@ -14,7 +14,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=20260706h">
+  <link rel="stylesheet" href="./css/styles.css?v=20260706i">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -372,8 +372,17 @@
   </div>
 
   <div class="matching-panel-sort">
-  
-<div class="view-switch" id="viewSwitch">
+
+  <label class="section" style="margin-left:12px">Sort</label>
+  <select id="sortMode" class="input" style="width:200px">
+    <option value="id-asc">ID ↑ (default)</option>
+    <option value="rare-first">Rarest → Least</option>
+    <option value="rare-last">Least → Rarest</option>
+    <option value="price-asc">Price ↑ (cheapest first)</option>
+    <option value="price-desc">Price ↓ (most expensive)</option>
+  </select>
+
+<div class="view-switch" id="viewSwitch" style="margin-left:10px">
   <button type="button" class="viewbtn" data-view="standard" title="2×2 grid">
     <svg viewBox="0 0 18 18"><rect x="1" y="1" width="7" height="7" rx="1"/><rect x="10" y="1" width="7" height="7" rx="1"/><rect x="1" y="10" width="7" height="7" rx="1"/><rect x="10" y="10" width="7" height="7" rx="1"/></svg>
   </button>
@@ -388,15 +397,6 @@
   </button>
 </div>
 <select id="viewMode" class="input" style="display:none"><option value="standard">2×2 grid</option><option value="grid5">5×5 grid</option><option value="compact">8×8 grid</option><option value="list">List view</option></select>
-
-  <label class="section" style="margin-left:12px">Sort</label>
-  <select id="sortMode" class="input" style="width:200px">
-    <option value="id-asc">ID ↑ (default)</option>
-    <option value="rare-first">Rarest → Least</option>
-    <option value="rare-last">Least → Rarest</option>
-    <option value="price-asc">Price ↑ (cheapest first)</option>
-    <option value="price-desc">Price ↓ (most expensive)</option>
-  </select>
 
     <div class="token-trait-search">
       <input id="tokenTraitSearch" class="input" type="search" placeholder="Search tokens by traits..." autocomplete="off">
@@ -639,9 +639,9 @@
       <span class="mobile-menu-label">Etherscan</span>
       <span class="mobile-menu-arrow">↗</span>
     </a>
-    <a class="mobile-menu-link" href="https://discord.com/oauth2/authorize?client_id=1484422034116182208&scope=bot+applications.commands&permissions=277025459200" target="_blank" rel="noreferrer">
-      <span class="mobile-menu-icon">🤖</span>
-      <span class="mobile-menu-label">Sales Bot</span>
+    <a class="mobile-menu-link" href="https://discord.gg/bbxreqTaSM" target="_blank" rel="noreferrer">
+      <span class="mobile-menu-icon"><img src="./assets/discord-symbol-light-blurple.svg" alt="" aria-hidden="true" width="18" height="18"></span>
+      <span class="mobile-menu-label">Discord</span>
       <span class="mobile-menu-arrow">↗</span>
     </a>
   </div>
@@ -782,29 +782,29 @@
 
 
 
-<script src="./js/config.js?v=20260706h" defer></script>
-<script src="./js/dataConfig.js?v=20260706h" defer></script>
-<script src="./js/formatUtils.js?v=20260706h" defer></script>
-<script src="./js/imageMap.js?v=20260706h" defer></script>
-<script src="./js/state.js?v=20260706h" defer></script>
-<script src="./js/appState.js?v=20260706h" defer></script>
-<script src="./js/favorites.js?v=20260706h" defer></script>
-<script src="./js/wallet.js?v=20260706h" defer></script>
-<script src="./js/api.js?v=20260706h" defer></script>
-<script src="./js/rankSort.js?v=20260706h" defer></script>
-<script src="./js/rankDisplay.js?v=20260706h" defer></script>
-<script src="./js/walletConnect.js?v=20260706h" defer></script>
-<script src="./js/walletAnalytics.js?v=20260706h" defer></script>
-<script src="./js/mispriced.js?v=20260706h" defer></script>
-<script src="./js/traitUtils.js?v=20260706h" defer></script>
-<script src="./js/listingMeta.js?v=20260706h" defer></script>
-<script src="./js/listCards.js?v=20260706h" defer></script>
-<script src="./js/chart.js?v=20260706h" defer></script>
-<script src="./js/tooltip.js?v=20260706h" defer></script>
-<script src="./js/comboInsights.js?v=20260706h" defer></script>
-<script src="./js/burnsAnalytics.js?v=20260706h" defer></script>
-<script src="./js/downloadLoader.js?v=20260706h" defer></script>
-<script src="./js/app.js?v=20260706h" defer></script>
+<script src="./js/config.js?v=20260706i" defer></script>
+<script src="./js/dataConfig.js?v=20260706i" defer></script>
+<script src="./js/formatUtils.js?v=20260706i" defer></script>
+<script src="./js/imageMap.js?v=20260706i" defer></script>
+<script src="./js/state.js?v=20260706i" defer></script>
+<script src="./js/appState.js?v=20260706i" defer></script>
+<script src="./js/favorites.js?v=20260706i" defer></script>
+<script src="./js/wallet.js?v=20260706i" defer></script>
+<script src="./js/api.js?v=20260706i" defer></script>
+<script src="./js/rankSort.js?v=20260706i" defer></script>
+<script src="./js/rankDisplay.js?v=20260706i" defer></script>
+<script src="./js/walletConnect.js?v=20260706i" defer></script>
+<script src="./js/walletAnalytics.js?v=20260706i" defer></script>
+<script src="./js/mispriced.js?v=20260706i" defer></script>
+<script src="./js/traitUtils.js?v=20260706i" defer></script>
+<script src="./js/listingMeta.js?v=20260706i" defer></script>
+<script src="./js/listCards.js?v=20260706i" defer></script>
+<script src="./js/chart.js?v=20260706i" defer></script>
+<script src="./js/tooltip.js?v=20260706i" defer></script>
+<script src="./js/comboInsights.js?v=20260706i" defer></script>
+<script src="./js/burnsAnalytics.js?v=20260706i" defer></script>
+<script src="./js/downloadLoader.js?v=20260706i" defer></script>
+<script src="./js/app.js?v=20260706i" defer></script>
 </body>
 </html>
 
