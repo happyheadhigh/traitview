@@ -252,9 +252,9 @@ function renderBurnLeaderboard(rows){
     <div class="burn-row leaderboard burn-leader-row">
       <div class="burn-cell burn-rank-num">${i+1}</div>
       <div class="burn-cell burn-wallet"><b>${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</b></div>
-      <div class="burn-cell">${burnsMetric(row.tokens_burned || row.total_burned)}</div>
-      <div class="burn-cell">${burnsMetric(row.biggest_burn)}</div>
-      <div class="burn-cell">${burnsMetric(row.burn_events || row.total_burns)}</div>
+      <div class="burn-cell"><span class="burn-cell-label">OCAS Burned</span>${burnsMetric(row.tokens_burned || row.total_burned)}</div>
+      <div class="burn-cell"><span class="burn-cell-label">Biggest</span>${burnsMetric(row.biggest_burn)}</div>
+      <div class="burn-cell"><span class="burn-cell-label">Burns</span>${burnsMetric(row.burn_events || row.total_burns)}</div>
     </div>
   `).join('')}</div>`;
 }

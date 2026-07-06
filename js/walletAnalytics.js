@@ -1015,6 +1015,11 @@ function walletDesktopAnalyticsHtml(data){
               <option value="price-asc">Price ↑</option>
               <option value="price-desc">Price ↓</option>
             </select>
+            <div class="wallet-grid-density" role="group" aria-label="Grid size">
+              <button type="button" data-density="compact" onclick="setWalletGridDensity('compact')" title="Compact">▦</button>
+              <button type="button" data-density="default" onclick="setWalletGridDensity('default')" title="Default">▤</button>
+              <button type="button" data-density="large" onclick="setWalletGridDensity('large')" title="Large">▥</button>
+            </div>
           </div>
         </div>
         ${topTokens.length ? `<div class="wallet-top-token-grid" id="walletOwnedGrid">${topTokens.map(walletTopTokenCard).join('')}</div>` : '<div class="wallet-empty-state">Owned tokens will appear after wallet summary sync completes.</div>'}
@@ -1091,6 +1096,31 @@ function buildWalletEdgeHtml(summary, traitRows){
 
 // Wallet owned tokens sort/filter
 let _walletOwnedAll = [];
+// Owned Tokens grid density toggle (compact/default/large). Persisted so it
+// sticks across visits -- this is the real site, not a sandboxed artifact,
+// so localStorage is the right tool here.
+function setWalletGridDensity(mode){
+  const grid = document.getElementById('walletOwnedGrid');
+  const valid = ['compact', 'default', 'large'];
+  if(!valid.includes(mode)) mode = 'default';
+  try{ localStorage.setItem('walletGridDensity', mode); }catch(e){}
+  if(grid){
+    grid.classList.remove('wallet-grid-compact', 'wallet-grid-large');
+    if(mode === 'compact') grid.classList.add('wallet-grid-compact');
+    if(mode === 'large') grid.classList.add('wallet-grid-large');
+  }
+  document.querySelectorAll('.wallet-grid-density button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.density === mode);
+  });
+}
+// Applied once the grid actually renders (loadWalletAnalytics rebuilds this
+// DOM each time), not just on page load -- restoreWalletGridDensity() is
+// called right after the Owned Tokens grid HTML is injected.
+function restoreWalletGridDensity(){
+  let mode = 'default';
+  try{ mode = localStorage.getItem('walletGridDensity') || 'default'; }catch(e){}
+  setWalletGridDensity(mode);
+}
 function filterWalletOwnedTokens(){
   const grid = document.getElementById('walletOwnedGrid');
   if(!grid || !_walletOwnedAll.length) return;
@@ -1120,6 +1150,7 @@ function renderWalletAnalytics(data){
   _walletOwnedAll = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
   if(desktopHost) desktopHost.innerHTML = walletDesktopAnalyticsHtml(data);
   if(mobileHost) mobileHost.innerHTML = walletMobileAnalyticsHtml(data);
+  restoreWalletGridDensity();
   setTimeout(flushWalletActivityPlot, 80);
   loadWalletRarityImprovement(data);
   loadWalletBurnStats(data?.address);
