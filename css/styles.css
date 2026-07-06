@@ -3632,7 +3632,14 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   .burn-stat-row{grid-template-columns:repeat(2,minmax(0,1fr))}
   .burn-stat-cell:nth-child(odd){border-left:0}
   .burn-stat-cell-gauge{grid-column:1 / -1;border-left:0 !important;border-bottom:1px solid rgba(255,255,255,.07)}
-  .burn-two-col,.burn-best-grid{grid-template-columns:1fr}
+  .burn-two-col{grid-template-columns:1fr}
+  /* Deliberately minmax(0,1fr), not bare 1fr — matches the desktop rule above.
+     Bare 1fr still respects the automatic min-content size of what's inside
+     the track, so on a card that contains a horizontally-scrolling thumbnail
+     gallery (Biggest Burns' burned-row), the track itself was able to grow
+     to fit the un-scrolled gallery width, stretching the whole card/page
+     wide instead of letting the inner gallery scroll on its own. */
+  .burn-best-grid{grid-template-columns:minmax(0,1fr)}
   .burn-main{justify-content:flex-start}
   .burn-token-thumb{width:26px;height:26px}
   .burn-table-head{display:none}
