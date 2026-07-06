@@ -1,0 +1,9 @@
+# This is a plain static site (HTML/CSS/JS/data) with no build step.
+# node_modules should never exist here, but this exists as a safeguard --
+# a stray package.json (like the one just removed) makes Cloudflare Pages
+# treat this as a Node.js project needing `npm install`, which pulls in
+# Cloudflare's own wrangler/workerd tooling (a 121MB+ binary) and then
+# deploys the entire node_modules tree as static assets, exceeding the
+# 25MB per-asset limit and failing the build.
+node_modules/
+package-lock.json
