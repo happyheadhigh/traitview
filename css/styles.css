@@ -1633,8 +1633,21 @@ a{color:var(--accent)!important}
 .wallet-analytics-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text)}
 .wallet-analytics-sub{font-size:11px;color:var(--sub);line-height:1.35}
 .wallet-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.10)}
-.wallet-stat-row{display:flex;align-items:stretch;overflow-x:auto;max-width:100%;scrollbar-width:none;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.10)}
+.wallet-stat-row{display:flex;align-items:stretch;overflow-x:auto;max-width:100%;scrollbar-width:none;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(0,0,0,.10)}
 .wallet-stat-row::-webkit-scrollbar{display:none}
+@media (max-width:900px){
+  /* The row was relying on horizontal scroll to fit 6-7 stat cells, but a
+     conflicting overflow:hidden on the same rule silently disabled that
+     scroll entirely -- every cell got squeezed to fit, forcing labels like
+     "Owned"/"Best Rank" and values into ellipsis truncation. Fixed the
+     conflict above, but scroll with no visible scrollbar is also just a
+     bad, easy-to-miss mobile pattern for a stats row. Wrapping into a grid
+     is more readable and discoverable than scrolling either way. */
+  .wallet-stat-row{flex-wrap:wrap;overflow-x:visible}
+  .wallet-stat-cell{flex:1 1 33.333%;min-width:33.333%;border-bottom:1px solid rgba(255,255,255,.07)}
+  .wallet-stat-cell:nth-child(3n+1){border-left:0}
+  .wallet-stat-cell span,.wallet-stat-cell b{white-space:normal;overflow:visible;text-overflow:clip}
+}
 .wallet-stat-cell{flex:1 1 0;min-width:0;padding:7px 10px;border-left:1px solid rgba(255,255,255,.07)}
 .wallet-stat-cell:first-child{border-left:0}
 .wallet-stat-cell span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:rgba(203,213,225,.74);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

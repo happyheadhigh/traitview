@@ -827,6 +827,7 @@ function renderWalletBurnStats(stats){
     <div class="extinct-title" style="color:#1CFFAF">✨ ${stats.angelCount} Angel Result${stats.angelCount===1?'':'s'}</div>
     <div class="extinct-sub">A rare, best-case burn outcome — you've hit it ${stats.angelCount} time${stats.angelCount===1?'':'s'}</div>
   </div>` : '';
+  const inputSnapshots = stats.input_snapshots || {};
   const eventsHtml = (stats.events || []).slice(0, 10).map(ev => {
     const dateStr = ev.burnedAt ? new Date(ev.burnedAt).toLocaleDateString() : '';
     const ptsHtml = ev.pointsUsed != null ? `<span class="burn-best-pts">${burnsMetric(ev.pointsUsed)} pts</span>` : '';
@@ -834,7 +835,7 @@ function renderWalletBurnStats(stats){
     return `<div class="burn-best-card">
       <div class="burn-best-survivor-row">
         <span class="burn-best-tag survivor">Survivor</span>
-        ${burnsTokenChip(ev.survivorTokenId)}
+        ${burnsTokenChip(ev.survivorTokenId, null, ev.survivorSnapshotImage || null, ev.burnEventId)}
         ${angelTag}
         ${ptsHtml}
         <span class="burn-best-tx">${burnsTxLink(ev.txHash)}</span>
@@ -842,7 +843,7 @@ function renderWalletBurnStats(stats){
       </div>
       <div class="burn-best-burned-row">
         <span class="burn-best-tag burned">Burned (${burnsMetric((ev.burnedTokenIds||[]).length)})</span>
-        ${burnsInputGallery(ev.burnedTokenIds)}
+        ${burnsInputGallery(ev.burnedTokenIds, inputSnapshots, ev.burnEventId)}
       </div>
     </div>`;
   }).join('');
