@@ -116,9 +116,14 @@ function burnsTokenChipList(ids){
   const chips = clean.map(id => burnsTokenChip(id)).join('');
   return `<span class="burn-chip-list">${chips || '-'}</span>`;
 }
-function burnsInputGallery(ids){
+function burnsInputGallery(ids, snapshotMap=null){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
-  const chips = clean.map(id => burnsTokenChip(id)).join('');
+  // These IDs were destroyed by burning — they no longer represent their
+  // original selves, so a "current" image lookup is meaningless/wrong for
+  // them. Use the pre-burn snapshot when we have one; burnsTokenChip falls
+  // back to the normal live lookup if no snapshot exists for a given id
+  // (e.g. an older burn from before snapshotting was in place).
+  const chips = clean.map(id => burnsTokenChip(id, null, snapshotMap?.[String(id)] || null)).join('');
   return `<div class="burn-input-gallery">${chips || '-'}</div>`;
 }
 function burnsInputIds(row){
@@ -150,7 +155,10 @@ async function fetchBurnsAnalytics(force=false){
     dbFetch('/db/burn-best'),
     dbFetch('/db/burn-activity')
   ]);
-  const data = { stats, latest, leaderboard, best, activity, loadedAt:Date.now() };
+  // Pre-burn snapshot images for destroyed input tokens, merged from both
+  // endpoints that can return them. Keyed by token_id (string) -> image src.
+  const inputSnapshots = { ...(latest?.input_snapshots || {}), ...(best?.input_snapshots || {}) };
+  const data = { stats, latest, leaderboard, best, activity, inputSnapshots, loadedAt:Date.now() };
   BURNS_ANALYTICS_CACHE.data = data;
   BURNS_ANALYTICS_CACHE.loadedAt = Date.now();
   return data;
@@ -203,7 +211,7 @@ function renderBurnStats(stats){
     <div class="burn-stat-cell"><span>${burnsEsc(label)}</span><b>${burnsMetric(val)}</b></div>
   `).join('')}</div>`;
 }
-function renderLatestBurns(rows){
+function renderLatestBurns(rows, snapshotMap=null){
   if(!rows.length) return '<div class="wallet-empty-state">No finalized burn rows returned yet.</div>';
   return `<div class="burn-table burn-latest-table">
     <div class="burn-table-head"><span>Tx</span><span>Inputs</span><span>Created</span><span>Count</span><span>Pts</span><span>Time</span><span>Wallet</span></div>
@@ -212,7 +220,7 @@ function renderLatestBurns(rows){
     const created = row.created_token_id || row.survivor_token_id;
     return `<div class="burn-row burn-latest-row">
       <div class="burn-cell burn-tx"><b>${burnsTxLink(row.tx_hash)}</b></div>
-      <div class="burn-cell burn-inputs">${burnsInputGallery(ids)}</div>
+      <div class="burn-cell burn-inputs">${burnsInputGallery(ids, snapshotMap)}</div>
       <div class="burn-cell burn-created">${burnsTokenChip(created, row, row.snapshot_image || null)}</div>
       <div class="burn-cell burn-count">${burnsMetric(row.input_count ?? ids.length)}</div>
       <div class="burn-cell burn-points">${row.points_used != null ? burnsMetric(row.points_used) : '-'}</div>
@@ -235,7 +243,7 @@ function renderBurnLeaderboard(rows){
     </div>
   `).join('')}</div>`;
 }
-function renderBestBurns(best){
+function renderBestBurns(best, snapshotMap=null){
   const groups = [
     ['Biggest Burns', best?.biggest || best?.biggest_burns || [], 'biggest'],
     ['Rarest Inputs', best?.rarest_inputs || best?.rarest_burned_inputs || best?.rarest || [], 'input'],
@@ -257,13 +265,19 @@ function renderBestBurns(best){
           </div>
           <div class="burn-best-burned-row">
             <span class="burn-best-tag burned">Burned (${burnsMetric(row.input_count ?? ids.length)})</span>
-            ${burnsInputGallery(ids)}
+            ${burnsInputGallery(ids, snapshotMap)}
           </div>
         </div>`;
       }
       const primaryId = kind === 'input' ? (row.burned_token_id || row.token_id) : (row.created_token_id || row.survivor_token_id || row.token_id);
+      // Rarest Inputs are destroyed tokens too — same reasoning as the input
+      // gallery above, use the pre-burn snapshot (backend-attached directly
+      // on the row for this endpoint) rather than a live/current lookup.
+      // Best Survivors are still-alive tokens, so no override — they use
+      // the normal live image path via burnsTokenChip's default behavior.
+      const overrideSrc = kind === 'input' ? (row.snapshot_image || null) : null;
       return `<div class="burn-mini-row">
-        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row)}</span>
+        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row, overrideSrc)}</span>
         <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
       </div>`;
     }).join('');
@@ -489,13 +503,13 @@ function renderBurnsAnalytics(data){
   host.innerHTML = `<div class="burns-analytics-inner">
     <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost burn-icon-btn" id="burnThumbSizeToggle" onclick="toggleBurnThumbSize()" title="Thumbnail size: ${BURN_THUMB_LABELS[thumbSize]} (click to cycle)">${BURN_THUMB_ICONS[thumbSize]}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
     ${renderBurnStats(stats)}
-    ${burnsSection('Latest Burns', renderLatestBurns(latestRows), 'Finalized burn events from Railway')}
+    ${burnsSection('Latest Burns', renderLatestBurns(latestRows, data?.inputSnapshots), 'Finalized burn events from Railway')}
     <div class="burn-two-col">
       ${burnsSection('Burn Leaderboard', renderBurnLeaderboard(leaderRows), 'Ranked by OCAS burned')}
       ${burnsSection('Burn Timeline', renderBurnActivity(activityRows), 'Daily burn events and tokens used')}
     </div>
     ${burnsSection('Trait Extinction Tracker', '<div id="traitExtinctionHost"><div class="wallet-empty-state">Loading original trait data…</div></div>', 'Trait values disappearing from the living supply due to burns')}
-    ${burnsSection('Best Burns', renderBestBurns(data?.best || {}), 'Largest burns and rank-aware highlights when available')}
+    ${burnsSection('Best Burns', renderBestBurns(data?.best || {}, data?.inputSnapshots), 'Largest burns and rank-aware highlights when available')}
   </div>`;
   drawBurnActivityChart(activityRows);
   loadTraitExtinction();

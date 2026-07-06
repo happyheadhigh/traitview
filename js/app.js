@@ -280,7 +280,14 @@ async function updateChartAndList(){ const {buckets, idByCount, avail}=await com
 /* grid */
 function gridThumbHtml(id,row){
   const mapVal=IMAGES_MAP && IMAGES_MAP.get(id);
-  const src=mapVal || row.image || imgForId(id);
+  // row.image (live, from /db/all-traits) takes priority over the static
+  // original-mint chunk image. Only burn survivors ever have row.image set,
+  // so for the ~99% of tokens that never burned this falls through to mapVal
+  // exactly as before. Previously mapVal was checked first, which meant a
+  // survivor's current appearance wouldn't show until refreshLiveTokenData's
+  // periodic pass (30s after load, then every 5min) caught up and overwrote
+  // IMAGES_MAP — a real, if temporary, staleness window on every fresh load.
+  const src=row.image || mapVal || imgForId(id);
   if(!src) return '<div class="thumb"></div>';
   const s=String(src).trim();
 
@@ -667,7 +674,8 @@ async function openModal(id){
   // ── Image ────────────────────────────────────────────────────
   const imgBox = $('#mImg');
   const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
-  const src    = mapVal || row.image || imgForId(id);
+  // See gridThumbHtml's comment above — row.image (live) beats the static map.
+  const src    = row.image || mapVal || imgForId(id);
   if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgBox.innerHTML=`<div class="svg-wrap" style="width:100%;height:100%">${s}</div>`; else if(/^data:image\//i.test(s)) imgBox.innerHTML=`<img src="${s}" alt="#${id}">`; else imgBox.innerHTML=`<img src="${ipfsToHttp(s)}" alt="#${id}">`;} else imgBox.innerHTML='<div style="color:var(--muted)">No image</div>';
   // Fetch live image for this token (picks up background changes)
   // Uses shared TTL cache — hover and grid also benefit
