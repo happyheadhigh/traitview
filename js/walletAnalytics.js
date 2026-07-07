@@ -828,7 +828,7 @@ function renderWalletBurnStats(stats){
     <div class="extinct-sub">A rare, best-case burn outcome — you've hit it ${stats.angelCount} time${stats.angelCount===1?'':'s'}</div>
   </div>` : '';
   const inputSnapshots = stats.input_snapshots || {};
-  const eventsHtml = (stats.events || []).slice(0, 10).map(ev => {
+  const eventsHtml = (stats.events || []).map(ev => {
     const dateStr = ev.burnedAt ? new Date(ev.burnedAt).toLocaleDateString() : '';
     const ptsHtml = ev.pointsUsed != null ? `<span class="burn-best-pts">${burnsMetric(ev.pointsUsed)} pts</span>` : '';
     const angelTag = ev.isAngel ? `<span class="burn-best-tag" style="background:rgba(28,255,175,.15);border-color:rgba(28,255,175,.35);color:#1CFFAF">✨ Angel</span>` : '';
@@ -847,7 +847,9 @@ function renderWalletBurnStats(stats){
       </div>
     </div>`;
   }).join('');
+  const wThumbSize = getBurnThumbSize();
   return `
+    <div class="burn-toolbar" style="justify-content:flex-end;margin-bottom:6px"><button type="button" class="btn ghost burn-icon-btn burn-thumb-size-toggle-btn" onclick="toggleBurnThumbSize()" title="Thumbnail size: ${BURN_THUMB_LABELS[wThumbSize]} (click to cycle)">${BURN_THUMB_ICONS[wThumbSize]}</button></div>
     <div class="wallet-stat-row" style="margin-bottom:12px">
       <div class="wallet-stat-cell"><span>Burns</span><b>${burnsMetric(stats.burnCount)}</b></div>
       <div class="wallet-stat-cell"><span>Tokens Consumed</span><b>${burnsMetric(stats.tokensConsumed)}</b></div>
@@ -865,7 +867,7 @@ async function loadWalletBurnStats(address){
   try{
     const data = await dbFetch(`/db/wallet/${encodeURIComponent(address)}/burn-stats`);
     const html = renderWalletBurnStats(data);
-    hosts.forEach(h => h.innerHTML = html);
+    hosts.forEach(h => { h.innerHTML = html; if(typeof applyBurnThumbSizeClass === 'function') applyBurnThumbSizeClass(h, getBurnThumbSize()); });
   }catch(e){
     hosts.forEach(h => h.innerHTML = '<div class="wallet-empty-state">Could not load burn stats.</div>');
   }

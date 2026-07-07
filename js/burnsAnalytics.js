@@ -292,8 +292,10 @@ function renderBestBurns(best, snapshotMap=null){
       // the normal live image path via burnsTokenChip's default behavior.
       const overrideSrc = kind === 'input' ? (row.snapshot_image || null) : null;
       const burnEventId = kind === 'input' ? (row.burn_event_id || null) : null;
+      const typeTag = row.type_trait ? `<span class="burn-best-tag" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:var(--sub)">${burnsEsc(row.type_trait)}</span>` : '';
       return `<div class="burn-mini-row">
         <span class="burn-mini-primary">${burnsTokenChip(primaryId, row, overrideSrc, burnEventId)}</span>
+        ${typeTag}
         <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
       </div>`;
     }).join('');
@@ -494,18 +496,24 @@ function applyBurnThumbSizeClass(host, size){
   if(size === 'md') host.classList.add('burn-thumbs-md');
   if(size === 'lg') host.classList.add('burn-thumbs-lg');
 }
+function applyBurnThumbSizeToAllHosts(size){
+  ['burnsAnalyticsHost', 'walletBurnStatsHost', 'mobileWalletBurnStatsHost'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) applyBurnThumbSizeClass(el, size);
+  });
+}
 function toggleBurnThumbSize(){
-  const host = document.getElementById('burnsAnalyticsHost');
-  if(!host) return;
   const cur = getBurnThumbSize();
   const next = BURN_THUMB_SIZES[(BURN_THUMB_SIZES.indexOf(cur) + 1) % BURN_THUMB_SIZES.length];
-  applyBurnThumbSizeClass(host, next);
   try{ localStorage.setItem('traitview_burn_thumb_size', next); }catch(_){}
-  const btn = document.getElementById('burnThumbSizeToggle');
-  if(btn){
+  applyBurnThumbSizeToAllHosts(next);
+  // One shared preference, but it can appear on two different tabs (Burns +
+  // Wallet) at once if both have rendered -- update every instance of the
+  // button, not just whichever one was clicked.
+  document.querySelectorAll('.burn-thumb-size-toggle-btn').forEach(btn => {
     btn.textContent = BURN_THUMB_ICONS[next];
     btn.title = `Thumbnail size: ${BURN_THUMB_LABELS[next]} (click to cycle)`;
-  }
+  });
 }
 function renderBurnsAnalytics(data){
   const host = document.getElementById('burnsAnalyticsHost');
@@ -517,7 +525,7 @@ function renderBurnsAnalytics(data){
   const leaderRows = burnsRows(data, 'leaderboard', 'leaders');
   const activityRows = burnsRows(data, 'activity', 'activity');
   host.innerHTML = `<div class="burns-analytics-inner">
-    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost burn-icon-btn" id="burnThumbSizeToggle" onclick="toggleBurnThumbSize()" title="Thumbnail size: ${BURN_THUMB_LABELS[thumbSize]} (click to cycle)">${BURN_THUMB_ICONS[thumbSize]}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
+    <div class="burn-toolbar"><button type="button" class="btn ghost" onclick="loadBurnsAnalytics(true)">Refresh</button><button type="button" class="btn ghost burn-icon-btn burn-thumb-size-toggle-btn" onclick="toggleBurnThumbSize()" title="Thumbnail size: ${BURN_THUMB_LABELS[thumbSize]} (click to cycle)">${BURN_THUMB_ICONS[thumbSize]}</button><span>${data?.loadedAt ? `Loaded ${burnsEsc(burnsDate(data.loadedAt))}` : ''}</span></div>
     ${renderBurnStats(stats)}
     ${burnsSection('Latest Burns', renderLatestBurns(latestRows, data?.inputSnapshots), 'Finalized burn events from Railway')}
     <div class="burn-two-col">

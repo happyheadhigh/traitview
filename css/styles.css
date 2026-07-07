@@ -3654,7 +3654,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-hist-toggle .burn-hist-nav:not(:disabled):hover{border-color:var(--text)}
 .burn-hist-label{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--muted);color:var(--text);padding:4px 10px;border-radius:999px;font-size:12px;white-space:nowrap}
 .survivor-chip{color:#86efac;border-color:rgba(74,222,128,.28);background:rgba(74,222,128,.08)}
-.burn-best-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.burn-best-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);gap:12px}
 .burn-best-group h4{margin:0 0 4px;color:rgba(203,213,225,.74);font-size:9.5px;text-transform:uppercase;letter-spacing:.075em}
 .burn-mini-row{justify-content:space-between;border-top:1px solid rgba(255,255,255,.055);padding:4px 0;font-size:11px}
 .burn-activity-legend{display:flex;gap:12px;align-items:center;margin-bottom:4px;color:rgba(203,213,225,.72);font-size:10px}
