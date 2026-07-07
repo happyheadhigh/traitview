@@ -266,7 +266,7 @@ function renderBestBurns(best, snapshotMap=null){
   ];
   const html = groups.map(([title, rows, kind]) => {
     if(!Array.isArray(rows) || !rows.length) return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4><div class="wallet-empty-state">No rows yet.</div></div>`;
-    const items = rows.slice(0, 8).map(row => {
+    const items = rows.slice(0, 25).map(row => {
       if(kind === 'biggest'){
         const survivor = row.created_token_id || row.survivor_token_id;
         const ids = burnsInputIds(row).filter(Boolean);
@@ -292,7 +292,9 @@ function renderBestBurns(best, snapshotMap=null){
       // the normal live image path via burnsTokenChip's default behavior.
       const overrideSrc = kind === 'input' ? (row.snapshot_image || null) : null;
       const burnEventId = kind === 'input' ? (row.burn_event_id || null) : null;
-      const typeTag = row.type_trait ? `<span class="burn-best-tag" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:var(--sub)">${burnsEsc(row.type_trait)}</span>` : '';
+      const typeTag = row.is_angel
+        ? `<span class="burn-best-tag" style="background:rgba(28,255,175,.15);border-color:rgba(28,255,175,.35);color:#1CFFAF">✨ Angel</span>`
+        : (row.type_trait ? `<span class="burn-best-tag" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:var(--sub)">${burnsEsc(row.type_trait)}</span>` : '');
       return `<div class="burn-mini-row">
         <span class="burn-mini-primary">${burnsTokenChip(primaryId, row, overrideSrc, burnEventId)}</span>
         ${typeTag}
