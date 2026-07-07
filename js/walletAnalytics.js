@@ -908,7 +908,7 @@ function hideTraitExposureTooltip(){
 function walletMobileAnalyticsHtml(data){
   const summary = data?.summary?.summary || data?.summary || {};
   const synced = data?.summary?.synced;
-  const topTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens.slice(0, 8) : [];
+  const topTokens = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
   const traitRows = normalizeWalletTraits(data?.traits).sort((a,b)=>b.count-a.count).slice(0, 8);
   const historyRows = normalizeWalletHistory(data?.history);
   const transferRows = normalizeWalletTransfers(data?.transfers).slice(0, 12);
@@ -936,8 +936,15 @@ function walletMobileAnalyticsHtml(data){
       <div id="mobileWalletBurnStatsHost"><div class="wallet-empty-state">Loading…</div></div>
     </div>
     <div class="wallet-analytics-card">
-      <div class="wallet-analytics-head"><div class="wallet-analytics-title">Top Owned Tokens</div></div>
-      ${topTokens.length ? `<div class="wallet-top-token-grid">${topTokens.map(walletTopTokenCard).join('')}</div>` : '<div class="wallet-empty-state">Top owned tokens will appear after wallet summary sync completes.</div>'}
+      <div class="wallet-analytics-head">
+        <div class="wallet-analytics-title">Top Owned Tokens</div>
+        <div class="wallet-grid-density" role="group" aria-label="Grid size">
+          <button type="button" data-density="compact" onclick="setWalletGridDensity('compact')" title="Compact">▦</button>
+          <button type="button" data-density="default" onclick="setWalletGridDensity('default')" title="Default">▤</button>
+          <button type="button" data-density="large" onclick="setWalletGridDensity('large')" title="Large">▥</button>
+        </div>
+      </div>
+      ${topTokens.length ? `<div class="wallet-top-token-grid" id="walletOwnedGridMobile">${topTokens.map(walletTopTokenCard).join('')}</div>` : '<div class="wallet-empty-state">Top owned tokens will appear after wallet summary sync completes.</div>'}
     </div>
     <div class="wallet-analytics-card">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Trait Exposure</div></div>
@@ -956,11 +963,13 @@ function walletMobileAnalyticsHtml(data){
         const price = walletActivityPrice(t);
         const date = walletDate(t.block_ts || t.timestamp || t.created_at);
         const link = tx ? `https://etherscan.io/tx/${tx}` : '';
-        const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
+        const src = kind === 'burn' && t.snapshot_image
+          ? t.snapshot_image
+          : ((typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id));
         const burnedBadge = kind === 'burn' ? `<span class="wallet-transfer-burned-badge">🔥</span>` : '';
         const thumb = src ? `<img src="${comboEsc(src)}" alt="#${id}">${burnedBadge}` : `<span>#${id}</span>${burnedBadge}`;
         return `<div class="wallet-transfer-row">
-          <button type="button" class="wallet-transfer-thumb" onclick="openModal(${id})">${thumb}</button>
+          <button type="button" class="wallet-transfer-thumb" onclick="${kind === 'burn' && t.burn_event_id ? `openModal(${id}, {burnEventId:${t.burn_event_id}})` : `openModal(${id})`}">${thumb}</button>
           <div class="wallet-transfer-mid">
             <div class="wallet-transfer-topline">
               <span class="wallet-transfer-kind" style="color:${walletActivityColor(kind)};border-color:${walletActivityColor(kind)}66;background:${walletActivityColor(kind)}1a">${comboEsc(kind)}</span>
@@ -1102,15 +1111,16 @@ let _walletOwnedAll = [];
 // sticks across visits -- this is the real site, not a sandboxed artifact,
 // so localStorage is the right tool here.
 function setWalletGridDensity(mode){
-  const grid = document.getElementById('walletOwnedGrid');
   const valid = ['compact', 'default', 'large'];
   if(!valid.includes(mode)) mode = 'default';
   try{ localStorage.setItem('walletGridDensity', mode); }catch(e){}
-  if(grid){
+  ['walletOwnedGrid', 'walletOwnedGridMobile'].forEach(id => {
+    const grid = document.getElementById(id);
+    if(!grid) return;
     grid.classList.remove('wallet-grid-compact', 'wallet-grid-large');
     if(mode === 'compact') grid.classList.add('wallet-grid-compact');
     if(mode === 'large') grid.classList.add('wallet-grid-large');
-  }
+  });
   document.querySelectorAll('.wallet-grid-density button').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.density === mode);
   });

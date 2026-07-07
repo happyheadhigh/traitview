@@ -637,6 +637,25 @@ async function openPopOutWindow(){
     const iframe = pipWindow.document.createElement('iframe');
     iframe.src = location.href;
     pipWindow.document.body.appendChild(iframe);
+    // The token grid uses a virtual scroller that only recalculates its
+    // visible range on a 'resize' event -- if you drag the PiP window wider
+    // (e.g. past the 900px breakpoint into the desktop layout), the grid's
+    // internal height calculation can be left stuck at whatever it was
+    // when the iframe last loaded, breaking scroll. Rather than trust that
+    // a native OS window resize reliably propagates a standard 'resize'
+    // event into a nested same-origin iframe inside a Document
+    // Picture-in-Picture window specifically (a newer API surface, worth
+    // being defensive about rather than assuming normal browser behavior
+    // holds), explicitly re-dispatch resize into the iframe's own window
+    // whenever the PiP window's size actually changes.
+    const ro = new ResizeObserver(() => {
+      clearTimeout(pipWindow.__resizeFwdTimer);
+      pipWindow.__resizeFwdTimer = setTimeout(() => {
+        try{ iframe.contentWindow?.dispatchEvent(new Event('resize')); }catch(e){}
+      }, 120);
+    });
+    ro.observe(pipWindow.document.body);
+    pipWindow.addEventListener('pagehide', () => ro.disconnect());
   }catch(e){
     console.error('Pop Out Window failed:', e);
   }
