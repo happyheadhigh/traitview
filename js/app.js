@@ -614,30 +614,28 @@ if(!('documentPictureInPicture' in window)){
 
 // ── Pop Out Window (Document Picture-in-Picture) ────────────────────────────
 // Desktop Chrome/Edge (and recent Firefox) only -- Safari (desktop and iOS)
-// and all mobile browsers don't support this API at all. kind is 'analytics'
-// or 'grid'; loads a fresh, independent instance of the page scoped to just
-// that section via ?popout=<kind> (see the <head> script in index.html and
-// the html.popout-* CSS rules in styles.css). Genuinely live, not a
-// snapshot -- it's a real second instance of the page with its own running
-// refresh/polling, not a portal into the main window's JS.
-async function openPopOutWindow(kind){
+// and all mobile browsers don't support this API at all. Opens a genuinely
+// live, independent instance of the site (own JS, own refresh/polling --
+// not a snapshot, not a portal into the main window's state) sized narrow
+// enough that the site's own existing mobile-responsive layout kicks in,
+// giving access to everything (Analytics, grid, wallet, holders) through
+// its own bottom nav rather than needing any separate scoped view.
+async function openPopOutWindow(){
   if(!('documentPictureInPicture' in window)){
     alert('Pop Out Window needs desktop Chrome, Edge, or Firefox — it isn\'t available in Safari or on mobile.');
     return;
   }
   try{
     const pipWindow = await documentPictureInPicture.requestWindow({
-      width: kind === 'grid' ? 720 : 640,
-      height: 640,
+      width: 420,
+      height: 760,
     });
-    pipWindow.document.title = kind === 'grid' ? 'TraitView — Matching Tokens' : 'TraitView — Analytics';
+    pipWindow.document.title = 'TraitView';
     const style = pipWindow.document.createElement('style');
     style.textContent = 'html,body{margin:0;padding:0;height:100%;background:#0e1218}iframe{display:block;width:100%;height:100%;border:0}';
     pipWindow.document.head.appendChild(style);
     const iframe = pipWindow.document.createElement('iframe');
-    const url = new URL(location.href);
-    url.searchParams.set('popout', kind);
-    iframe.src = url.toString();
+    iframe.src = location.href;
     pipWindow.document.body.appendChild(iframe);
   }catch(e){
     console.error('Pop Out Window failed:', e);

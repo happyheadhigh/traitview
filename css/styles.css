@@ -36,27 +36,9 @@ html[data-theme="ink"]{
 html,body{width:100%;height:100%;max-width:100%;overflow-x:hidden}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
 .wrap{width:100%;padding:14px;box-sizing:border-box}
-.popout-btn{font-size:11px!important;padding:4px 8px!important}
-
-/* ── Pop Out Window mode (Document Picture-in-Picture) ──────────────────────
-   Loaded fresh via ?popout=analytics|grid inside the PiP window's iframe.
-   Hides everything except the one requested section so the small floating
-   window isn't cluttered with unrelated UI. See html.classList set in
-   <head> before first paint (index.html), and openPopOutWindow() in app.js. */
-html.popout-mode .topbar,
-html.popout-mode #filtersColumn,
-html.popout-mode #sidebarExpandToggle,
-html.popout-mode .side-by-side,
-html.popout-mode #activeMobilePills{display:none!important}
-html.popout-mode .wrap{padding:8px}
-html.popout-mode .bar#mainBarLayout{display:block}
-html.popout-analytics #twinFinderPanel,
-html.popout-analytics .matching-panel-head,
-html.popout-analytics .matching-panel-controls,
-html.popout-analytics #tokenGrid,
-html.popout-analytics #vsTopSpacer,
-html.popout-analytics #vsBotSpacer{display:none!important}
-html.popout-grid #topTabPanel{display:none!important}
+.popout-btn{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:none;border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--sub);cursor:pointer;transition:color .15s ease,border-color .15s ease}
+.popout-btn svg{width:15px;height:15px}
+.popout-btn:hover{color:var(--text);border-color:rgba(255,255,255,.28)}
 .topbar{position:sticky;top:0;z-index:20;display:flex;gap:10px;align-items:center;padding:10px 16px;margin:-14px -14px 14px;background:linear-gradient(180deg,rgba(8,12,18,.85),rgba(8,12,18,.4));backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
 .topbar.drawer-behind{position:relative!important;z-index:0!important}
 .title{font-weight:800;letter-spacing:.2px}

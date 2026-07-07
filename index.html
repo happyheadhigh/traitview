@@ -14,20 +14,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=20260706n">
-  <script>
-    // Pop Out Window feature: when opened via ?popout=analytics or
-    // ?popout=grid (from the Document Picture-in-Picture iframe), hide
-    // everything except that one section. Set on <html> (available even
-    // in <head>, before <body> exists) so there's no flash of the full
-    // layout before this applies.
-    (function(){
-      var p = new URLSearchParams(location.search).get('popout');
-      if(p === 'analytics' || p === 'grid'){
-        document.documentElement.classList.add('popout-mode', 'popout-' + p);
-      }
-    })();
-  </script>
+  <link rel="stylesheet" href="./css/styles.css?v=20260706o">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -72,6 +59,9 @@
   <span class="wallet-action-divider">|</span>
   <button type="button" id="walletConnectBtn" class="wallet-action-btn wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
     <span>Connect</span>
+  </button>
+  <button type="button" id="popoutBtn" class="popout-btn" onclick="openPopOutWindow()" aria-label="Pop out a floating window" title="Pop out a floating window (desktop Chrome/Edge/Firefox only)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
   </button>
 </div>
 
@@ -186,7 +176,6 @@
       <div class="c-panel" id="topTabPanel">
         <div class="c-header" onclick="cToggle('topTabPanel')" style="padding:10px 16px 0">
           <span class="c-title">Analytics</span>
-          <div class="c-title-actions"><button type="button" class="btn ghost popout-btn" onclick="event.stopPropagation();openPopOutWindow('analytics')" title="Open in a floating always-on-top window (desktop Chrome/Edge/Firefox only)">Pop Out Window</button></div>
           <span class="c-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
         </div>
         <div class="c-body">
@@ -370,7 +359,6 @@
 
         <div class="matching-panel-head">
   <div class="matching-panel-right">
-    <button type="button" class="btn ghost popout-btn" onclick="openPopOutWindow('grid')" title="Open in a floating always-on-top window (desktop Chrome/Edge/Firefox only)">Pop Out Window</button>
     <button id="btnClear" onclick="clearFilters()" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--sub);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Space Grotesk',sans-serif" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='rgba(255,255,255,.15)'">✕ Clear</button>
   </div>
 </div>
@@ -797,29 +785,29 @@
 
 
 
-<script src="./js/config.js?v=20260706n" defer></script>
-<script src="./js/dataConfig.js?v=20260706n" defer></script>
-<script src="./js/formatUtils.js?v=20260706n" defer></script>
-<script src="./js/imageMap.js?v=20260706n" defer></script>
-<script src="./js/state.js?v=20260706n" defer></script>
-<script src="./js/appState.js?v=20260706n" defer></script>
-<script src="./js/favorites.js?v=20260706n" defer></script>
-<script src="./js/wallet.js?v=20260706n" defer></script>
-<script src="./js/api.js?v=20260706n" defer></script>
-<script src="./js/rankSort.js?v=20260706n" defer></script>
-<script src="./js/rankDisplay.js?v=20260706n" defer></script>
-<script src="./js/walletConnect.js?v=20260706n" defer></script>
-<script src="./js/walletAnalytics.js?v=20260706n" defer></script>
-<script src="./js/mispriced.js?v=20260706n" defer></script>
-<script src="./js/traitUtils.js?v=20260706n" defer></script>
-<script src="./js/listingMeta.js?v=20260706n" defer></script>
-<script src="./js/listCards.js?v=20260706n" defer></script>
-<script src="./js/chart.js?v=20260706n" defer></script>
-<script src="./js/tooltip.js?v=20260706n" defer></script>
-<script src="./js/comboInsights.js?v=20260706n" defer></script>
-<script src="./js/burnsAnalytics.js?v=20260706n" defer></script>
-<script src="./js/downloadLoader.js?v=20260706n" defer></script>
-<script src="./js/app.js?v=20260706n" defer></script>
+<script src="./js/config.js?v=20260706o" defer></script>
+<script src="./js/dataConfig.js?v=20260706o" defer></script>
+<script src="./js/formatUtils.js?v=20260706o" defer></script>
+<script src="./js/imageMap.js?v=20260706o" defer></script>
+<script src="./js/state.js?v=20260706o" defer></script>
+<script src="./js/appState.js?v=20260706o" defer></script>
+<script src="./js/favorites.js?v=20260706o" defer></script>
+<script src="./js/wallet.js?v=20260706o" defer></script>
+<script src="./js/api.js?v=20260706o" defer></script>
+<script src="./js/rankSort.js?v=20260706o" defer></script>
+<script src="./js/rankDisplay.js?v=20260706o" defer></script>
+<script src="./js/walletConnect.js?v=20260706o" defer></script>
+<script src="./js/walletAnalytics.js?v=20260706o" defer></script>
+<script src="./js/mispriced.js?v=20260706o" defer></script>
+<script src="./js/traitUtils.js?v=20260706o" defer></script>
+<script src="./js/listingMeta.js?v=20260706o" defer></script>
+<script src="./js/listCards.js?v=20260706o" defer></script>
+<script src="./js/chart.js?v=20260706o" defer></script>
+<script src="./js/tooltip.js?v=20260706o" defer></script>
+<script src="./js/comboInsights.js?v=20260706o" defer></script>
+<script src="./js/burnsAnalytics.js?v=20260706o" defer></script>
+<script src="./js/downloadLoader.js?v=20260706o" defer></script>
+<script src="./js/app.js?v=20260706o" defer></script>
 </body>
 </html>
 
