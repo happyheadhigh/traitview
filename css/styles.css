@@ -60,7 +60,10 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
   height:100%;
   width:max-content;
   padding:0 20px;
-  animation:burnTickerScroll 90s linear infinite;
+  animation-name:burnTickerScroll;
+  animation-timing-function:linear;
+  animation-iteration-count:infinite;
+  animation-duration:60s; /* fallback only -- loadBurnTicker() sets the real duration dynamically based on actual content length, so speed stays constant regardless of how many tokens are in the list */
 }
 .burn-ticker:hover .burn-ticker-track{animation-play-state:paused}
 @keyframes burnTickerScroll{

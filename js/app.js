@@ -749,6 +749,20 @@ async function loadBurnTicker(){
     const html = ids.map(burnTickerItemHtml).join('');
     track.innerHTML = html + html;
     host.style.display = 'block';
+    // Fixed-duration animation was the actual bug here: at a flat 90s, the
+    // real problem is that speed (px/second) scales directly with content
+    // length -- going from the old 150-token cap to genuinely all 1,400+
+    // meant ~9x more pixels to cover in the same time, i.e. ~9x faster.
+    // That'll only get worse as more tokens get burned over time too.
+    // Measuring the actual rendered width and deriving duration from a
+    // fixed speed keeps the pace visually constant no matter how long the
+    // list is, now or in the future.
+    const PX_PER_SECOND = 28;
+    requestAnimationFrame(() => {
+      const halfWidth = track.scrollWidth / 2;
+      const duration = Math.max(20, halfWidth / PX_PER_SECOND);
+      track.style.animationDuration = `${duration}s`;
+    });
   }catch(e){
     host.style.display = 'none';
   }
