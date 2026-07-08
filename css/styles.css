@@ -40,6 +40,44 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .popout-btn svg{width:15px;height:15px}
 .popout-btn:hover{color:var(--text);border-color:rgba(255,255,255,.28)}
 .topbar{position:sticky;top:0;z-index:20;display:flex;gap:10px;align-items:center;padding:10px 16px;margin:-14px -14px 14px;background:linear-gradient(180deg,rgba(8,12,18,.85),rgba(8,12,18,.4));backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+
+.burn-ticker{
+  height:40px;
+  margin:-14px -14px 14px;
+  background:rgba(0,0,0,.18);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  overflow:hidden;
+  position:relative;
+  /* Fade at both edges so items appear to emerge from and dissolve into
+     nothing, rather than an abrupt visible boundary. */
+  -webkit-mask-image:linear-gradient(to right,transparent,black 6%,black 94%,transparent);
+  mask-image:linear-gradient(to right,transparent,black 6%,black 94%,transparent);
+}
+.burn-ticker-track{
+  display:flex;
+  align-items:center;
+  gap:22px;
+  height:100%;
+  width:max-content;
+  padding:0 20px;
+  animation:burnTickerScroll 90s linear infinite;
+}
+.burn-ticker:hover .burn-ticker-track{animation-play-state:paused}
+@keyframes burnTickerScroll{
+  from{transform:translateX(0)}
+  to{transform:translateX(-50%)}
+}
+.burn-ticker-item{
+  display:flex;align-items:center;gap:6px;flex:0 0 auto;
+  cursor:pointer;opacity:.88;transition:opacity .15s ease;
+}
+.burn-ticker-item:hover{opacity:1}
+.burn-ticker-item img{width:26px;height:26px;border-radius:5px;object-fit:contain;background:rgba(255,255,255,.05);flex:0 0 auto}
+.burn-ticker-item span{font-size:10px;color:var(--sub);font-weight:700;white-space:nowrap}
+@media (max-width:900px){
+  .burn-ticker{margin:-10px -10px 10px;height:34px}
+  .burn-ticker-item img{width:22px;height:22px}
+}
 .topbar.drawer-behind{position:relative!important;z-index:0!important}
 .title{font-weight:800;letter-spacing:.2px}
 .spacer{flex:1}
