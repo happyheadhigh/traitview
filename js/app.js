@@ -723,10 +723,8 @@ async function openPopOutWindow(){
 }
 
 // ── Header burn ticker ───────────────────────────────────────────────────────
-function burnTickerItemHtml(t){
-  const id = Number(t.token_id);
-  const s = String(t.image || '').trim();
-  const src = s.startsWith('<svg') ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}` : s;
+function burnTickerItemHtml(id){
+  const src = `${RAILWAY_API}/render/burned-snapshot/${id}?key=${encodeURIComponent(RAILWAY_KEY)}`;
   return `<span class="burn-ticker-item" onclick="if(typeof openModal==='function') openModal(${id})">
     <img src="${src}" alt="#${id}" loading="lazy">
     <span>#${id}</span>
@@ -738,13 +736,17 @@ async function loadBurnTicker(){
   if(!host || !track) return;
   try{
     const data = await dbFetch('/db/burned-ticker');
-    const tokens = Array.isArray(data?.tokens) ? data.tokens.filter(t => t?.image) : [];
-    if(!tokens.length){ host.style.display = 'none'; return; }
+    const ids = Array.isArray(data?.token_ids) ? data.token_ids.filter(id => Number.isFinite(+id)) : [];
+    if(!ids.length){ host.style.display = 'none'; return; }
     // Render the list twice back-to-back -- the CSS animation scrolls
     // exactly 50% of the track's width, so the second copy seamlessly
     // takes over right as the first copy scrolls out, with no visible
-    // jump or gap in the loop.
-    const html = tokens.map(burnTickerItemHtml).join('');
+    // jump or gap in the loop. Every burned token, not a capped sample --
+    // the browser's own loading="lazy" only actually fetches/decodes
+    // images near the visible area, and each one is cached essentially
+    // forever server-side, so this scales with total burn count without
+    // getting proportionally heavier to load.
+    const html = ids.map(burnTickerItemHtml).join('');
     track.innerHTML = html + html;
     host.style.display = 'block';
   }catch(e){
