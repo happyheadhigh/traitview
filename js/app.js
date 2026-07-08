@@ -632,22 +632,66 @@ async function openPopOutWindow(){
     });
     pipWindow.document.title = 'TraitView';
     const style = pipWindow.document.createElement('style');
-    style.textContent = 'html,body{margin:0;padding:0;height:100%;background:#0e1218}iframe{display:block;width:100%;height:100%;border:0}';
+    style.textContent = `
+      html,body{margin:0;padding:0;height:100%;background:#0e1218;font-family:'Space Grotesk',system-ui,sans-serif;overflow:hidden}
+      iframe{display:block;width:100%;height:100%;border:0}
+      #pipMinBtn{position:absolute;top:6px;right:6px;z-index:10;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,20,.75);color:#a8b3c9;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center}
+      #pipMinBtn:hover{color:#e6edf7;border-color:rgba(255,255,255,.35)}
+      #pipMiniBar{display:none;height:100%;width:100%;box-sizing:border-box;align-items:center;gap:10px;padding:0 12px;cursor:pointer;background:#0e1218}
+      #pipMiniBar .label{color:#a8b3c9;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+      #pipMiniBar .value{color:#1CFFAF;font-size:16px;font-weight:800;white-space:nowrap}
+      #pipMiniBar .expand-hint{margin-left:auto;color:#5a6578;font-size:10px;white-space:nowrap}
+    `;
     pipWindow.document.head.appendChild(style);
+
     const iframe = pipWindow.document.createElement('iframe');
     iframe.src = location.href;
     pipWindow.document.body.appendChild(iframe);
-    // The token grid uses a virtual scroller that only recalculates its
-    // visible range on a 'resize' event -- if you drag the PiP window wider
-    // (e.g. past the 900px breakpoint into the desktop layout), the grid's
-    // internal height calculation can be left stuck at whatever it was
-    // when the iframe last loaded, breaking scroll. Rather than trust that
-    // a native OS window resize reliably propagates a standard 'resize'
-    // event into a nested same-origin iframe inside a Document
-    // Picture-in-Picture window specifically (a newer API surface, worth
-    // being defensive about rather than assuming normal browser behavior
-    // holds), explicitly re-dispatch resize into the iframe's own window
-    // whenever the PiP window's size actually changes.
+
+    // Minimize button sits on top of the iframe, in the PiP window's own
+    // document (not inside the iframe's separate document), so it's always
+    // there regardless of what the loaded page is showing.
+    const minBtn = pipWindow.document.createElement('button');
+    minBtn.id = 'pipMinBtn';
+    minBtn.title = 'Minimize to a floor-price bar';
+    minBtn.textContent = '—';
+    pipWindow.document.body.appendChild(minBtn);
+
+    const miniBar = pipWindow.document.createElement('div');
+    miniBar.id = 'pipMiniBar';
+    miniBar.title = 'Click to expand';
+    miniBar.innerHTML = `<span class="label">Floor</span><span class="value" id="pipFloorValue">—</span><span class="expand-hint">expand ▢</span>`;
+    pipWindow.document.body.appendChild(miniBar);
+
+    const FULL_W = 420, FULL_H = 760;
+    const MINI_W = 220, MINI_H = 44;
+    let floorInterval = null;
+    // resizeTo/resizeBy on a Document Picture-in-Picture window require a
+    // genuine user gesture originating INSIDE that window -- a click
+    // handler attached here (in the main page's script) but firing on an
+    // element that lives in pipWindow's own document still counts, since
+    // the actual click event happens in that window's context.
+    minBtn.addEventListener('click', () => {
+      iframe.style.display = 'none';
+      minBtn.style.display = 'none';
+      miniBar.style.display = 'flex';
+      try{ pipWindow.resizeTo(MINI_W, MINI_H); }catch(e){}
+      const floorEl = pipWindow.document.getElementById('pipFloorValue');
+      const tick = () => {
+        const v = window._lastFloorEth;
+        if(floorEl) floorEl.textContent = (typeof v === 'number' && !isNaN(v)) ? `${v} ETH` : '—';
+      };
+      tick();
+      floorInterval = setInterval(tick, 5000);
+    });
+    miniBar.addEventListener('click', () => {
+      clearInterval(floorInterval);
+      miniBar.style.display = 'none';
+      iframe.style.display = 'block';
+      minBtn.style.display = 'flex';
+      try{ pipWindow.resizeTo(FULL_W, FULL_H); }catch(e){}
+    });
+
     const ro = new ResizeObserver(() => {
       clearTimeout(pipWindow.__resizeFwdTimer);
       pipWindow.__resizeFwdTimer = setTimeout(() => {
@@ -655,7 +699,7 @@ async function openPopOutWindow(){
       }, 120);
     });
     ro.observe(pipWindow.document.body);
-    pipWindow.addEventListener('pagehide', () => ro.disconnect());
+    pipWindow.addEventListener('pagehide', () => { ro.disconnect(); clearInterval(floorInterval); });
   }catch(e){
     console.error('Pop Out Window failed:', e);
   }
