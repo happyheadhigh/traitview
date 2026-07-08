@@ -237,8 +237,8 @@ function renderLatestBurns(rows, snapshotMap=null){
       <div class="burn-cell burn-tx"><b>${burnsTxLink(row.tx_hash)}</b></div>
       <div class="burn-cell burn-inputs">${burnsInputGallery(ids, snapshotMap, row.burn_event_id)}</div>
       <div class="burn-cell burn-created">${burnsTokenChip(created, row, row.snapshot_image || null, row.burn_event_id)}</div>
-      <div class="burn-cell burn-count">${burnsMetric(row.input_count ?? ids.length)}</div>
-      <div class="burn-cell burn-points">${row.points_used != null ? burnsMetric(row.points_used) : '-'}</div>
+      <div class="burn-cell burn-count"><span class="burn-cell-label">Count</span>${burnsMetric(row.input_count ?? ids.length)}</div>
+      <div class="burn-cell burn-points"><span class="burn-cell-label">Pts</span>${row.points_used != null ? burnsMetric(row.points_used) : '-'}</div>
       <div class="burn-cell burn-time">${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</div>
       <div class="burn-cell burn-wallet">${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</div>
     </div>`;
