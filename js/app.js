@@ -634,13 +634,16 @@ async function openPopOutWindow(){
     const style = pipWindow.document.createElement('style');
     style.textContent = `
       html,body{margin:0;padding:0;height:100%;background:#0e1218;font-family:'Space Grotesk',system-ui,sans-serif;overflow:hidden}
-      #pipBar{height:26px;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;background:#0e1218;border-bottom:1px solid rgba(255,255,255,.08);gap:8px;cursor:default}
-      #pipBar.minimized{cursor:pointer;border-bottom:0}
-      #pipFloorLabel{color:#5a6578;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
-      #pipFloorValue{color:#1CFFAF;font-size:12px;font-weight:800;white-space:nowrap}
-      #pipMinBtn{margin-left:auto;width:18px;height:18px;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#5a6578;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-      #pipMinBtn:hover{color:#e6edf7;border-color:rgba(255,255,255,.32)}
-      #pipContent{height:calc(100% - 26px);width:100%}
+      #pipBar{height:22px;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;box-sizing:border-box;background:#0e1218;gap:6px}
+      #pipBar:not(.minimized){border-bottom:1px solid rgba(255,255,255,.08)}
+      #pipBar.minimized{cursor:pointer;justify-content:center;height:100%}
+      #pipFloorValue{display:none;color:#1CFFAF;font-size:13px;font-weight:800;white-space:nowrap}
+      #pipBar.minimized #pipFloorValue{display:inline}
+      #pipMinIcon{width:16px;height:16px;border-radius:5px;border:1px solid rgba(255,255,255,.15);color:#5a6578;font-size:10px;line-height:14px;text-align:center;flex:0 0 auto}
+      #pipBar:hover #pipMinIcon{color:#e6edf7;border-color:rgba(255,255,255,.32)}
+      #pipBar.minimized #pipMinIcon{display:none}
+      #pipContent{height:calc(100% - 22px);width:100%}
+      #pipContent.hidden{display:none}
       #pipContent iframe{display:block;width:100%;height:100%;border:0}
     `;
     pipWindow.document.head.appendChild(style);
@@ -648,24 +651,29 @@ async function openPopOutWindow(){
     // A dedicated top strip the loaded page can never overlap or sit under --
     // avoids fighting with wherever the site's own header controls happen to
     // be, rather than floating a button on top of page content and hoping
-    // nothing collides with it.
+    // nothing collides with it. Only one click handler total (on the bar
+    // itself, toggling based on current state) -- a previous version had a
+    // separate listener on the minimize button too, and since it's a child
+    // of the bar, a click on it fired both handlers in the same event via
+    // bubbling: minimize, then immediately un-minimize because the bar's
+    // handler saw the class the button's handler had just added. Only ever
+    // having one handler make one decision removes that whole class of bug.
     const bar = pipWindow.document.createElement('div');
     bar.id = 'pipBar';
-    bar.innerHTML = `<span id="pipFloorLabel">Floor</span><span id="pipFloorValue">—</span><button id="pipMinBtn" title="Minimize to a floor-price bar">—</button>`;
+    bar.innerHTML = `<span id="pipFloorValue">—</span><span id="pipMinIcon" title="Minimize to a floor-price bar">—</span>`;
     pipWindow.document.body.appendChild(bar);
 
+    const PAGE_URL = location.href;
     const content = pipWindow.document.createElement('div');
     content.id = 'pipContent';
     const iframe = pipWindow.document.createElement('iframe');
-    iframe.src = location.href;
+    iframe.src = PAGE_URL;
     content.appendChild(iframe);
     pipWindow.document.body.appendChild(content);
 
-    const minBtn = pipWindow.document.getElementById('pipMinBtn');
-    const floorLabel = pipWindow.document.getElementById('pipFloorLabel');
     const floorEl = pipWindow.document.getElementById('pipFloorValue');
     const FULL_W = 420, FULL_H = 760;
-    const MINI_W = 150, MINI_H = 27;
+    const MINI_W = 130, MINI_H = 22;
     let floorInterval = null;
     const tick = () => {
       const v = window._lastFloorEth;
@@ -676,23 +684,29 @@ async function openPopOutWindow(){
     // handler attached here (in the main page's script) but firing on an
     // element that lives in pipWindow's own document still counts, since
     // the actual click event happens in that window's context.
-    minBtn.addEventListener('click', () => {
-      content.style.display = 'none';
-      minBtn.style.display = 'none';
-      floorLabel.textContent = '';
-      bar.classList.add('minimized');
-      try{ pipWindow.resizeTo(MINI_W, MINI_H); }catch(e){}
-      tick();
-      floorInterval = setInterval(tick, 5000);
-    });
     bar.addEventListener('click', () => {
-      if(!bar.classList.contains('minimized')) return;
-      clearInterval(floorInterval);
-      bar.classList.remove('minimized');
-      floorLabel.textContent = 'Floor';
-      content.style.display = 'block';
-      minBtn.style.display = 'flex';
-      try{ pipWindow.resizeTo(FULL_W, FULL_H); }catch(e){}
+      const minimizing = !bar.classList.contains('minimized');
+      if(minimizing){
+        // Actually blank the iframe's src rather than just hiding it with
+        // CSS -- a previous version only did display:none on the wrapper,
+        // and the site's own fixed-position mobile bottom bar somehow
+        // still rendered through in a real test. Removing the src entirely
+        // guarantees there's nothing left to possibly bleed through,
+        // regardless of how any fixed-position element inside might
+        // otherwise behave.
+        iframe.src = 'about:blank';
+        content.classList.add('hidden');
+        bar.classList.add('minimized');
+        try{ pipWindow.resizeTo(MINI_W, MINI_H); }catch(e){}
+        tick();
+        floorInterval = setInterval(tick, 5000);
+      } else {
+        clearInterval(floorInterval);
+        bar.classList.remove('minimized');
+        content.classList.remove('hidden');
+        if(iframe.src === 'about:blank') iframe.src = PAGE_URL;
+        try{ pipWindow.resizeTo(FULL_W, FULL_H); }catch(e){}
+      }
     });
 
     const ro = new ResizeObserver(() => {
