@@ -723,13 +723,56 @@ async function openPopOutWindow(){
 }
 
 // ── Header burn ticker ───────────────────────────────────────────────────────
-function burnTickerItemHtml(id){
-  const src = `${RAILWAY_API}/render/burned-snapshot/${id}?key=${encodeURIComponent(RAILWAY_KEY)}`;
-  return `<span class="burn-ticker-item" onclick="if(typeof openModal==='function') openModal(${id})">
-    <img src="${src}" alt="#${id}" loading="lazy">
-    <span>#${id}</span>
-  </span>`;
+// Fixed number of tile slots, each running its own independent fade cycle --
+// deliberately not a sliding marquee. A continuously-scrolling strip needs
+// every one of the (potentially 1,400+) tokens rendered as its own image
+// somewhere along the track, and even with native lazy-loading, that many
+// images competing for a browser's limited concurrent-connection pool to the
+// same API host caused real, persistent load delays in practice. A small
+// fixed set of tiles (each swapping to a new random token on its own timer)
+// means the number of images ever in flight is bounded by the tile count,
+// not by total burn count -- structurally can't pile up the same way.
+let _burnTickerIds = [];
+let _burnTickerTilesStarted = false;
+
+function burnTickerImgSrc(id){
+  return `${RAILWAY_API}/render/burned-snapshot/${id}?key=${encodeURIComponent(RAILWAY_KEY)}`;
 }
+
+function burnTickerPickId(excludeId){
+  if(!_burnTickerIds.length) return null;
+  if(_burnTickerIds.length === 1) return _burnTickerIds[0];
+  let id;
+  do{ id = _burnTickerIds[Math.floor(Math.random() * _burnTickerIds.length)]; }
+  while(id === excludeId);
+  return id;
+}
+
+function burnTickerCycleTile(tile){
+  const img = tile.querySelector('img');
+  const label = tile.querySelector('span');
+  const nextId = burnTickerPickId(+tile.dataset.tokenId);
+  if(nextId == null) return;
+  tile.classList.add('fading');
+  setTimeout(() => {
+    tile.dataset.tokenId = nextId;
+    img.src = burnTickerImgSrc(nextId);
+    img.alt = `#${nextId}`;
+    label.textContent = `#${nextId}`;
+    tile.classList.remove('fading');
+  }, 380);
+  // Each tile's own cycle length varies a bit (4-6.5s) so tiles drift out of
+  // sync with each other over time rather than all lining back up.
+  const nextDelay = 4000 + Math.random() * 2500;
+  setTimeout(() => burnTickerCycleTile(tile), nextDelay);
+}
+
+function burnTickerTileCount(host){
+  const w = host.clientWidth || window.innerWidth || 800;
+  const perTile = window.innerWidth <= 900 ? 70 : 90;
+  return Math.max(5, Math.min(20, Math.floor(w / perTile)));
+}
+
 async function loadBurnTicker(){
   const host = document.getElementById('burnTicker');
   const track = document.getElementById('burnTickerTrack');
@@ -738,30 +781,35 @@ async function loadBurnTicker(){
     const data = await dbFetch('/db/burned-ticker');
     const ids = Array.isArray(data?.token_ids) ? data.token_ids.filter(id => Number.isFinite(+id)) : [];
     if(!ids.length){ host.style.display = 'none'; return; }
-    // Render the list twice back-to-back -- the CSS animation scrolls
-    // exactly 50% of the track's width, so the second copy seamlessly
-    // takes over right as the first copy scrolls out, with no visible
-    // jump or gap in the loop. Every burned token, not a capped sample --
-    // the browser's own loading="lazy" only actually fetches/decodes
-    // images near the visible area, and each one is cached essentially
-    // forever server-side, so this scales with total burn count without
-    // getting proportionally heavier to load.
-    const html = ids.map(burnTickerItemHtml).join('');
-    track.innerHTML = html + html;
+    _burnTickerIds = ids;
     host.style.display = 'block';
-    // Fixed-duration animation was the actual bug here: at a flat 90s, the
-    // real problem is that speed (px/second) scales directly with content
-    // length -- going from the old 150-token cap to genuinely all 1,400+
-    // meant ~9x more pixels to cover in the same time, i.e. ~9x faster.
-    // That'll only get worse as more tokens get burned over time too.
-    // Measuring the actual rendered width and deriving duration from a
-    // fixed speed keeps the pace visually constant no matter how long the
-    // list is, now or in the future.
-    const PX_PER_SECOND = 28;
-    requestAnimationFrame(() => {
-      const halfWidth = track.scrollWidth / 2;
-      const duration = Math.max(20, halfWidth / PX_PER_SECOND);
-      track.style.animationDuration = `${duration}s`;
+    // Tiles themselves only get built once -- refetching the id list every
+    // few minutes (to pick up newly-burned tokens) shouldn't restart every
+    // tile's fade cycle from scratch, just refresh what pool of ids each
+    // tile's next cycle can pick from.
+    if(_burnTickerTilesStarted) return;
+    _burnTickerTilesStarted = true;
+    const count = burnTickerTileCount(host);
+    // Distinct initial picks where possible, so the first paint looks
+    // varied rather than risking visible duplicates before any tile has
+    // even cycled once.
+    const shuffled = [...ids].sort(() => Math.random() - 0.5);
+    const initial = [];
+    for(let i = 0; i < count; i++) initial.push(shuffled[i % shuffled.length]);
+    track.innerHTML = initial.map(id => `
+      <span class="burn-ticker-item" data-token-id="${id}">
+        <img src="${burnTickerImgSrc(id)}" alt="#${id}" loading="lazy">
+        <span>#${id}</span>
+      </span>
+    `).join('');
+    track.querySelectorAll('.burn-ticker-item').forEach(tile => {
+      tile.addEventListener('click', () => {
+        const id = +tile.dataset.tokenId;
+        if(id && typeof openModal === 'function') openModal(id);
+      });
+      // Stagger each tile's very first cycle so they don't all start in
+      // lockstep just because the page happened to load at the same moment.
+      setTimeout(() => burnTickerCycleTile(tile), Math.random() * 4000);
     });
   }catch(e){
     host.style.display = 'none';

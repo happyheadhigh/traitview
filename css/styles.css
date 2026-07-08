@@ -48,37 +48,30 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
   border-bottom:1px solid rgba(255,255,255,.06);
   overflow:hidden;
   position:relative;
-  /* Fade at both edges so items appear to emerge from and dissolve into
-     nothing, rather than an abrupt visible boundary. */
-  -webkit-mask-image:linear-gradient(to right,transparent,black 6%,black 94%,transparent);
-  mask-image:linear-gradient(to right,transparent,black 6%,black 94%,transparent);
 }
 .burn-ticker-track{
   display:flex;
   align-items:center;
-  gap:22px;
+  justify-content:space-evenly;
+  gap:14px;
   height:100%;
-  width:max-content;
-  padding:0 20px;
-  animation-name:burnTickerScroll;
-  animation-timing-function:linear;
-  animation-iteration-count:infinite;
-  animation-duration:60s; /* fallback only -- loadBurnTicker() sets the real duration dynamically based on actual content length, so speed stays constant regardless of how many tokens are in the list */
-}
-.burn-ticker:hover .burn-ticker-track{animation-play-state:paused}
-@keyframes burnTickerScroll{
-  from{transform:translateX(0)}
-  to{transform:translateX(-50%)}
+  padding:0 16px;
 }
 .burn-ticker-item{
   display:flex;align-items:center;gap:6px;flex:0 0 auto;
-  cursor:pointer;opacity:.88;transition:opacity .15s ease;
+  cursor:pointer;
 }
-.burn-ticker-item:hover{opacity:1}
-.burn-ticker-item img{width:26px;height:26px;border-radius:5px;object-fit:contain;background:rgba(255,255,255,.05);flex:0 0 auto}
-.burn-ticker-item span{font-size:10px;color:var(--sub);font-weight:700;white-space:nowrap}
+.burn-ticker-item img{
+  width:26px;height:26px;border-radius:5px;object-fit:contain;
+  background:rgba(255,255,255,.05);flex:0 0 auto;
+  opacity:1;transition:opacity .35s ease;
+}
+.burn-ticker-item.fading img{opacity:0}
+.burn-ticker-item span{font-size:10px;color:var(--sub);font-weight:700;white-space:nowrap;opacity:1;transition:opacity .35s ease}
+.burn-ticker-item.fading span{opacity:0}
 @media (max-width:900px){
   .burn-ticker{margin:-10px -10px 10px;height:34px}
+  .burn-ticker-track{gap:10px;padding:0 10px}
   .burn-ticker-item img{width:22px;height:22px}
 }
 .topbar.drawer-behind{position:relative!important;z-index:0!important}
