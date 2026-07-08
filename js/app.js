@@ -634,60 +634,63 @@ async function openPopOutWindow(){
     const style = pipWindow.document.createElement('style');
     style.textContent = `
       html,body{margin:0;padding:0;height:100%;background:#0e1218;font-family:'Space Grotesk',system-ui,sans-serif;overflow:hidden}
-      iframe{display:block;width:100%;height:100%;border:0}
-      #pipMinBtn{position:absolute;top:6px;right:6px;z-index:10;width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,20,.75);color:#a8b3c9;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center}
-      #pipMinBtn:hover{color:#e6edf7;border-color:rgba(255,255,255,.35)}
-      #pipMiniBar{display:none;height:100%;width:100%;box-sizing:border-box;align-items:center;gap:10px;padding:0 12px;cursor:pointer;background:#0e1218}
-      #pipMiniBar .label{color:#a8b3c9;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
-      #pipMiniBar .value{color:#1CFFAF;font-size:16px;font-weight:800;white-space:nowrap}
-      #pipMiniBar .expand-hint{margin-left:auto;color:#5a6578;font-size:10px;white-space:nowrap}
+      #pipBar{height:26px;display:flex;align-items:center;padding:0 8px;box-sizing:border-box;background:#0e1218;border-bottom:1px solid rgba(255,255,255,.08);gap:8px;cursor:default}
+      #pipBar.minimized{cursor:pointer;border-bottom:0}
+      #pipFloorLabel{color:#5a6578;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+      #pipFloorValue{color:#1CFFAF;font-size:12px;font-weight:800;white-space:nowrap}
+      #pipMinBtn{margin-left:auto;width:18px;height:18px;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#5a6578;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+      #pipMinBtn:hover{color:#e6edf7;border-color:rgba(255,255,255,.32)}
+      #pipContent{height:calc(100% - 26px);width:100%}
+      #pipContent iframe{display:block;width:100%;height:100%;border:0}
     `;
     pipWindow.document.head.appendChild(style);
 
+    // A dedicated top strip the loaded page can never overlap or sit under --
+    // avoids fighting with wherever the site's own header controls happen to
+    // be, rather than floating a button on top of page content and hoping
+    // nothing collides with it.
+    const bar = pipWindow.document.createElement('div');
+    bar.id = 'pipBar';
+    bar.innerHTML = `<span id="pipFloorLabel">Floor</span><span id="pipFloorValue">—</span><button id="pipMinBtn" title="Minimize to a floor-price bar">—</button>`;
+    pipWindow.document.body.appendChild(bar);
+
+    const content = pipWindow.document.createElement('div');
+    content.id = 'pipContent';
     const iframe = pipWindow.document.createElement('iframe');
     iframe.src = location.href;
-    pipWindow.document.body.appendChild(iframe);
+    content.appendChild(iframe);
+    pipWindow.document.body.appendChild(content);
 
-    // Minimize button sits on top of the iframe, in the PiP window's own
-    // document (not inside the iframe's separate document), so it's always
-    // there regardless of what the loaded page is showing.
-    const minBtn = pipWindow.document.createElement('button');
-    minBtn.id = 'pipMinBtn';
-    minBtn.title = 'Minimize to a floor-price bar';
-    minBtn.textContent = '—';
-    pipWindow.document.body.appendChild(minBtn);
-
-    const miniBar = pipWindow.document.createElement('div');
-    miniBar.id = 'pipMiniBar';
-    miniBar.title = 'Click to expand';
-    miniBar.innerHTML = `<span class="label">Floor</span><span class="value" id="pipFloorValue">—</span><span class="expand-hint">expand ▢</span>`;
-    pipWindow.document.body.appendChild(miniBar);
-
+    const minBtn = pipWindow.document.getElementById('pipMinBtn');
+    const floorLabel = pipWindow.document.getElementById('pipFloorLabel');
+    const floorEl = pipWindow.document.getElementById('pipFloorValue');
     const FULL_W = 420, FULL_H = 760;
-    const MINI_W = 220, MINI_H = 44;
+    const MINI_W = 150, MINI_H = 27;
     let floorInterval = null;
+    const tick = () => {
+      const v = window._lastFloorEth;
+      floorEl.textContent = (typeof v === 'number' && !isNaN(v)) ? `${v} ETH` : '—';
+    };
     // resizeTo/resizeBy on a Document Picture-in-Picture window require a
     // genuine user gesture originating INSIDE that window -- a click
     // handler attached here (in the main page's script) but firing on an
     // element that lives in pipWindow's own document still counts, since
     // the actual click event happens in that window's context.
     minBtn.addEventListener('click', () => {
-      iframe.style.display = 'none';
+      content.style.display = 'none';
       minBtn.style.display = 'none';
-      miniBar.style.display = 'flex';
+      floorLabel.textContent = '';
+      bar.classList.add('minimized');
       try{ pipWindow.resizeTo(MINI_W, MINI_H); }catch(e){}
-      const floorEl = pipWindow.document.getElementById('pipFloorValue');
-      const tick = () => {
-        const v = window._lastFloorEth;
-        if(floorEl) floorEl.textContent = (typeof v === 'number' && !isNaN(v)) ? `${v} ETH` : '—';
-      };
       tick();
       floorInterval = setInterval(tick, 5000);
     });
-    miniBar.addEventListener('click', () => {
+    bar.addEventListener('click', () => {
+      if(!bar.classList.contains('minimized')) return;
       clearInterval(floorInterval);
-      miniBar.style.display = 'none';
-      iframe.style.display = 'block';
+      bar.classList.remove('minimized');
+      floorLabel.textContent = 'Floor';
+      content.style.display = 'block';
       minBtn.style.display = 'flex';
       try{ pipWindow.resizeTo(FULL_W, FULL_H); }catch(e){}
     });
