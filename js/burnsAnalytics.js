@@ -229,7 +229,7 @@ function renderBurnStats(stats){
 function renderLatestBurns(rows, snapshotMap=null){
   if(!rows.length) return '<div class="wallet-empty-state">No finalized burn rows returned yet.</div>';
   return `<div class="burn-table burn-latest-table">
-    <div class="burn-table-head"><span>Tx</span><span>Inputs</span><span>Created</span><span>Count</span><span>Pts</span><span>Time</span><span>Wallet</span></div>
+    <div class="burn-table-head"><span>Tx</span><span>Inputs</span><span>Created</span><span>Burned</span><span>Pts</span><span>Time</span><span>Wallet</span></div>
     ${rows.slice(0,25).map(row => {
     const ids = burnsInputIds(row).filter(Boolean);
     const created = row.created_token_id || row.survivor_token_id;
@@ -237,7 +237,7 @@ function renderLatestBurns(rows, snapshotMap=null){
       <div class="burn-cell burn-tx"><b>${burnsTxLink(row.tx_hash)}</b></div>
       <div class="burn-cell burn-inputs">${burnsInputGallery(ids, snapshotMap, row.burn_event_id)}</div>
       <div class="burn-cell burn-created">${burnsTokenChip(created, row, row.snapshot_image || null, row.burn_event_id)}</div>
-      <div class="burn-cell burn-count"><span class="burn-cell-label">Count</span>${burnsMetric(row.input_count ?? ids.length)}</div>
+      <div class="burn-cell burn-count"><span class="burn-cell-label">Burned</span>${burnsMetric(row.input_count ?? ids.length)}</div>
       <div class="burn-cell burn-points"><span class="burn-cell-label">Pts</span>${row.points_used != null ? burnsMetric(row.points_used) : '-'}</div>
       <div class="burn-cell burn-time">${burnsEsc(burnsDate(row.burn_ts || row.burned_at || row.timestamp))}</div>
       <div class="burn-cell burn-wallet">${burnsEsc(burnsShortAddr(row.wallet || row.burner_wallet))}</div>
