@@ -133,12 +133,25 @@ function burnsTokenChipList(ids){
 }
 function burnsInputGallery(ids, snapshotMap=null, burnEventId=null){
   const clean = (Array.isArray(ids) ? ids : []).map(Number).filter(n => Number.isFinite(n) && n > 0);
-  // These IDs were destroyed by burning — they no longer represent their
+  // These IDs were destroyed by burning -- they no longer represent their
   // original selves, so a "current" image lookup is meaningless/wrong for
   // them. Use the pre-burn snapshot when we have one; burnsTokenChip falls
   // back to the normal live lookup if no snapshot exists for a given id
   // (e.g. an older burn from before snapshotting was in place).
-  const chips = clean.map(id => burnsTokenChip(id, null, snapshotMap?.[String(id)] || null, burnEventId)).join('');
+  //
+  // A token fed into a burn isn't necessarily destroyed -- it can BE the
+  // survivor, evolving instead of dying, and can go on to be fed into a
+  // LATER burn too. A plain token-id key can't distinguish "what did this
+  // token look like right before THIS burn" from "before some other burn"
+  // for a token that's had more than one such moment. Endpoints that know
+  // which burn each input belongs to key by "eventId:tokenId" instead; try
+  // that first, falling back to the plain token-id key for any endpoint
+  // still using the simpler one-snapshot-per-token format.
+  const lookup = id => {
+    if(burnEventId != null && snapshotMap?.[`${burnEventId}:${id}`] !== undefined) return snapshotMap[`${burnEventId}:${id}`];
+    return snapshotMap?.[String(id)] || null;
+  };
+  const chips = clean.map(id => burnsTokenChip(id, null, lookup(id), burnEventId)).join('');
   return `<div class="burn-input-gallery">${chips || '-'}</div>`;
 }
 function burnsInputIds(row){
