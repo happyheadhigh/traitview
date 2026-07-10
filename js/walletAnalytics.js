@@ -819,6 +819,48 @@ async function loadWalletRarityImprovement(data){
 // Reuses Burns tab's own card-rendering helpers (burnsTokenChip, burnsInputGallery,
 // burnsTxLink, burnsMetric — all from burnsAnalytics.js, loaded sitewide) so this
 // panel looks and behaves exactly like the Burns tab's own cards, no duplicated UI.
+let _lastWalletBurnStats = null;
+let _walletBurnSortMode = localStorage.getItem('walletBurnSort') || 'recent';
+const WALLET_BURN_SORT_LABELS = {
+  recent: 'Recent',
+  biggest: 'Biggest Burn',
+  rarest: 'Rarest Sacrifice',
+  survivor: 'Best Survivor',
+};
+
+// Rank lookups reuse OS_RANK_MAP -- already loaded sitewide for every other
+// rank display on the site, so no separate fetch needed for this. Lower rank
+// number = rarer, matching the convention used everywhere else already.
+function sortWalletBurnEvents(events, mode){
+  const list = [...(events || [])];
+  const rankOf = id => OS_RANK_MAP?.get(+id) ?? Infinity; // unranked sorts last
+  if(mode === 'biggest'){
+    return list.sort((a, b) => (b.burnedTokenIds||[]).length - (a.burnedTokenIds||[]).length);
+  }
+  if(mode === 'rarest'){
+    const rarestInEvent = ev => Math.min(...(ev.burnedTokenIds||[]).map(rankOf), Infinity);
+    return list.sort((a, b) => rarestInEvent(a) - rarestInEvent(b));
+  }
+  if(mode === 'survivor'){
+    return list.sort((a, b) => rankOf(a.survivorTokenId) - rankOf(b.survivorTokenId));
+  }
+  // 'recent' -- already comes back sorted by block_number desc from the API,
+  // but sort explicitly here too since this same array gets re-sorted in
+  // place by the other modes and needs a way back to chronological order.
+  return list.sort((a, b) => (b.blockNumber||0) - (a.blockNumber||0));
+}
+
+function setWalletBurnSort(mode){
+  _walletBurnSortMode = mode;
+  try{ localStorage.setItem('walletBurnSort', mode); }catch(e){}
+  if(!_lastWalletBurnStats) return;
+  const html = renderWalletBurnStats(_lastWalletBurnStats);
+  ['walletBurnStatsHost', 'mobileWalletBurnStatsHost'].forEach(id => {
+    const h = document.getElementById(id);
+    if(h){ h.innerHTML = html; if(typeof applyBurnThumbSizeClass === 'function') applyBurnThumbSizeClass(h, getBurnThumbSize()); }
+  });
+}
+
 function renderWalletBurnStats(stats){
   if(!stats || !stats.burnCount){
     return '<div class="wallet-empty-state">No burns yet from this wallet. Burn a few tokens together and your personal stats will show up here.</div>';
@@ -828,7 +870,8 @@ function renderWalletBurnStats(stats){
     <div class="extinct-sub">A rare, best-case burn outcome — you've hit it ${stats.angelCount} time${stats.angelCount===1?'':'s'}</div>
   </div>` : '';
   const inputSnapshots = stats.input_snapshots || {};
-  const eventsHtml = (stats.events || []).map(ev => {
+  const sortedEvents = sortWalletBurnEvents(stats.events, _walletBurnSortMode);
+  const eventsHtml = sortedEvents.map(ev => {
     const dateStr = ev.burnedAt ? new Date(ev.burnedAt).toLocaleDateString() : '';
     const ptsHtml = ev.pointsUsed != null ? `<span class="burn-best-pts">${burnsMetric(ev.pointsUsed)} pts</span>` : '';
     const angelTag = ev.isAngel ? `<span class="burn-best-tag" style="background:rgba(28,255,175,.15);border-color:rgba(28,255,175,.35);color:#1CFFAF">✨ Angel</span>` : '';
@@ -849,7 +892,14 @@ function renderWalletBurnStats(stats){
   }).join('');
   const wThumbSize = getBurnThumbSize();
   return `
-    <div class="burn-toolbar" style="justify-content:flex-end;margin-bottom:6px"><button type="button" class="btn ghost burn-icon-btn burn-thumb-size-toggle-btn" onclick="toggleBurnThumbSize()" title="Thumbnail size: ${BURN_THUMB_LABELS[wThumbSize]} (click to cycle)">${BURN_THUMB_ICONS[wThumbSize]}</button></div>
+    <div class="burn-toolbar" style="justify-content:space-between;margin-bottom:6px">
+      <select class="input wallet-burn-sort" onchange="setWalletBurnSort(this.value)" title="Sort your burns" style="width:auto;font-size:12px;padding:4px 8px">
+        ${Object.entries(WALLET_BURN_SORT_LABELS).map(([val, label]) =>
+          `<option value="${val}"${val === _walletBurnSortMode ? ' selected' : ''}>${label}</option>`
+        ).join('')}
+      </select>
+      <button type="button" class="btn ghost burn-icon-btn burn-thumb-size-toggle-btn" onclick="toggleBurnThumbSize()" title="Thumbnail size: ${BURN_THUMB_LABELS[wThumbSize]} (click to cycle)">${BURN_THUMB_ICONS[wThumbSize]}</button>
+    </div>
     <div class="wallet-stat-row" style="margin-bottom:12px">
       <div class="wallet-stat-cell"><span>Burns</span><b>${burnsMetric(stats.burnCount)}</b></div>
       <div class="wallet-stat-cell"><span>Tokens Consumed</span><b>${burnsMetric(stats.tokensConsumed)}</b></div>
@@ -866,6 +916,7 @@ async function loadWalletBurnStats(address){
   if(!hosts.length || !address) return;
   try{
     const data = await dbFetch(`/db/wallet/${encodeURIComponent(address)}/burn-stats`);
+    _lastWalletBurnStats = data;
     const html = renderWalletBurnStats(data);
     hosts.forEach(h => { h.innerHTML = html; if(typeof applyBurnThumbSizeClass === 'function') applyBurnThumbSizeClass(h, getBurnThumbSize()); });
   }catch(e){
