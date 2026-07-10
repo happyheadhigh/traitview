@@ -908,7 +908,7 @@ async function openModal(id, opts={}){
   // ── Listing price (instant — from cached LISTINGS) ───────────────────────
   const priceEl = document.getElementById('mPrice');
   if(listing && ethVal != null){
-    priceEl.textContent = 'Ξ ' + formatEth(ethVal) + ' ETH';
+    priceEl.textContent = formatEth(ethVal) + ' ETH';
     priceEl.style.display = 'inline';
   } else {
     priceEl.style.display = 'none';
