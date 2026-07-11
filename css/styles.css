@@ -3691,7 +3691,16 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
 .burn-hist-toggle .burn-hist-nav:not(:disabled):hover{border-color:var(--text)}
 .burn-hist-label{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--muted);color:var(--text);padding:4px 10px;border-radius:999px;font-size:12px;white-space:nowrap}
 .survivor-chip{color:#86efac;border-color:rgba(74,222,128,.28);background:rgba(74,222,128,.08)}
-.burn-best-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);gap:12px}
+.burn-best-grid{display:flex;flex-direction:column;gap:12px}
+/* min-width:0 is required here, not optional -- flex items default to
+   min-width:auto, which respects the min-content size of what's inside.
+   A card containing a horizontally-scrolling gallery (Biggest Burns'/
+   Highest Points Earned's burned-row) has a large min-content width, so
+   without this override the item -- and the whole container -- would
+   stretch to fit the un-scrolled gallery instead of letting it scroll
+   within its own bounds. Same underlying CSS gotcha as grid's
+   minmax(0,1fr) vs bare 1fr, just flexbox's version of it. */
+.burn-best-group{min-width:0}
 .burn-best-group h4{margin:0 0 4px;color:rgba(203,213,225,.74);font-size:9.5px;text-transform:uppercase;letter-spacing:.075em}
 .burn-mini-row{justify-content:space-between;border-top:1px solid rgba(255,255,255,.055);padding:4px 0;font-size:11px}
 .burn-activity-legend{display:flex;gap:12px;align-items:center;margin-bottom:4px;color:rgba(203,213,225,.72);font-size:10px}
@@ -3718,24 +3727,14 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
   .burn-stat-cell:nth-child(odd){border-left:0}
   .burn-stat-cell-gauge{grid-column:1 / -1;border-left:0 !important;border-bottom:1px solid rgba(255,255,255,.07)}
   .burn-two-col{grid-template-columns:1fr}
-  /* Deliberately minmax(0,1fr), not bare 1fr — matches the desktop rule above.
-     Bare 1fr still respects the automatic min-content size of what's inside
-     the track, so on a card that contains a horizontally-scrolling thumbnail
-     gallery (Biggest Burns' burned-row), the track itself was able to grow
-     to fit the un-scrolled gallery width, stretching the whole card/page
-     wide instead of letting the inner gallery scroll on its own. */
-  .burn-best-grid{grid-template-columns:minmax(0,1fr)}
-  /* Biggest Burns (group 1) needs the full row -- survivor chip + burned
-     gallery + points + tx. Rarest Inputs and Best Survivors (groups 2/3)
-     are each just a short list of single-chip rows though, and were each
-     taking a full mobile-width row for very little content, while the
-     narrower stacked chip (thumb/ID/rank underneath, not side by side)
-     freed up horizontal space that was just going unused in the middle of
-     each row. Pairing 2 and 3 side by side actually uses that space. */
-  .burn-best-grid{display:flex;flex-wrap:wrap;gap:8px}
-  .burn-best-grid .burn-best-group{flex:1 1 100%;min-width:0}
-  .burn-best-grid .burn-best-group:nth-child(2),
-  .burn-best-grid .burn-best-group:nth-child(3){flex:1 1 calc(50% - 4px)}
+  /* .burn-best-grid is already a full-width vertical stack from the base
+     rule above -- no column-splitting override needed here anymore. That
+     used to pair Rarest Inputs and Best Survivors side by side at 50%
+     width each, since both were simple single-chip-row lists. Rarest
+     Inputs is gone (rank-dependent, removed), and its replacement,
+     Highest Points Earned, needs the same full row as Biggest Burns
+     (survivor chip + burned gallery + points + tx) -- squeezing that into
+     a half-width column looked cramped, so all groups now just stack. */
   .burn-mini-row{flex-direction:column;align-items:flex-start;gap:2px}
   .burn-mini-row .burn-best-tx{font-size:9px;color:var(--sub)}
   .burn-main{justify-content:flex-start}
