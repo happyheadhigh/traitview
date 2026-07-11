@@ -111,10 +111,10 @@ function burnsTokenThumb(id, extraClass='', overrideSrc=null, burnEventId=null){
   const openCall = burnEventId ? `openModal(${n}, {burnEventId:${Number(burnEventId)}})` : `openModal(${n})`;
   return `<button type="button" class="burn-token-thumb ${burnsEsc(extraClass)}" data-burn-token-id="${n}"${frozenAttr} title="Open token #${n}" aria-label="Open token #${n}" onclick="event.stopPropagation(); if(typeof openModal==='function') ${openCall};">${img}</button>`;
 }
-function burnsTokenChip(id, row, overrideSrc=null, burnEventId=null){
+function burnsTokenChip(id, row, overrideSrc=null, burnEventId=null, showRank=true){
   const n = Number(id);
   if(!Number.isFinite(n) || n <= 0) return '';
-  const rankHtml = row ? burnsRowRankTag(row, n) : burnsRankTag(n);
+  const rankHtml = showRank ? (row ? burnsRowRankTag(row, n) : burnsRankTag(n)) : '';
   // Tried overlaying the rank on the thumbnail corner, then as a bottom
   // gradient bar -- both either covered real artwork (faces/hats sit right
   // in that zone) or had to be shrunk so small the rank became unreadable.
@@ -151,7 +151,7 @@ function burnsInputGallery(ids, snapshotMap=null, burnEventId=null){
     if(burnEventId != null && snapshotMap?.[`${burnEventId}:${id}`] !== undefined) return snapshotMap[`${burnEventId}:${id}`];
     return snapshotMap?.[String(id)] || null;
   };
-  const chips = clean.map(id => burnsTokenChip(id, null, lookup(id), burnEventId)).join('');
+  const chips = clean.map(id => burnsTokenChip(id, null, lookup(id), burnEventId, false)).join('');
   return `<div class="burn-input-gallery">${chips || '-'}</div>`;
 }
 function burnsInputIds(row){
@@ -274,7 +274,6 @@ function renderBurnLeaderboard(rows){
 function renderBestBurns(best, snapshotMap=null){
   const groups = [
     ['Biggest Burns', best?.biggest || best?.biggest_burns || [], 'biggest'],
-    ['Rarest Inputs', best?.rarest_inputs || best?.rarest_burned_inputs || best?.rarest || [], 'input'],
     ['Best Survivors', best?.best_survivors || best?.best_created_tokens || best?.survivors || [], 'survivor']
   ];
   const html = groups.map(([title, rows, kind]) => {
@@ -297,19 +296,14 @@ function renderBestBurns(best, snapshotMap=null){
           </div>
         </div>`;
       }
-      const primaryId = kind === 'input' ? (row.burned_token_id || row.token_id) : (row.created_token_id || row.survivor_token_id || row.token_id);
-      // Rarest Inputs are destroyed tokens too — same reasoning as the input
-      // gallery above, use the pre-burn snapshot (backend-attached directly
-      // on the row for this endpoint) rather than a live/current lookup.
-      // Best Survivors are still-alive tokens, so no override — they use
-      // the normal live image path via burnsTokenChip's default behavior.
-      const overrideSrc = kind === 'input' ? (row.snapshot_image || null) : null;
-      const burnEventId = kind === 'input' ? (row.burn_event_id || null) : null;
+      // Only 'survivor' reaches here now -- these are still-alive tokens,
+      // so a live current-rank/image lookup is genuinely accurate for them.
+      const primaryId = row.created_token_id || row.survivor_token_id || row.token_id;
       const typeTag = row.is_angel
         ? `<span class="burn-best-tag" style="background:rgba(28,255,175,.15);border-color:rgba(28,255,175,.35);color:#1CFFAF">✨ Angel</span>`
         : (row.type_trait ? `<span class="burn-best-tag" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:var(--sub)">${burnsEsc(row.type_trait)}</span>` : '');
       return `<div class="burn-mini-row">
-        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row, overrideSrc, burnEventId)}</span>
+        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row)}</span>
         ${typeTag}
         <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
       </div>`;

@@ -824,22 +824,21 @@ let _walletBurnSortMode = localStorage.getItem('walletBurnSort') || 'recent';
 const WALLET_BURN_SORT_LABELS = {
   recent: 'Recent',
   biggest: 'Biggest Burn',
-  rarest: 'Rarest Sacrifice',
   survivor: 'Best Survivor',
 };
 
 // Rank lookups reuse OS_RANK_MAP -- already loaded sitewide for every other
 // rank display on the site, so no separate fetch needed for this. Lower rank
 // number = rarer, matching the convention used everywhere else already.
+// No "rarest sacrifice" sort here on purpose -- that would rank burned/
+// destroyed tokens by current rank, which doesn't accurately describe a
+// token that no longer exists in that form (no historical rank data is
+// kept anywhere to do this correctly instead).
 function sortWalletBurnEvents(events, mode){
   const list = [...(events || [])];
   const rankOf = id => OS_RANK_MAP?.get(+id) ?? Infinity; // unranked sorts last
   if(mode === 'biggest'){
     return list.sort((a, b) => (b.burnedTokenIds||[]).length - (a.burnedTokenIds||[]).length);
-  }
-  if(mode === 'rarest'){
-    const rarestInEvent = ev => Math.min(...(ev.burnedTokenIds||[]).map(rankOf), Infinity);
-    return list.sort((a, b) => rarestInEvent(a) - rarestInEvent(b));
   }
   if(mode === 'survivor'){
     return list.sort((a, b) => rankOf(a.survivorTokenId) - rankOf(b.survivorTokenId));
