@@ -274,10 +274,29 @@ function renderBurnLeaderboard(rows){
 function renderBestBurns(best, snapshotMap=null){
   const groups = [
     ['Biggest Burns', best?.biggest || best?.biggest_burns || [], 'biggest'],
+    ['Highest Points Earned', best?.top_points_burns || best?.topPointsBurns || [], 'biggest'],
     ['Best Survivors', best?.best_survivors || best?.best_created_tokens || best?.survivors || [], 'survivor']
   ];
   const html = groups.map(([title, rows, kind]) => {
     if(!Array.isArray(rows) || !rows.length) return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4><div class="wallet-empty-state">No rows yet.</div></div>`;
+
+    if(kind === 'survivor'){
+      // Horizontal, side-swipeable gallery instead of one full-width row per
+      // survivor -- these are still-alive tokens (live current-rank/image
+      // lookup is genuinely accurate for them), and a whole vertical block
+      // per entry (image, id, type tag, tx link all stacked) took a lot of
+      // vertical space for what's really just "here's a notable survivor,
+      // tap it for details". Reuses .burn-input-gallery, the same
+      // horizontal-scroll pattern already used for burned-token displays
+      // elsewhere on this page, rather than inventing new CSS -- mobile
+      // touch-scroll behavior for that class already exists too.
+      const chips = rows.slice(0, 25).map(row => {
+        const primaryId = row.created_token_id || row.survivor_token_id || row.token_id;
+        return burnsTokenChip(primaryId, row);
+      }).join('');
+      return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4><div class="burn-input-gallery">${chips}</div></div>`;
+    }
+
     const items = rows.slice(0, 25).map(row => {
       if(kind === 'biggest'){
         const survivor = row.created_token_id || row.survivor_token_id;
@@ -296,17 +315,6 @@ function renderBestBurns(best, snapshotMap=null){
           </div>
         </div>`;
       }
-      // Only 'survivor' reaches here now -- these are still-alive tokens,
-      // so a live current-rank/image lookup is genuinely accurate for them.
-      const primaryId = row.created_token_id || row.survivor_token_id || row.token_id;
-      const typeTag = row.is_angel
-        ? `<span class="burn-best-tag" style="background:rgba(28,255,175,.15);border-color:rgba(28,255,175,.35);color:#1CFFAF">✨ Angel</span>`
-        : (row.type_trait ? `<span class="burn-best-tag" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:var(--sub)">${burnsEsc(row.type_trait)}</span>` : '');
-      return `<div class="burn-mini-row">
-        <span class="burn-mini-primary">${burnsTokenChip(primaryId, row)}</span>
-        ${typeTag}
-        <span class="burn-best-tx">${burnsTxLink(row.tx_hash)}</span>
-      </div>`;
     }).join('');
     return `<div class="burn-best-group"><h4>${burnsEsc(title)}</h4><div class="burn-best-list">${items}</div></div>`;
   }).join('');
