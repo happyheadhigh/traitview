@@ -3,8 +3,8 @@
    Keep this as a classic script, not an ES module. */
 
 // ── Railway DB API ────────────────────────────────────────────────────────────
-const RAILWAY_API = 'https://successful-healing-production-2f7e.up.railway.app';
-const RAILWAY_KEY = 'AllStarSecret2k26TV';
+const RAILWAY_API = 'https://ocas-production-api-production.up.railway.app';
+const RAILWAY_KEY = 'APIbot2k26MAINprodOCAS';
 
 async function dbFetch(path, params = {}) {
   const qs = new URLSearchParams({ ...params, key: RAILWAY_KEY });
