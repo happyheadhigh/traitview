@@ -1967,19 +1967,35 @@ async function init(){
     const jumpId  = urlParams.get('jump') || urlParams.get('token');
     const jumpNum = jumpId && Number.isFinite(+jumpId) && +jumpId > 0 ? +jumpId : null;
 
-    // Detect ?wallet= -- deep-link straight into the Wallet analytics tab for
-    // a specific address without requiring an actual wallet connection.
-    // The tab's own code (switchTopTab('wallet')) normally only loads
-    // CONNECTED_WALLET?.address; passing the address explicitly here bypasses
-    // that so a Discord user clicking "Full analytics on TraitView" lands on
-    // their own read-only analytics immediately. Independent of the ?jump=
-    // fast path above -- doesn't need to skip normal grid loading.
+    // Detect ?wallet= -- deep-link into the Wallet analytics tab for a
+    // specific address, sent by the bot's /me Portfolio embed. Being bot-
+    // verified in a Discord server (required to see that embed at all) is a
+    // DIFFERENT check than being linked to TraitView itself (the separate
+    // Discord<->wallet link tracked in traitview_links, via the 6-digit
+    // code flow / ?verify=true) -- someone could otherwise craft this URL
+    // for any address and see its analytics with no proof they're the
+    // owner. So: check TraitView's own link status for this address first;
+    // only load analytics if it's actually linked, otherwise show the
+    // Discord Verify modal and direct them to link it instead of silently
+    // rendering a stranger's wallet.
     const walletParam = urlParams.get('wallet');
     if(walletParam && /^0x[0-9a-fA-F]{40}$/.test(walletParam.trim())){
-      setTimeout(() => {
-        if(typeof switchTopTab === 'function') switchTopTab('wallet');
-        if(typeof requestWalletAnalyticsLoad === 'function'){
-          requestWalletAnalyticsLoad(walletParam.trim(), { force: true, allowHiddenFetch: true }).catch(() => {});
+      const walletAddr = walletParam.trim();
+      setTimeout(async () => {
+        let linked = false;
+        if(typeof tvCheckLinkStatus === 'function'){
+          try{
+            await tvCheckLinkStatus(walletAddr);
+            linked = !!(typeof TV_DISCORD_LINK !== 'undefined' && TV_DISCORD_LINK && String(TV_DISCORD_LINK.wallet||'').toLowerCase() === walletAddr.toLowerCase());
+          }catch(_){}
+        }
+        if(linked){
+          if(typeof switchTopTab === 'function') switchTopTab('wallet');
+          if(typeof requestWalletAnalyticsLoad === 'function'){
+            requestWalletAnalyticsLoad(walletAddr, { force: true, allowHiddenFetch: true }).catch(() => {});
+          }
+        } else if(typeof tvShowDiscordVerifyModal === 'function'){
+          tvShowDiscordVerifyModal({ wallet: walletAddr });
         }
       }, 0);
     }

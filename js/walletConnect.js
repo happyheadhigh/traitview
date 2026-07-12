@@ -350,7 +350,11 @@ async function tvShowDiscordVerifyModal(opts={}) {
   // Remove any existing modal
   document.getElementById('tv-discord-modal')?.remove();
 
-  const addr = CONNECTED_WALLET?.address;
+  // opts.wallet lets a caller check/link a SPECIFIC address instead of
+  // whatever's currently connected in the browser -- used by the ?wallet=
+  // deep-link flow, where there's no actual wallet connection yet (the
+  // point is to get the user there without one).
+  const addr = opts.wallet || CONNECTED_WALLET?.address;
   if(addr && typeof tvCheckLinkStatus === 'function'){
     try{ await tvCheckLinkStatus(addr); }catch(_){}
   }
@@ -412,15 +416,21 @@ async function tvShowDiscordVerifyModal(opts={}) {
     try {
       const link = await tvDiscordClaimCode(code);
       modal.remove();
-      // Clean up URL param if present
+      // Clean up URL params if present (?verify=true from the generic verify
+      // flow, ?wallet= from the deep-link flow that opened this modal because
+      // the wallet wasn't linked yet)
       const url = new URL(window.location.href);
       if(url.searchParams.has('verify')) { url.searchParams.delete('verify'); window.history.replaceState({}, '', url); }
+      if(url.searchParams.has('wallet')) { url.searchParams.delete('wallet'); window.history.replaceState({}, '', url); }
       tvShowLinkedBanner(link.wallet);
-      // Auto-load wallet analytics with the verified wallet
+      // Auto-load wallet analytics with the verified wallet, and land them on
+      // the Wallet tab so linking actually shows them something instead of
+      // silently loading data in the background.
       if(link.wallet) {
         try {
           const ids = await fetchWalletTokenIdsForAddress(link.wallet);
           await setConnectedWallet(link.wallet, null, ids, { allowHiddenAnalyticsFetch: true });
+          if(typeof switchTopTab === 'function') switchTopTab('wallet');
         } catch(e) {
           console.warn('[TVVerify] auto-load wallet failed:', e.message);
         }
