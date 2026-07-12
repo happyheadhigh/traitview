@@ -79,7 +79,11 @@ function walletTopTokenCard(t){
   const osRank = t.os_rank ?? t.rank ?? t.best_rank ?? getRankLabel(id, 'os');
   const tvRank = t.obs_rank ?? t.tv_rank ?? getRankLabel(id, 'tv');
   const price = t.price_eth ?? t.listed_price ?? t.listing_price ?? null;
-  const src = (typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id);
+  // t.image is the server's own burn_state_snapshots-derived current image
+  // for survivor tokens (see /db/wallet/:address/summary) -- ground truth,
+  // no dependency on OpenSea having re-indexed yet. Same priority order the
+  // modal already uses (row.image before the static-manifest fallback).
+  const src = t.image || ((typeof VS !== 'undefined' && VS._imgSrc) ? VS._imgSrc(id) : imgForId(id));
   return `<div class="wallet-top-token" data-id="${id}" onclick="openModal(${id})">
     <div class="wallet-top-token-img"><img src="${comboEsc(src)}" alt="#${id}" loading="lazy"></div>
     <div class="wallet-top-token-body">

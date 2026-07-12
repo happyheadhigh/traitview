@@ -2017,6 +2017,22 @@ async function init(){
             loadSurvivorCounts();
             setInterval(loadSurvivorCounts, 10 * 60 * 1000);
           }
+          // Ground-truth current image for every burn survivor, straight
+          // from burn_state_snapshots -- see /db/survivor-images. Loaded
+          // once alongside survivor counts, same TTL-refresh pattern.
+          // _getTokenImgSrc/_imgSrc check this BEFORE the OpenSea-live-fetch
+          // path, since OpenSea's own indexing can lag behind the real
+          // on-chain state (confirmed directly on token #4527).
+          if(!window.SURVIVOR_IMAGE_MAP || window.SURVIVOR_IMAGE_MAP.size === 0){
+            const loadSurvivorImages = () => dbFetch('/db/survivor-images')
+              .then(j => {
+                if(j?.ok && j.images){
+                  window.SURVIVOR_IMAGE_MAP = new Map(Object.entries(j.images).map(([id,img]) => [+id, img]));
+                }
+              }).catch(()=>{});
+            loadSurvivorImages();
+            setInterval(loadSurvivorImages, 10 * 60 * 1000);
+          }
           // Ranks now update on a rolling ~1.8-day cycle server-side (see
           // rank-sync.js) — refresh periodically so a long-lived tab doesn't
           // get stuck showing whatever ranks were live at page load forever.
@@ -3930,6 +3946,10 @@ const VS = {
   },
 
   _imgSrc(id){
+    // Ground-truth survivor image beats the static manifest -- see
+    // _getTokenImgSrc's comment for why this can't just rely on OpenSea.
+    const survivorImg = window.SURVIVOR_IMAGE_MAP && window.SURVIVOR_IMAGE_MAP.get(id);
+    if(survivorImg) return survivorImg;
     const v = IMAGES_MAP?.get(id);
     const s = v ? String(v).trim() : null;
     if(s && s.startsWith('<svg')){ try{ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s); }catch(e){ return imgForId(id); } }
@@ -5961,6 +5981,11 @@ async function runTwinFinderFromInput(id){
 // FEATURE: Price vs Rank Scatter Plot
 // ════════════════════════════════════════════════════════════════════════════
 function _getTokenImgSrc(id){
+  // Ground-truth survivor image (burn_state_snapshots) beats everything else --
+  // OpenSea's own indexing can lag behind the real on-chain state, so prefer
+  // our own confirmed-accurate data over the live OpenSea fetch below.
+  const survivorImg = window.SURVIVOR_IMAGE_MAP && window.SURVIVOR_IMAGE_MAP.get(id);
+  if(survivorImg) return survivorImg;
   // Check session-cached fresh image first (fetched from OpenSea, overrides stale chunk)
   const fresh = _getFreshImg(id);
   if(fresh) return fresh;
