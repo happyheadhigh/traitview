@@ -1203,6 +1203,12 @@ function filterWalletOwnedTokens(){
     return 0;
   });
   grid.innerHTML = tokens.map(walletTopTokenCard).join('');
+  // Same reasoning as renderWalletAnalytics -- re-sorting/filtering re-renders
+  // the grid's cards, so make sure any tokens not already covered by the
+  // initial queueImgRefresh (or not yet resolved) get queued too.
+  if(typeof _queueImgRefresh === 'function' && tokens.length){
+    _queueImgRefresh(tokens.map(walletTokenId).filter(Boolean));
+  }
 }
 function renderWalletAnalytics(data){
   const desktopHost = document.getElementById('walletAnalyticsHost');
@@ -1216,4 +1222,21 @@ function renderWalletAnalytics(data){
   setTimeout(flushWalletActivityPlot, 80);
   loadWalletRarityImprovement(data);
   loadWalletBurnStats(data?.address);
+  // Owned Tokens cards render from IMAGES_MAP (the static, pre-generated
+  // per-token manifest baked at build time), same as walletTopTokenCard's
+  // `VS._imgSrc`/`imgForId` fallback. That manifest reflects each token's
+  // ORIGINAL appearance and is never proactively refreshed -- so a token
+  // that has since evolved via a burn (i.e. it's a survivor) keeps showing
+  // its pre-burn image indefinitely. The only thing that currently fixes
+  // this is opening that token's modal, which calls _fetchFreshImg() and
+  // patches IMAGES_MAP + any visible `[data-id]` <img> directly. The main
+  // grid already does this proactively for *listed* tokens via
+  // _queueImgRefresh (see app.js), but wallet-owned tokens usually aren't
+  // listed, so they never got queued. Since a wallet's owned-tokens list is
+  // small (tens, not thousands), it's safe to queue all of them here too --
+  // same shared TTL cache and rate-limited queue, so this doesn't add load,
+  // it just gives owned tokens the same treatment listed tokens already get.
+  if(typeof _queueImgRefresh === 'function' && _walletOwnedAll.length){
+    _queueImgRefresh(_walletOwnedAll.map(walletTokenId).filter(Boolean));
+  }
 }

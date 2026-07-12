@@ -458,13 +458,25 @@ d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorit
   }
   attachPreviewHandlers();
   syncFavoriteButtons();
-  // Queue image refresh for visible listed tokens
-  if(typeof _queueImgRefresh === 'function' && window.LISTINGS){
-    const visibleListed = [...document.querySelectorAll('#tokenGrid [data-id]')]
-      .map(el => +el.dataset.id)
-      .filter(id => window.LISTINGS[id]?.opensea?.price_eth != null)
-      .slice(0, 20);
-    if(visibleListed.length) _queueImgRefresh(visibleListed);
+  // Queue image refresh for visible listed tokens, AND for visible burn
+  // survivors. Survivors are the other case where the static IMAGES_MAP
+  // (baked at build time from each token's original appearance) is known
+  // wrong -- a survivor's on-chain image evolves with each burn it wins,
+  // but nothing proactively re-fetches it, so it silently shows its
+  // pre-burn art until someone happens to open its modal (which is the
+  // only other place that calls _fetchFreshImg). SURVIVOR_COUNT_MAP is
+  // already loaded globally for the modal/grid "Survivor" badge, so reuse
+  // it here instead of guessing/refreshing every visible token.
+  if(typeof _queueImgRefresh === 'function'){
+    const visibleIds = [...document.querySelectorAll('#tokenGrid [data-id]')].map(el => +el.dataset.id);
+    const visibleListed = window.LISTINGS
+      ? visibleIds.filter(id => window.LISTINGS[id]?.opensea?.price_eth != null)
+      : [];
+    const visibleSurvivors = window.SURVIVOR_COUNT_MAP
+      ? visibleIds.filter(id => window.SURVIVOR_COUNT_MAP.get(id) > 0)
+      : [];
+    const toQueue = [...new Set([...visibleListed, ...visibleSurvivors])].slice(0, 30);
+    if(toQueue.length) _queueImgRefresh(toQueue);
   }
   // Re-apply the active grid view AFTER cards are rendered.
   // Important: listing data can load before the first grid render. In grid/2x2/5x5
