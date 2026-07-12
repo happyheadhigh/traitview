@@ -1960,8 +1960,29 @@ async function init(){
 
     // Detect ?jump= immediately
     const urlParams = new URLSearchParams(window.location.search);
-    const jumpId  = urlParams.get('jump');
+    // ?token= is also sent by several bot commands/embeds (commands/ocas.js,
+    // commands/burn.js, commands/token.js) but was never actually read here --
+    // only ?jump= was handled, so every one of those links silently did
+    // nothing beyond loading the homepage. Treat it as an alias.
+    const jumpId  = urlParams.get('jump') || urlParams.get('token');
     const jumpNum = jumpId && Number.isFinite(+jumpId) && +jumpId > 0 ? +jumpId : null;
+
+    // Detect ?wallet= -- deep-link straight into the Wallet analytics tab for
+    // a specific address without requiring an actual wallet connection.
+    // The tab's own code (switchTopTab('wallet')) normally only loads
+    // CONNECTED_WALLET?.address; passing the address explicitly here bypasses
+    // that so a Discord user clicking "Full analytics on TraitView" lands on
+    // their own read-only analytics immediately. Independent of the ?jump=
+    // fast path above -- doesn't need to skip normal grid loading.
+    const walletParam = urlParams.get('wallet');
+    if(walletParam && /^0x[0-9a-fA-F]{40}$/.test(walletParam.trim())){
+      setTimeout(() => {
+        if(typeof switchTopTab === 'function') switchTopTab('wallet');
+        if(typeof requestWalletAnalyticsLoad === 'function'){
+          requestWalletAnalyticsLoad(walletParam.trim(), { force: true, allowHiddenFetch: true }).catch(() => {});
+        }
+      }, 0);
+    }
 
     // ── Phase 1: manifest + fast files in parallel ────────────────────────────
     const [_, fastBundle] = await Promise.all([
