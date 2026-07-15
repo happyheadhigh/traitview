@@ -909,6 +909,17 @@ async function openModal(id, opts={}){
     favBtn.title = isFavorite(id) ? 'Remove favorite' : 'Add favorite';
     favBtn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); toggleFavorite(id); favBtn.classList.toggle('active', isFavorite(id)); favBtn.setAttribute('aria-pressed', isFavorite(id) ? 'true' : 'false'); favBtn.title = isFavorite(id) ? 'Remove favorite' : 'Add favorite'; };
   }
+  // Compare A/B + Pin — same setCompare/pinAdd the grid pinbar overlay uses.
+  // Added here specifically because that overlay is hidden entirely on
+  // mobile (display:none across all grid view modes under 900px), which
+  // left no way to reach these on a phone at all.
+  const compareABtn = document.getElementById('mCompareABtn');
+  const compareBBtn = document.getElementById('mCompareBBtn');
+  const pinBtn = document.getElementById('mPinBtn');
+  const _flash = (btn) => { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 220); };
+  if(compareABtn) compareABtn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); _flash(compareABtn); setCompare('A', id); };
+  if(compareBBtn) compareBBtn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); _flash(compareBBtn); setCompare('B', id); };
+  if(pinBtn) pinBtn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); _flash(pinBtn); pinAdd(id); };
   if(dlSvgBtn){
     const hasInlineSvg = typeof image === 'string' && image.trim().startsWith('<svg');
     const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
