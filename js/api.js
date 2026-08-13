@@ -3,8 +3,8 @@
    Keep this as a classic script, not an ES module. */
 
 // ── Railway DB API ────────────────────────────────────────────────────────────
-const RAILWAY_API = 'https://successful-healing-production-2f7e.up.railway.app'; // TEMP: staging, for onchainhoodies image-fix verification — revert after checking
-const RAILWAY_KEY = 'AllStarSecret2k26TV'; // TEMP: staging key, matches RAILWAY_API above — revert after checking
+const RAILWAY_API = 'https://ocas-production-api-production.up.railway.app';
+const RAILWAY_KEY = 'APIbot2k26MAINprodOCAS';
 
 async function dbFetch(path, params = {}) {
   const qs = new URLSearchParams({ ...params, key: RAILWAY_KEY });
