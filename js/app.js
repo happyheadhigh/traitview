@@ -2135,7 +2135,7 @@ async function init(){
         (function(){
           const b=document.createElement('div');
           b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#0a4;color:#fff;font-size:11px;padding:6px;text-align:center;word-break:break-all';
-          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE} | backend=${data._debugVersion||'(no version field -- OLD backend code still running?)'} svgCacheRows=${data._debugSvgCacheRows} svgCacheHits=${data._debugSvgCacheHits}`;
+          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE} | backend=${data._debugVersion||'(no version field -- OLD backend code still running?)'} svgCacheRows=${data._debugSvgCacheRows} svgCacheHits=${data._debugSvgCacheHits} | RAW#3466.image=${JSON.stringify(data.tokens['3466'] && data.tokens['3466'].image)?.slice(0,60)}`;
           document.body.appendChild(b);
         })();
         return data;
