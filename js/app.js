@@ -412,7 +412,22 @@ async function renderTokenGrid(ids, opts){
   // ── Virtual scroller: mobile + desktop ───────────────────────────────────
   {
     const mode = currentViewMode;
-    const shouldVirtualize = isMobile;
+    // Confirmed live: desktop rendering ALL matching tokens in the grid at
+    // once (batched 72 at a time, but still every single one eventually)
+    // was the actual dominant cost behind "thumbnails take a while to
+    // switch over" -- not page-navigation overhead, which the in-place
+    // collection switch already fixed separately. VS's own desktop card
+    // rendering (_standardCard, _listCard) already existed, fully built,
+    // just never activated -- this comment itself already said "mobile +
+    // desktop" while the code below only ever enabled it for mobile.
+    // Confirmed and fixed three real gaps in VS's desktop path before
+    // enabling this: _computeCols didn't handle the grid5 view mode's
+    // fixed 5-column layout, VS.init()'s CSS class handling never
+    // preserved view-5x5/view-2x2 (both real CSS classes the corresponding
+    // view modes depend on), and _paint()'s end-of-render logic only ever
+    // called applyViewMode() for compact specifically, silently missing it
+    // for grid5 and standard.
+    const shouldVirtualize = true;
     if(shouldVirtualize){
       await VS.init(ids, mode);
       return;
@@ -3779,6 +3794,11 @@ const VS = {
   _computeCols(tg){
     const w = tg.clientWidth || window.innerWidth || 1200;
     if(this.mode === 'list') return 1;
+    // Confirmed live: .view-5x5's own CSS is a fixed 5-column grid
+    // (repeat(5,minmax(0,1fr))), not a width-based calculation -- the
+    // width-based formula below would never reliably produce exactly 5
+    // regardless of viewport width, so this mode needs its own explicit case.
+    if(this.mode === 'grid5') return 5;
     if(window.innerWidth <= 900) return 2;
     const minW = this.mode === 'compact' ? 120 : 220;
     const gap = 8;
@@ -3798,6 +3818,13 @@ const VS = {
     const keepClasses = [];
     if(this.mode === 'list') keepClasses.push('list');
     if(this.mode === 'compact') keepClasses.push('compact');
+    // Confirmed live: .view-5x5 and .view-2x2 are both real CSS classes
+    // applyViewMode() toggles onto #tokenGrid for the 5x5-grid and
+    // standard-grid view modes respectively (hiding pinbar/tmeta, sizing
+    // the thumbnail to fill the tile) -- neither was ever preserved here,
+    // so activating this mode would have silently dropped that styling.
+    if(this.mode === 'grid5') keepClasses.push('view-5x5');
+    if(this.mode === 'grid') keepClasses.push('view-2x2');
     tg.className = ['vs-active', ...keepClasses].join(' ');
     this.cols = this._computeCols(tg);
 
@@ -3922,7 +3949,17 @@ const VS = {
     if(window.innerWidth > 900){
       attachPreviewHandlers();
       syncFavoriteButtons();
-      if(this.mode === 'compact' && typeof applyViewMode === 'function') applyViewMode('compact');
+      // Confirmed live: applyViewMode() applies the SAME inline style
+      // overrides (hiding pinbar/tmeta, resizing the thumbnail to fill the
+      // tile) identically for compact, standard (grid), AND grid5 -- only
+      // the CSS class differs between them (handled separately in
+      // VS.init()'s keepClasses above). Previously only ever called for
+      // 'compact' specifically, meaning cards rendered here for grid5 or
+      // the default standard mode would have been missing those overrides
+      // entirely.
+      const _viewModeMap = { compact: 'compact', grid5: 'grid5', grid: 'standard' };
+      const _vm = _viewModeMap[this.mode];
+      if(_vm && typeof applyViewMode === 'function') applyViewMode(_vm);
     }
   },
 
