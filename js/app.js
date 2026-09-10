@@ -2149,7 +2149,12 @@ async function init(){
     }
 
     // Start images in parallel, load traits from DB (live, post-burn accurate)
-    const imagesPromise = loadImagesMap();
+    // Confirmed live: loadImagesMap() only ever has data to find for OCAS
+    // (its static ./data/token_images*.json files have no equivalent for
+    // any other collection) -- skip the request entirely for anything else,
+    // now that _getTokenImgSrc() reads the live DB's CHUNK_CACHE-warmed
+    // image data directly instead.
+    const imagesPromise = (LIVE_SLUG === 'on-chain-all-stars') ? loadImagesMap() : Promise.resolve();
     loadProbabilities();
     window.__INIT_LOADING__ = true;
     startBackgroundListingsLoad();
@@ -6069,6 +6074,29 @@ function _getTokenImgSrc(id){
   // Check session-cached fresh image first (fetched from OpenSea, overrides stale chunk)
   const fresh = _getFreshImg(id);
   if(fresh) return fresh;
+  // Confirmed live: for any collection other than OCAS, IMAGES_MAP is
+  // always empty (it's only ever populated from OCAS's own static
+  // ./data/token_images*.json files -- there's no equivalent static file
+  // for any other collection, since their images live in the live DB
+  // instead). Falling straight through to imgForId() below built a path
+  // like ./data/images/{id}.png, which is ALWAYS an OCAS file keyed purely
+  // by numeric token ID with zero collection awareness -- silently showing
+  // OCAS's own token #2817 for a completely different collection's token
+  // #2817 whenever the numbers happened to coincide, exactly the same
+  // cross-collection collision bug class already hit once before elsewhere
+  // in this app. The live DB response (/db/all-traits, fetched in init())
+  // already includes each token's own image and gets pre-warmed directly
+  // into CHUNK_CACHE -- check that first, before ever reaching the
+  // OCAS-only static fallbacks.
+  const chunk = CHUNK_CACHE.get(chunkIndexFor(id));
+  const dbImg = chunk && chunk[String(id)] && chunk[String(id)].image;
+  if(dbImg) return String(dbImg).startsWith('<svg')
+    ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(dbImg)
+    : dbImg;
+  // Everything below this point is OCAS's own static-file system --
+  // correct only for OCAS itself, never a valid source for any other
+  // collection.
+  if(LIVE_SLUG !== 'on-chain-all-stars') return null;
   const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
   const src = mapVal || imgForId(id);
   if(!src) return null;

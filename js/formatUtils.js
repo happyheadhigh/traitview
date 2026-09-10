@@ -3,6 +3,19 @@
    Keep this as a classic script, not an ES module. */
 
 function imgForId(id){
+  // Confirmed live: this builds a path into OCAS's own static image files,
+  // keyed purely by numeric token ID with zero collection awareness at all
+  // -- there's no equivalent static file for any other collection. Used as
+  // a fallback at 12+ call sites throughout app.js; without this guard,
+  // every one of them would silently show OCAS's own token image for
+  // whatever numeric ID happened to coincide with the token actually being
+  // viewed in a different collection (confirmed exactly this happening for
+  // Argonauts). Returning null here is a blunt, centralized safety net --
+  // it stops the wrong image from ever showing, even though the handful of
+  // call sites that don't already check CHUNK_CACHE's live DB-sourced
+  // image first (unlike _getTokenImgSrc, which does) will show no image at
+  // all for a non-OCAS collection rather than the actual correct one.
+  if(typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG !== 'on-chain-all-stars') return null;
   return IMAGE_PATTERN.replace('{id}', id);
 }
 
