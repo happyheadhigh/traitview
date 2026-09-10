@@ -1847,7 +1847,22 @@ async function init(){
           if(typeof _refreshListedTokenImages === 'function') _refreshListedTokenImages();
 
           // Re-render grid and re-apply view mode so price badges appear on all views
-          if(window.innerWidth > 900 && typeof renderTokenGridFromState === 'function'){
+          // Confirmed live: when "Live Listings" (onlyListed) is checked, the
+          // ENTIRE set of tokens the grid shows depends on window.LISTINGS
+          // (renderTokenGrid's onlyListed branch filters ids down to only
+          // those with an actual listing) -- not just a price-badge overlay
+          // on already-existing tiles. If listings arrive after the initial
+          // render (a genuine race -- listings load in the background,
+          // separately from the main init() flow), the first render would
+          // have shown zero tiles at all (nothing to filter down to yet),
+          // and VS.refreshPrices() below (mobile's normal path) has nothing
+          // to refresh since no tiles exist. This needs a full re-render
+          // regardless of mobile/desktop specifically for the onlyListed
+          // case -- the desktop-only gate below is still correct for the
+          // normal case (onlyListed off), where tiles already exist and
+          // only need their price badge added.
+          const _onlyListedNow = document.getElementById('onlyListed')?.checked;
+          if((window.innerWidth > 900 || _onlyListedNow) && typeof renderTokenGridFromState === 'function'){
             const _tg = document.getElementById('tokenGrid');
             if(_tg && !_tg.classList.contains('list')){
               // Full rebuild so priceBadgeHtml runs with fresh listings data
