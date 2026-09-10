@@ -113,20 +113,105 @@ function populateCollectionSwitcher(){
   }
 }
 
-/* Called by the switcher's onchange. A full page reload rather than an
-   in-place state reset -- this app's dozens of global state variables
-   (MANIFEST, CHUNK_CACHE, TRAIT_FREQ, OS_RANK_MAP, and many more across
-   appState.js) were never designed to be individually cleared and
-   re-populated mid-session, and init() already correctly bootstraps a
-   fresh collection from a cold page load (that's exactly what
-   collectionSlugFromUrl() + activateCollection() at the top of init() are
-   for). A full reload guarantees genuinely clean state with no risk of one
-   collection's leftover data leaking into another's view -- slightly less
-   seamless than an instant in-place switch, but far lower-risk, and
-   consistent with this codebase's existing classic-script architecture
-   rather than retrofitting SPA-style state management onto it. */
+/* Resets every piece of per-collection global state this app accumulates,
+   cataloged by systematically grepping every `let`/`const` in appState.js
+   and every top-level `window.X =` assignment across every JS file --
+   confirmed via that search this app has 50+ distinct pieces of mutable
+   global state across more than a dozen files, all originally designed
+   assuming a single collection for the page's entire lifetime. Called
+   before re-invoking init() for an in-place collection switch (no reload)
+   -- without this, stale data from the previous collection (a rank map, a
+   chunk cache entry, a "listings already loaded" guard flag) would either
+   silently persist into the new collection's view or block its own fresh
+   data from ever loading at all.
+
+   Deliberately does NOT reset: CONNECTED_WALLET (wallet connection is a
+   user-level fact, not collection-scoped), SALES_VIEW/MISPRICED_VIEW/
+   MISPRICED_MODE (view-mode preferences the user chose, not data), or
+   theme (persisted separately, unrelated to collection). */
+function resetCollectionState(){
+  // appState.js -- `let` declarations, safe to reassign directly
+  window.LISTINGS = {};
+  LIVE_OK = false;
+  MANIFEST = null; CHUNK_SIZE = 1000; CHUNKS_DIR = 'traits_chunks'; TOKEN_COUNT = 0;
+  TRAIT_FREQ = {}; TRAIT_DOMAIN = {}; MAX_TRAIT_COUNT = 0;
+  currentTraitCount = null; AVAILABLE_DOMAIN = null;
+  RARITY_MODE = 'observed'; PROB_DATA = null;
+  pinnedA = null; pinnedB = null; pinnedSet = [];
+  CHART_ID_MAP = {};
+  rankMin = null; rankMax = null;
+
+  // appState.js -- `const` Maps/Sets, must .clear() rather than reassign
+  CHUNK_CACHE.clear(); ROW_CACHE.clear();
+  activeTraits.clear();
+  RARITY_OBS_RANK.clear(); RARITY_THEO_RANK.clear();
+  OS_RANK_MAP.clear();
+  SURVIVOR_COUNT_MAP.clear();
+  OPEN_GROUPS.clear();
+  LAST_SALE_CACHE.clear(); LAST_SALE_PENDING.clear();
+
+  // imageMap.js
+  if(typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) IMAGES_MAP.clear();
+
+  // app.js window.* globals -- data caches
+  window._BURNED_IDS = new Set();
+  window._fastBuckets = {};
+  window._fastIdByCount = {};
+  window.SURVIVOR_IMAGE_MAP = new Map();
+  window.OS_RANK_MAP = OS_RANK_MAP;
+  window.SURVIVOR_COUNT_MAP = SURVIVOR_COUNT_MAP;
+  window.CHUNK_SIZE = CHUNK_SIZE;
+  window.TOKEN_COUNT = TOKEN_COUNT;
+  window._floorEvents = [];
+  window._floorLoaded = false;
+  window._floorHistory = null;
+  window._floorDays = 30;
+  window._holdersLoaded = false;
+  window._holdersData = null;
+  window._walletTokenIds = null;
+  window._mobileWalletIds = null;
+  window._desktopWalletIds = null;
+  window._desktopWalletIdsFiltered = null;
+  window.LAST_IDS = [];
+  window._holderThumbs = {};
+  window.__TOKEN_ID_EXACT_SEARCH__ = false;
+  window._modalBurnHistory = null;
+  window._TV_LAST_DOWNLOAD_NFT = null;
+
+  // app.js window.* globals -- bootstrap/loading guard flags (must reset
+  // to false so the equivalent fetches actually re-fire for the new
+  // collection instead of silently no-op'ing because "already started")
+  window.__LISTINGS_BOOTSTRAP_STARTED__ = false;
+  window.__LISTINGS_READY__ = false;
+  window._scatterReady = false;
+  window.__INIT_LOADING__ = false;
+  window._chunksReady = false;
+
+  // Clear any DOM left over from the previous collection so nothing
+  // stale is visible while the new collection's data is still loading.
+  const grid = document.getElementById('tokenGrid');
+  if(grid) grid.innerHTML = '';
+  const salesGrid = document.getElementById('salesGrid');
+  if(salesGrid) salesGrid.innerHTML = '';
+}
+
+/* Called by the switcher's onchange. Genuinely switches in place now --
+   no page reload -- since resetCollectionState() above explicitly clears
+   every piece of per-collection state this app accumulates, and init()
+   itself was confirmed to attach zero event listeners directly (the one
+   thing that would have made re-invoking it unsafe), so re-running it is
+   safe. Updates the URL via history.pushState so the address bar reflects
+   the new collection and the back button works, without triggering an
+   actual navigation. */
 function switchCollection(slug){
-  window.location.href = `/?collection=${encodeURIComponent(slug)}`;
+  const sel = document.getElementById('collectionSwitcher');
+  if(sel) sel.disabled = true;
+  history.pushState({}, '', `/?collection=${encodeURIComponent(slug)}`);
+  activateCollection(slug);
+  resetCollectionState();
+  populateCollectionSwitcher();
+  applyCollectionFeatureGating();
+  Promise.resolve(init()).finally(() => { if(sel) sel.disabled = false; });
 }
 
 /* Hides UI that only makes sense for collections with hasBurnMechanic:true
