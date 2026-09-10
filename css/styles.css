@@ -347,7 +347,6 @@ a{color:var(--accent)!important}
   }
   #collectionAvatar{
     width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;
-    image-rendering:pixelated!important;
   }
   #mobileHeaderText{min-width:0!important;display:flex!important;flex-direction:column!important;gap:2px!important}
   .topbar>.title{display:none!important}
@@ -2264,7 +2263,6 @@ html[data-theme="ink"] body::before {
   width:100%;
   height:100%;
   object-fit:cover;
-  image-rendering:pixelated;
 }
 #creatorLine {
   display:none;
@@ -2603,7 +2601,6 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     height: 100% !important;
     object-fit: cover !important;
     display: block !important;
-    image-rendering: pixelated !important;
   }
 
   #mobileHeaderText {

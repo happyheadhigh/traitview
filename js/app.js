@@ -2124,10 +2124,31 @@ async function init(){
           }
         }
         console.log('[TraitView] Loaded ' + Object.keys(data.tokens).length + ' live tokens from DB');
+        // TEMP DIAGNOSTIC (jv, remove once the blank-image bug is found):
+        // visible on-page banner confirming this SUCCESS path ran, since the
+        // previous fix (properly awaiting the fallback) didn't resolve it --
+        // this either confirms CHUNK_CACHE really is populated (meaning the
+        // bug is elsewhere entirely, e.g. a CHUNK_SIZE mismatch between when
+        // chunks were built here vs. looked up later) or, if this banner
+        // never appears at all, confirms the .catch() fallback is what's
+        // actually running instead.
+        (function(){
+          const b=document.createElement('div');
+          b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#0a4;color:#fff;font-size:11px;padding:6px;text-align:center;word-break:break-all';
+          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE}`;
+          document.body.appendChild(b);
+        })();
         return data;
       })
       .catch(err => {
         console.warn('[TraitView] DB traits fetch failed, falling back to chunks:', err.message);
+        // TEMP DIAGNOSTIC (jv, remove once the blank-image bug is found)
+        (function(){
+          const b=document.createElement('div');
+          b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#a00;color:#fff;font-size:11px;padding:6px;text-align:center;word-break:break-all';
+          b.textContent=`DIAG: all-traits FAILED (${err.message}), using fallback static chunks`;
+          document.body.appendChild(b);
+        })();
         // Fallback: load static chunk files as before.
         // Confirmed live: this never actually waited for these fetches to
         // complete before -- .forEach() does not await its async callback,
@@ -3923,7 +3944,7 @@ const VS = {
     // it builds fails to load once inserted.
     const _dbgFailGrid = `this.outerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} IMG LOAD FAILED: '+this.src.slice(0,150)+'</div>'`;
     d.innerHTML =
-      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" onerror="${_dbgFailGrid}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} NO IMG SRC (chunk not in CHUNK_CACHE?)</div>`) +
+      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" onerror="${_dbgFailGrid}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} NO IMG SRC. idx=${chunkIndexFor(id)} CHUNK_SIZE=${CHUNK_SIZE} cacheHas=${CHUNK_CACHE.has(chunkIndexFor(id))} cacheSize=${CHUNK_CACHE.size}</div>`) +
       (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
       `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');
