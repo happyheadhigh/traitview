@@ -2,6 +2,21 @@
    Generated from index.html by tools/split-index.mjs.
    Classic script on purpose so existing inline onclick handlers still work. */
 
+/* Must run before anything else in this file -- confirmed live that several
+   functions execute unconditionally at the top level of this script
+   (loadBurnTicker(), syncFavoritesUI(), further down), before init() ever
+   runs at the bottom. Those depend on LIVE_SLUG/LIVE_CONTRACT/RAILWAY_API/
+   RAILWAY_KEY (via dbFetch/favoriteKeyFor), which start out null until
+   activateCollection() sets them -- so this has to run here, at the very
+   top, not inside init() where it was originally placed. Safe to touch the
+   DOM-adjacent globals this sets even this early since config.js/api.js/
+   favorites.js all load with `defer` before this script does, and this
+   itself doesn't touch the DOM, only global state. Falls back to
+   DEFAULT_COLLECTION_SLUG (OCAS) for a bare traitview.com visit with no
+   ?collection= or /token/:slug/:id in the URL, matching every existing
+   bookmark/link's current behavior unchanged. */
+activateCollection(collectionSlugFromUrl());
+
 /* live settings */
 
 
@@ -827,8 +842,15 @@ async function loadBurnTicker(){
     host.style.display = 'none';
   }
 }
-loadBurnTicker();
-setInterval(loadBurnTicker, 3 * 60 * 1000);
+// Burn ticker only applies to collections with an actual burn lifecycle
+// (hasBurnMechanic:true in the registry) -- gated here since this runs
+// unconditionally at the top level, not inside init()'s other burn-feature
+// gating. activateCollection() has already run by this point (it's called
+// at the very top of this file), so LIVE_SLUG is correctly set already.
+if(COLLECTIONS[LIVE_SLUG]?.hasBurnMechanic){
+  loadBurnTicker();
+  setInterval(loadBurnTicker, 3 * 60 * 1000);
+}
 
 async function openModal(id, opts={}){
   window._modalCurrentId = +id;
@@ -1829,6 +1851,8 @@ window.__INIT_LOADING__ = false;
 
 async function init(){
   try{
+    populateCollectionSwitcher();
+    applyCollectionFeatureGating();
 
     // Shared background listings bootstrap so ?jump links and normal loads behave the same
     const startBackgroundListingsLoad = () => {
@@ -2052,6 +2076,13 @@ async function init(){
               }
             }).catch(()=>{});
           loadOsRanks();
+          // Survivor counts/images and the burned-ticker below only apply to
+          // collections with an actual burn lifecycle (hasBurnMechanic:true
+          // in the registry -- currently just OCAS). Gating here avoids
+          // pointless requests to endpoints that don't apply at all for a
+          // collection like Argonauts, plus recurring setInterval polling
+          // forever for data that will never be relevant.
+          if(COLLECTIONS[LIVE_SLUG]?.hasBurnMechanic){
           // Survivor counts for the "Survivor" / "Survivor x2" badge (modal +
           // grid). Same fire-and-forget, cached-on-server pattern as OS ranks.
           if(SURVIVOR_COUNT_MAP.size === 0){
@@ -2081,6 +2112,7 @@ async function init(){
             loadSurvivorImages();
             setInterval(loadSurvivorImages, 10 * 60 * 1000);
           }
+          } // end hasBurnMechanic gate
           // Ranks now update on a rolling ~1.8-day cycle server-side (see
           // rank-sync.js) — refresh periodically so a long-lived tab doesn't
           // get stuck showing whatever ranks were live at page load forever.

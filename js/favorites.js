@@ -2,15 +2,24 @@
    Loaded after config.js/state.js and before app.js.
    Keep this as a classic script, not an ES module. */
 
+// Favorites are now collection-scoped -- confirmed live that a numerically-
+// colliding token_id across two different collections is a real, previously-
+// hit bug class (cross-collection image collision), not a theoretical
+// concern, so a single shared localStorage key here would have silently
+// mixed favorited tokens from different collections together.
+function favoriteKeyFor(slug){
+  return `traitview_favorites_${slug || LIVE_SLUG || 'on-chain-all-stars'}`;
+}
+
 function getFavorites(){
   try{
-    const raw = localStorage.getItem(FAVORITES_KEY);
+    const raw = localStorage.getItem(favoriteKeyFor());
     const arr = raw ? JSON.parse(raw) : [];
     return new Set((Array.isArray(arr) ? arr : []).map(v => +v).filter(Boolean));
   }catch(e){ return new Set(); }
 }
 function saveFavorites(set){
-  localStorage.setItem(FAVORITES_KEY, JSON.stringify([...set].sort((a,b)=>a-b)));
+  localStorage.setItem(favoriteKeyFor(), JSON.stringify([...set].sort((a,b)=>a-b)));
   pushFavoritesToWallet(set);
 }
 // ── Wallet sync ──────────────────────────────────────────────────────────────
@@ -42,7 +51,7 @@ async function syncFavoritesWithWallet(addr){
     const local = getFavorites();
     const merged = new Set([...local, ...remote]);
     if(merged.size !== local.size || remote.some(id => !local.has(id))){
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...merged].sort((a,b)=>a-b)));
+      localStorage.setItem(favoriteKeyFor(), JSON.stringify([...merged].sort((a,b)=>a-b)));
       syncFavoritesUI();
       if(typeof renderTokenGridFromState === 'function' && favoritesOnlyEnabled()) renderTokenGridFromState();
     }
