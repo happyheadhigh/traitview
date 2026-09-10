@@ -96,20 +96,27 @@ function collectionSlugFromUrl(){
   return null;
 }
 
-/* Fills the #collectionSwitcher <select> from the registry, selecting
-   whichever collection is currently active. Called once from init(), right
-   after activateCollection() runs, so LIVE_SLUG already reflects the real
+/* Fills every collection-switcher <select> from the registry (desktop's
+   #collectionSwitcher AND mobile's #collectionSwitcherMobile -- confirmed
+   live that the desktop one was completely invisible on mobile, nested
+   inside #desktopBottomStatusBar which is display:none by default and only
+   shown via a min-width:901px media query, so mobile needed its own,
+   separate switcher element entirely), selecting whichever collection is
+   currently active. Called once from init(), right after
+   activateCollection() runs, so LIVE_SLUG already reflects the real
    current collection by the time this reads it. */
 function populateCollectionSwitcher(){
-  const sel = document.getElementById('collectionSwitcher');
-  if(!sel) return;
-  sel.innerHTML = '';
-  for(const slug in COLLECTIONS){
-    const opt = document.createElement('option');
-    opt.value = slug;
-    opt.textContent = COLLECTIONS[slug].name;
-    if(slug === LIVE_SLUG) opt.selected = true;
-    sel.appendChild(opt);
+  for(const selId of ['collectionSwitcher', 'collectionSwitcherMobile']){
+    const sel = document.getElementById(selId);
+    if(!sel) continue;
+    sel.innerHTML = '';
+    for(const slug in COLLECTIONS){
+      const opt = document.createElement('option');
+      opt.value = slug;
+      opt.textContent = COLLECTIONS[slug].name;
+      if(slug === LIVE_SLUG) opt.selected = true;
+      sel.appendChild(opt);
+    }
   }
 }
 
@@ -204,14 +211,16 @@ function resetCollectionState(){
    the new collection and the back button works, without triggering an
    actual navigation. */
 function switchCollection(slug){
-  const sel = document.getElementById('collectionSwitcher');
-  if(sel) sel.disabled = true;
+  const sels = ['collectionSwitcher', 'collectionSwitcherMobile']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+  sels.forEach(sel => { sel.disabled = true; });
   history.pushState({}, '', `/?collection=${encodeURIComponent(slug)}`);
   activateCollection(slug);
   resetCollectionState();
   populateCollectionSwitcher();
   applyCollectionFeatureGating();
-  Promise.resolve(init()).finally(() => { if(sel) sel.disabled = false; });
+  Promise.resolve(init()).finally(() => { sels.forEach(sel => { sel.disabled = false; }); });
 }
 
 /* Hides UI that only makes sense for collections with hasBurnMechanic:true

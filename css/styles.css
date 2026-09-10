@@ -41,39 +41,6 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .popout-btn:hover{color:var(--text);border-color:rgba(255,255,255,.28)}
 .topbar{position:sticky;top:0;z-index:20;display:flex;gap:10px;align-items:center;padding:10px 16px;margin:-14px -14px 14px;background:linear-gradient(180deg,rgba(8,12,18,.85),rgba(8,12,18,.4));backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
 
-.burn-ticker{
-  height:40px;
-  margin:-14px -14px 14px;
-  background:rgba(0,0,0,.18);
-  border-bottom:1px solid rgba(255,255,255,.06);
-  overflow:hidden;
-  position:relative;
-}
-.burn-ticker-track{
-  display:flex;
-  align-items:center;
-  justify-content:space-evenly;
-  gap:14px;
-  height:100%;
-  padding:0 16px;
-}
-.burn-ticker-item{
-  display:flex;align-items:center;gap:6px;flex:0 0 auto;
-  cursor:pointer;
-}
-.burn-ticker-item img{
-  width:26px;height:26px;border-radius:5px;object-fit:contain;
-  background:rgba(255,255,255,.05);flex:0 0 auto;
-  opacity:1;transition:opacity .35s ease;
-}
-.burn-ticker-item.fading img{opacity:0}
-.burn-ticker-item span{font-size:10px;color:var(--sub);font-weight:700;white-space:nowrap;opacity:1;transition:opacity .35s ease}
-.burn-ticker-item.fading span{opacity:0}
-@media (max-width:900px){
-  .burn-ticker{margin:-10px -10px 10px;height:34px}
-  .burn-ticker-track{gap:10px;padding:0 10px}
-  .burn-ticker-item img{width:22px;height:22px}
-}
 .topbar.drawer-behind{position:relative!important;z-index:0!important}
 .title{font-weight:800;letter-spacing:.2px}
 .spacer{flex:1}
@@ -90,6 +57,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
    when they ignore other CSS on the dropdown's native popup chrome. */
 #collectionSwitcher{color:var(--text)}
 #collectionSwitcher option{background:var(--card);color:var(--text)}
+#collectionSwitcherMobile option{background:var(--card);color:var(--text)}
 .btn.go{background:rgba(25,195,125,.15);border-color:var(--good);box-shadow:0 0 0 1px var(--good) inset;color:#c7f9df}
 .bar{display:grid;grid-template-columns:280px 1fr;gap:14px}
 @media (max-width:1100px){.bar{grid-template-columns:1fr}}

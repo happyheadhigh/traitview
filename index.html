@@ -115,9 +115,6 @@
     </div>
   </div>
 
-  <div id="burnTicker" class="burn-ticker" style="display:none">
-    <div class="burn-ticker-track" id="burnTickerTrack"></div>
-  </div>
 
   <div class="bar" id="mainBarLayout" style="position:relative">
     <button id="sidebarExpandToggle" onclick="this.closest('.bar').classList.toggle('sidebar-expanded')" title="Expand sidebar" aria-label="Expand sidebar">⟷</button>
@@ -628,6 +625,8 @@
 <!-- ═══ MOBILE MENU ═══ -->
 <div id="mobileMenu">
   <div id="mobileMenuLinks">
+    <select id="collectionSwitcherMobile" class="mobile-theme-cycle" aria-label="Switch collection" onchange="switchCollection(this.value)" style="font-size:14px;font-weight:600;color:#eef4ff">
+    </select>
     <a class="mobile-menu-link" href="https://opensea.io/collection/on-chain-all-stars" target="_blank" rel="noreferrer">
       <span class="mobile-menu-icon"><img src="https://static.seadn.io/logos/Logomark-Blue.png" width="18" height="18" style="border-radius:4px;vertical-align:middle" alt="OS"></span>
       <span class="mobile-menu-label">OpenSea</span>
