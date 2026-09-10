@@ -533,22 +533,23 @@ async function renderTokenGridFromState(){
     return;
   }
 
-  // Mobile fast path: if no filters active and ranks loaded, build IDs from RARITY_OBS_RANK
-  // This avoids waiting for chunks and renders the grid immediately
-  const hasTraits = activeTraits && activeTraits.size > 0;
-  const hasRank   = rankMin != null || rankMax != null;
-  const isMobile  = window.innerWidth <= 900;
-  if(isMobile && !hasTraits && !hasRank && RARITY_OBS_RANK.size > 0){
-    const baseRankMap = getRankSystem() === 'os' && OS_RANK_MAP.size ? OS_RANK_MAP : getActiveRankMap();
-    let ids = [...baseRankMap.keys()].map(Number).filter(Boolean);
-    if(favoritesOnlyEnabled()) ids = ids.filter(id => isFavorite(id));
-    ids = applyConnectedOwnedFilter(ids);
-    ids = await applyTokenTraitSearchToIds(ids);
-    ids = applyTokenIdSearchToIds(ids);
-    await renderTokenGrid(ids);
-    return;
-  }
-
+  // jv confirmed live (screenshots): this mobile fast path -- which built the
+  // token list directly from a rank map's keys, skipping ensureChunk()
+  // entirely -- was the actual cause of two distinct, separate bugs at once.
+  // (1) Badges (rank, price, id) rendered fine since those come straight
+  // from the rank maps, but the actual picture stayed blank: _standardCard's
+  // fallback path (fetchRow -> ensureChunk -> ch[String(id)]) is the only
+  // thing that ever populates row.image, and this fast path never primed
+  // that for the ids it grabbed. (2) When "Rarity Rank: OS" was selected,
+  // it read whatever OS_RANK_MAP contained regardless of whether that data
+  // actually corresponded to the currently active collection.
+  // Removed entirely rather than continue patching: its original
+  // rationale ("avoid waiting for chunks") no longer applies now that
+  // CHUNK_CACHE is already fully pre-warmed via /db/all-traits before this
+  // function ever runs, so the fallback loop below is already fast -- it's
+  // also the exact path jv confirmed already works correctly (clicking a
+  // trait filter, which always used this loop, fixed the display instantly
+  // every time).
   const ids=[];
   for(const idx of indices()){
     const ch=await ensureChunk(idx);
