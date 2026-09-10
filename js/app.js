@@ -5004,7 +5004,7 @@ async function loadManifest(){
    ================================================================ */
 (function(){
   const WORKER_BASE = 'https://nft-live-listings.jvweb3.workers.dev';
-  const OS_SLUG     = 'on-chain-all-stars';
+  const OS_SLUG     = LIVE_SLUG; // confirmed live: was hardcoded to OCAS's own slug, completely bypassing the collections registry -- exactly why "recent sales" always showed OCAS's sales regardless of the active collection. activateCollection() already ran (at the very top of this file) by the time this IIFE executes, so LIVE_SLUG is correctly set here.
   const PAGE_SIZE   = 100;   // max OpenSea allows per request
   const REFRESH_MS  = 60000; // auto-refresh interval for newest sales
 
@@ -5277,8 +5277,8 @@ async function loadManifest(){
 /* === Floor Price — fetches via your Cloudflare Worker /os/stats === */
 (function(){
   const WORKER    = 'https://nft-live-listings.jvweb3.workers.dev';
-  const OS_SLUG   = 'on-chain-all-stars';
-  const CONTRACT  = '0x078be86f3104a32313a47815792230a3808642cc';
+  const OS_SLUG   = LIVE_SLUG; // confirmed live: was hardcoded to OCAS's slug -- see the sales-fetching IIFE's comment above for the same fix reasoning.
+  const CONTRACT  = LIVE_CONTRACT;
   const REFRESH   = 120000; // refresh every 2 minutes
 
   const setText = (id, v) => {
@@ -5899,8 +5899,8 @@ async function runTwinFinderFromInput(id){
   // instead of leaving null-reference errors on the elements below.
   if(!document.getElementById('walletLookupBtn')) return;
   const WORKER   = window.LIVE_ENDPOINT || 'https://nft-live-listings.jvweb3.workers.dev';
-  const CONTRACT = '0x078be86f3104a32313a47815792230a3808642cc';
-  const OS_SLUG  = 'on-chain-all-stars';
+  const CONTRACT = LIVE_CONTRACT;
+  const OS_SLUG  = LIVE_SLUG; // confirmed live: was hardcoded to OCAS's slug -- same fix as the two other independent IIFEs above.
 
   async function lookupWallet(){
     const addr = document.getElementById('walletInput').value.trim();
@@ -6148,7 +6148,7 @@ async function _fetchFreshImg(id){
   if(_imgRefreshSet.has(id)) return;
   _imgRefreshSet.add(id);
   try{
-    const CONTRACT = '0x078be86f3104a32313a47815792230a3808642cc';
+    const CONTRACT = LIVE_CONTRACT; // confirmed live: was hardcoded to OCAS's own contract -- same bug class as the other IIFEs fixed above, this one would have fetched OCAS's own token image regardless of the active collection.
     // Route through Worker — avoids CORS, uses server-side API key, no rate limit risk
     // nocache=1 bypasses the Worker's 6hr cache so we always get the latest image
     const wr = await fetch(`${LIVE_ENDPOINT}/os/nft?contract=${CONTRACT}&tokenId=${id}&nocache=1`);
@@ -6330,6 +6330,30 @@ function renderScatter(){
     return;
   }
 
+  // jv: axis was always auto-scaling to whatever the single highest-priced
+  // listing happened to be (a rare troll/joke listing at an absurd price is
+  // a common, real occurrence on OpenSea -- someone effectively delists
+  // without actually delisting), stretching the whole chart to
+  // accommodate one outlier and making every other point look crushed
+  // together at the bottom. Median-based cap instead of a percentile --
+  // verified a percentile approach doesn't actually work for realistic
+  // listing counts (with only ~10-20 points, the 95th-percentile INDEX
+  // rounds up to the outlier itself, so it never actually gets excluded).
+  // Median is inherently outlier-resistant regardless of sample size.
+  // Caps at min(actual max, median × 8) -- confirmed this correctly
+  // reduces to the genuine max price when there's no real outlier at all
+  // (e.g. jv's own example: highest real listing is 10 ETH -> axis caps at
+  // exactly 10, not stretched further), while still capping a genuine
+  // 1000x-median troll listing down to a readable range. The point itself
+  // always still plots -- this only controls the visible axis range, not
+  // which points get included.
+  const sortedPrices = pts.map(p => p.price).sort((a,b) => a-b);
+  const medianPrice = sortedPrices.length % 2 !== 0
+    ? sortedPrices[Math.floor(sortedPrices.length / 2)]
+    : (sortedPrices[sortedPrices.length / 2 - 1] + sortedPrices[sortedPrices.length / 2]) / 2;
+  const priceCeiling = Math.min(sortedPrices[sortedPrices.length - 1], medianPrice * 8);
+  const priceFloor = Math.max(sortedPrices[0] * 0.7, 0.0001); // guards against log10(0) = -Infinity if the lowest listing is ever priced at 0
+
   pts.sort((a,b) => a.rank - b.rank);
   countEl.textContent = pts.length + ' listings';
 
@@ -6383,8 +6407,13 @@ function renderScatter(){
     xaxis: {title:'Rank', color:subColor, gridcolor:'rgba(255,255,255,.06)', zeroline:false},
     yaxis: {title:'Price (ETH)', color:subColor, gridcolor:'rgba(255,255,255,.06)',
             zeroline:false, tickformat:'.4f',
-            // Log scale helps spread out the congested bottom
-            type:'log'},
+            // Log scale helps spread out the congested bottom. Explicit
+            // range (log10 of the actual ETH bounds -- Plotly's log-axis
+            // range is specified in log10 space, not raw values) caps the
+            // chart to a robust percentile of real listing prices instead
+            // of auto-scaling to whatever the single highest-priced
+            // listing happens to be -- see priceCeiling/priceFloor above.
+            type:'log', range:[Math.log10(priceFloor), Math.log10(priceCeiling)]},
     showlegend: false,
     hovermode: 'closest',
     annotations:[{
