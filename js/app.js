@@ -3944,7 +3944,19 @@ const VS = {
     // it builds fails to load once inserted.
     const _dbgFailGrid = `this.outerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} IMG LOAD FAILED: '+this.src.slice(0,150)+'</div>'`;
     d.innerHTML =
-      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" onerror="${_dbgFailGrid}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} NO IMG SRC. idx=${chunkIndexFor(id)} CHUNK_SIZE=${CHUNK_SIZE} cacheHas=${CHUNK_CACHE.has(chunkIndexFor(id))} cacheSize=${CHUNK_CACHE.size}</div>`) +
+      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" onerror="${_dbgFailGrid}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : (()=>{
+        // TEMP DIAGNOSTIC continued: cacheHas=true confirmed the chunk IS in
+        // CHUNK_CACHE (jv's screenshot) -- so this drills one level deeper:
+        // is the token even present as a key within that chunk's data at
+        // all, and if so, what does its own .image field actually contain?
+        // This distinguishes "backend never sent this token" from "backend
+        // sent it but with no image value" -- the two have very different
+        // fixes (one's a query gap, the other's a data-completeness gap in
+        // token_svg_cache/tokens.image_url for this specific token).
+        const _c = CHUNK_CACHE.get(chunkIndexFor(id));
+        const _tok = _c ? _c[String(id)] : undefined;
+        return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} inChunk=${!!_tok} img=${JSON.stringify(_tok && _tok.image)}</div>`;
+      })()) +
       (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
       `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');

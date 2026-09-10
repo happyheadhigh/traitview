@@ -340,8 +340,7 @@ a{color:var(--accent)!important}
   }
   #collectionAvatarLink{
     width:40px!important;height:40px!important;display:block!important;overflow:hidden!important;
-    border-radius:12px!important;border:1px solid rgba(45,212,191,.22)!important;
-    box-shadow:0 0 0 1px rgba(45,212,191,.10) inset,0 0 18px rgba(45,212,191,.10)!important;
+    border-radius:12px!important;
     background:rgba(255,255,255,.04)!important;
     flex-shrink:0!important;
   }
@@ -2253,7 +2252,6 @@ html[data-theme="ink"] body::before {
   height:40px;
   border-radius:12px;
   overflow:hidden;
-  border:1px solid rgba(45,212,191,.18);
   background:rgba(255,255,255,.04);
   flex-shrink:0;
   display:none;
@@ -2591,9 +2589,7 @@ html[data-theme="ink"] #mobileThemeButton .mobile-menu-icon{
     display: block !important;
     overflow: hidden !important;
     border-radius: 16px !important;
-    border: 1px solid rgba(45,212,191,.20) !important;
     background: rgba(255,255,255,.03) !important;
-    box-shadow: 0 0 0 1px rgba(45,212,191,.08) inset, 0 0 26px rgba(45,212,191,.07) !important;
   }
 
   #collectionAvatar {
