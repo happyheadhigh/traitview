@@ -4035,6 +4035,19 @@ const VS = {
     // _getTokenImgSrc's comment for why this can't just rely on OpenSea.
     const survivorImg = window.SURVIVOR_IMAGE_MAP && window.SURVIVOR_IMAGE_MAP.get(id);
     if(survivorImg) return survivorImg;
+    // Confirmed live: this is a separate, parallel implementation to
+    // _getTokenImgSrc (used by the mobile virtual-scroller grid
+    // specifically) that never checked CHUNK_CACHE's live DB-sourced image
+    // at all -- would have shown no image whatsoever for any non-OCAS
+    // collection on mobile once imgForId() was fixed to stop returning
+    // OCAS's own wrong image as a fallback. Same fix as _getTokenImgSrc:
+    // check the live DB data pre-warmed into CHUNK_CACHE before falling
+    // through to OCAS's own static-file system.
+    const chunk = (typeof CHUNK_CACHE !== 'undefined') ? CHUNK_CACHE.get(chunkIndexFor(id)) : null;
+    const dbImg = chunk && chunk[String(id)] && chunk[String(id)].image;
+    if(dbImg) return String(dbImg).startsWith('<svg')
+      ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(dbImg)
+      : dbImg;
     const v = IMAGES_MAP?.get(id);
     const s = v ? String(v).trim() : null;
     if(s && s.startsWith('<svg')){ try{ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s); }catch(e){ return imgForId(id); } }
