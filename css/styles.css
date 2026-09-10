@@ -81,6 +81,15 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 .btn{cursor:pointer;user-select:none;transition:background .15s, box-shadow .15s}
 .btn.ghost{background:transparent;border-color:var(--border)}
 .btn.ghost.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* jv: the collection switcher's own closed state inherits .btn.ghost fine,
+   but a native <select>'s dropdown OPTIONS LIST is often rendered by the
+   browser's own OS-level UI regardless of the closed element's CSS,
+   showing default black-on-white rather than the page's dark theme.
+   Setting color/background explicitly on both the select and its options
+   is the actual fix -- most browsers do respect this on <option> even
+   when they ignore other CSS on the dropdown's native popup chrome. */
+#collectionSwitcher{color:var(--text)}
+#collectionSwitcher option{background:var(--card);color:var(--text)}
 .btn.go{background:rgba(25,195,125,.15);border-color:var(--good);box-shadow:0 0 0 1px var(--good) inset;color:#c7f9df}
 .bar{display:grid;grid-template-columns:280px 1fr;gap:14px}
 @media (max-width:1100px){.bar{grid-template-columns:1fr}}
