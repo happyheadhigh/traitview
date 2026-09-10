@@ -3894,8 +3894,16 @@ const VS = {
       d.style.borderColor = 'rgba(28,255,175,.36)';
       d.style.boxShadow = '0 0 0 1px rgba(28,255,175,.12) inset,0 0 18px rgba(28,255,175,.12)';
     }
+    // TEMP DIAGNOSTIC (jv, remove once the blank-image bug is found): this is
+    // mobile's actual card renderer, confirmed via _paint()'s own branching
+    // (window.innerWidth <= 900 -> _gridCard, else -> _standardCard) --
+    // gridThumbHtml() (the earlier diagnostic) is DESKTOP-ONLY and never ran
+    // for your test at all. Shows what _imgSrc(id) actually returned instead
+    // of silently falling back to a blank div, and whether the <img> element
+    // it builds fails to load once inserted.
+    const _dbgFailGrid = `this.outerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} IMG LOAD FAILED: '+this.src.slice(0,150)+'</div>'`;
     d.innerHTML =
-      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>') +
+      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" onerror="${_dbgFailGrid}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} NO IMG SRC (chunk not in CHUNK_CACHE?)</div>`) +
       (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
       `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');
