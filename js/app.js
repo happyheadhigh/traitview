@@ -2105,19 +2105,39 @@ async function init(){
         for (const [idx, chunkData] of Object.entries(byChunk)) {
           CHUNK_CACHE.set(+idx, chunkData);
         }
-        // Store burned token IDs for grid filtering
+        // Store burned token IDs for grid filtering.
+        // Confirmed live: this loop always ran 1..10000 unconditionally --
+        // hardcoded to OCAS's own supply/ID range. For a collection with a
+        // different total supply or non-sequential IDs (Argonauts included),
+        // this would mark plenty of genuinely valid, non-burned tokens as
+        // "burned" simply because they sit outside 1-10000 or because this
+        // collection's own supply is smaller, hiding them from the grid
+        // entirely via renderTokenGrid's _BURNED_IDS filter. Only OCAS
+        // actually has a burn mechanic at all (hasBurnMechanic in the
+        // collections registry) -- skip entirely for anything else rather
+        // than iterate a range that was never meaningful for other
+        // collections in the first place.
         window._BURNED_IDS = new Set();
-        for (let id = 1; id <= 10000; id++) {
-          if (!data.tokens[String(id)]) window._BURNED_IDS.add(id);
+        if(LIVE_SLUG === 'on-chain-all-stars'){
+          for (let id = 1; id <= 10000; id++) {
+            if (!data.tokens[String(id)]) window._BURNED_IDS.add(id);
+          }
         }
         console.log('[TraitView] Loaded ' + Object.keys(data.tokens).length + ' live tokens from DB');
         return data;
       })
       .catch(err => {
         console.warn('[TraitView] DB traits fetch failed, falling back to chunks:', err.message);
-        // Fallback: load static chunk files as before
-        indices().forEach(idx => ensureChunk(idx));
-        return null;
+        // Fallback: load static chunk files as before.
+        // Confirmed live: this never actually waited for these fetches to
+        // complete before -- .forEach() does not await its async callback,
+        // so `await allTraitsPromise` below only ever waited for this
+        // .catch() handler itself to return, not for CHUNK_CACHE to
+        // actually be populated. Everything after this point in init()
+        // (including the eventual grid render) could run while these
+        // fetches were still in flight, exactly the "chunk not in
+        // CHUNK_CACHE" symptom jv's diagnostic confirmed directly.
+        return Promise.all(indices().map(idx => ensureChunk(idx))).then(() => null);
       });
 
     await allTraitsPromise;
