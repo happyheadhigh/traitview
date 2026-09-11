@@ -137,6 +137,20 @@ function populateCollectionSwitcher(){
    MISPRICED_MODE (view-mode preferences the user chose, not data), or
    theme (persisted separately, unrelated to collection). */
 function resetCollectionState(){
+  // Confirmed live via jv's own diagnostic: raw API response for a token
+  // had a genuinely valid image value at fetch time, yet the same token
+  // showed undefined by the time it actually rendered -- ruling out a data
+  // gap entirely. Root cause: nothing here ever guarded against multiple
+  // /db/all-traits fetches overlapping in flight (initial page load for the
+  // default collection, then a switch to another collection before that
+  // first fetch resolves) -- whichever one resolved LAST silently won,
+  // overwriting CHUNK_CACHE with whatever collection ITS fetch was for,
+  // regardless of which collection was actually active by then. This
+  // generation counter, incremented on every switch, lets the all-traits
+  // fetch below detect and discard its own result if a newer switch already
+  // happened while it was in flight.
+  window._collectionGeneration = (window._collectionGeneration || 0) + 1;
+
   // appState.js -- `let` declarations, safe to reassign directly
   window.LISTINGS = {};
   LIVE_OK = false;

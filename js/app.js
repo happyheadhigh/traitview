@@ -2090,9 +2090,22 @@ async function init(){
     // Fetch all surviving tokens' traits from DB — replaces static chunk files.
     // Server caches for 5 min so this is fast for all visitors after the first.
     // Falls back to static chunks if DB fetch fails.
+    // Capture the generation NOW, before the fetch even starts -- if a
+    // collection switch happens while this is in flight, resetCollectionState
+    // bumps window._collectionGeneration, and the check below discards this
+    // fetch's result entirely rather than letting a stale, wrong-collection
+    // response silently overwrite CHUNK_CACHE after a newer switch already
+    // populated it correctly. This was confirmed live: a token's raw fetch
+    // response had a genuinely valid image, yet the same token rendered as
+    // undefined -- meaning something applied AFTER the correct data landed.
+    const _fetchGen = window._collectionGeneration || 0;
     const allTraitsPromise = dbFetch('/db/all-traits')
       .then(data => {
         if (!data?.ok || !data.tokens) throw new Error('no data');
+        if ((window._collectionGeneration || 0) !== _fetchGen) {
+          console.warn('[TraitView] Discarding stale all-traits response (gen ' + _fetchGen + ', now ' + window._collectionGeneration + ') -- a newer collection switch happened while this was in flight');
+          return data;
+        }
         // Pre-warm chunk cache with live DB data
         // Group tokens by chunk index so ensureChunk() returns immediately
         const byChunk = {};
@@ -2135,7 +2148,7 @@ async function init(){
         (function(){
           const b=document.createElement('div');
           b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#0a4;color:#fff;font-size:11px;padding:6px;text-align:center;word-break:break-all';
-          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE} | backend=${data._debugVersion||'(no version field -- OLD backend code still running?)'} svgCacheRows=${data._debugSvgCacheRows} svgCacheHits=${data._debugSvgCacheHits} | RAW#3466.image=${JSON.stringify(data.tokens['3466'] && data.tokens['3466'].image)?.slice(0,60)}`;
+          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE} gen=${_fetchGen} | backend=${data._debugVersion||'(no version field -- OLD backend code still running?)'} svgCacheRows=${data._debugSvgCacheRows} svgCacheHits=${data._debugSvgCacheHits}`;
           document.body.appendChild(b);
         })();
         return data;
