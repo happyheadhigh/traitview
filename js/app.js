@@ -2099,7 +2099,6 @@ async function init(){
     // response had a genuinely valid image, yet the same token rendered as
     // undefined -- meaning something applied AFTER the correct data landed.
     const _fetchGen = window._collectionGeneration || 0;
-    const _fetchSlugAtStart = LIVE_SLUG;
     const allTraitsPromise = dbFetch('/db/all-traits')
       .then(data => {
         if (!data?.ok || !data.tokens) throw new Error('no data');
@@ -2138,31 +2137,10 @@ async function init(){
           }
         }
         console.log('[TraitView] Loaded ' + Object.keys(data.tokens).length + ' live tokens from DB');
-        // TEMP DIAGNOSTIC (jv, remove once the blank-image bug is found):
-        // visible on-page banner confirming this SUCCESS path ran, since the
-        // previous fix (properly awaiting the fallback) didn't resolve it --
-        // this either confirms CHUNK_CACHE really is populated (meaning the
-        // bug is elsewhere entirely, e.g. a CHUNK_SIZE mismatch between when
-        // chunks were built here vs. looked up later) or, if this banner
-        // never appears at all, confirms the .catch() fallback is what's
-        // actually running instead.
-        (function(){
-          const b=document.createElement('div');
-          b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#0a4;color:#fff;font-size:11px;padding:6px;text-align:center;word-break:break-all';
-          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE} gen=${_fetchGen} | LIVE_SLUG@start=${_fetchSlugAtStart} LIVE_SLUG@now=${LIVE_SLUG} | backend=${data._debugVersion||'(no version field -- OLD backend code still running?)'} svgCacheRows=${data._debugSvgCacheRows} svgCacheHits=${data._debugSvgCacheHits}`;
-          document.body.appendChild(b);
-        })();
         return data;
       })
       .catch(err => {
         console.warn('[TraitView] DB traits fetch failed, falling back to chunks:', err.message);
-        // TEMP DIAGNOSTIC (jv, remove once the blank-image bug is found)
-        (function(){
-          const b=document.createElement('div');
-          b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#a00;color:#fff;font-size:11px;padding:6px;text-align:center;word-break:break-all';
-          b.textContent=`DIAG: all-traits FAILED (${err.message}), using fallback static chunks`;
-          document.body.appendChild(b);
-        })();
         // Fallback: load static chunk files as before.
         // Confirmed live: this never actually waited for these fetches to
         // complete before -- .forEach() does not await its async callback,
@@ -3949,28 +3927,8 @@ const VS = {
       d.style.borderColor = 'rgba(28,255,175,.36)';
       d.style.boxShadow = '0 0 0 1px rgba(28,255,175,.12) inset,0 0 18px rgba(28,255,175,.12)';
     }
-    // TEMP DIAGNOSTIC (jv, remove once the blank-image bug is found): this is
-    // mobile's actual card renderer, confirmed via _paint()'s own branching
-    // (window.innerWidth <= 900 -> _gridCard, else -> _standardCard) --
-    // gridThumbHtml() (the earlier diagnostic) is DESKTOP-ONLY and never ran
-    // for your test at all. Shows what _imgSrc(id) actually returned instead
-    // of silently falling back to a blank div, and whether the <img> element
-    // it builds fails to load once inserted.
-    const _dbgFailGrid = `this.outerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} IMG LOAD FAILED: '+this.src.slice(0,150)+'</div>'`;
     d.innerHTML =
-      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" onerror="${_dbgFailGrid}" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : (()=>{
-        // TEMP DIAGNOSTIC continued: cacheHas=true confirmed the chunk IS in
-        // CHUNK_CACHE (jv's screenshot) -- so this drills one level deeper:
-        // is the token even present as a key within that chunk's data at
-        // all, and if so, what does its own .image field actually contain?
-        // This distinguishes "backend never sent this token" from "backend
-        // sent it but with no image value" -- the two have very different
-        // fixes (one's a query gap, the other's a data-completeness gap in
-        // token_svg_cache/tokens.image_url for this specific token).
-        const _c = CHUNK_CACHE.get(chunkIndexFor(id));
-        const _tok = _c ? _c[String(id)] : undefined;
-        return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;font-size:9px;color:#f66;word-break:break-all;text-align:center;background:rgba(255,80,80,.15)">#${id} inChunk=${!!_tok} img=${JSON.stringify(_tok && _tok.image)}</div>`;
-      })()) +
+      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>') +
       (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
       `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');
