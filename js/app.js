@@ -2099,6 +2099,7 @@ async function init(){
     // response had a genuinely valid image, yet the same token rendered as
     // undefined -- meaning something applied AFTER the correct data landed.
     const _fetchGen = window._collectionGeneration || 0;
+    const _fetchSlugAtStart = LIVE_SLUG;
     const allTraitsPromise = dbFetch('/db/all-traits')
       .then(data => {
         if (!data?.ok || !data.tokens) throw new Error('no data');
@@ -2148,7 +2149,7 @@ async function init(){
         (function(){
           const b=document.createElement('div');
           b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#0a4;color:#fff;font-size:11px;padding:6px;text-align:center;word-break:break-all';
-          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE} gen=${_fetchGen} | backend=${data._debugVersion||'(no version field -- OLD backend code still running?)'} svgCacheRows=${data._debugSvgCacheRows} svgCacheHits=${data._debugSvgCacheHits}`;
+          b.textContent=`DIAG: all-traits OK, ${Object.keys(data.tokens).length} tokens, ${CHUNK_CACHE.size} chunks in cache, CHUNK_SIZE=${CHUNK_SIZE} gen=${_fetchGen} | LIVE_SLUG@start=${_fetchSlugAtStart} LIVE_SLUG@now=${LIVE_SLUG} | backend=${data._debugVersion||'(no version field -- OLD backend code still running?)'} svgCacheRows=${data._debugSvgCacheRows} svgCacheHits=${data._debugSvgCacheHits}`;
           document.body.appendChild(b);
         })();
         return data;
