@@ -6133,16 +6133,23 @@ let _imgRefreshRunning = false;
 
 function _getFreshImg(id){
   try{
-    const raw = sessionStorage.getItem(`${_IMG_CACHE_KEY}:${id}`);
+    // Confirmed live: same bug class as VS._nodeCache, fixed earlier this
+    // session -- this sessionStorage key was scoped by token id alone, with
+    // zero collection awareness. A token viewed on one collection earlier
+    // in the browser session leaves its image URL cached under a key that
+    // an identically-numbered token on a different collection would read
+    // right back, silently overwriting the correct image the modal had
+    // already displayed a moment earlier via row.image.
+    const raw = sessionStorage.getItem(`${_IMG_CACHE_KEY}:${LIVE_SLUG}:${id}`);
     if(!raw) return null;
     const {url, ts} = JSON.parse(raw);
-    if(Date.now() - ts > _IMG_TTL){ sessionStorage.removeItem(`${_IMG_CACHE_KEY}:${id}`); return null; }
+    if(Date.now() - ts > _IMG_TTL){ sessionStorage.removeItem(`${_IMG_CACHE_KEY}:${LIVE_SLUG}:${id}`); return null; }
     return url;
   }catch{ return null; }
 }
 
 function _storeFreshImg(id, url){
-  try{ sessionStorage.setItem(`${_IMG_CACHE_KEY}:${id}`, JSON.stringify({url, ts: Date.now()})); }catch{}
+  try{ sessionStorage.setItem(`${_IMG_CACHE_KEY}:${LIVE_SLUG}:${id}`, JSON.stringify({url, ts: Date.now()})); }catch{}
 }
 
 async function _fetchFreshImg(id){
