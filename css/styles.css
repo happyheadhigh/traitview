@@ -43,7 +43,14 @@ html[data-theme="ink"]{
    "the active/selected one" against the surrounding grays, just without
    drawing attention to itself the way the neon accents do. */
 html[data-theme="minimal-dark"]{
-  --bg:#111113; --panel:#18181b; --soft:#151517; --card:#1c1c1f; --text:#e4e4e7; --sub:#8b8b92; --muted:#232326; --chip:#1c1c1f; --chip-b:#2a2a2e; --accent:#a1a1aa; --border:#2a2a2e; --chip-bg:#1c1c1f; --chip-fg:#e4e4e7;
+  /* "Black on black" per jv's direct feedback -- page background and
+     every surface on top of it (panels, cards, chips) collapse to
+     nearly the same near-black tone, rather than a visible step between
+     layers. Kept a hair of separation (not truly identical hex values)
+     so an edge is still technically findable if someone looks for it,
+     but it's meant to read as none at a glance -- the artwork itself
+     should stand out, not the UI chrome around it. */
+  --bg:#050505; --panel:#0a0a0a; --soft:#0a0a0a; --card:#0d0d0d; --text:#e4e4e4; --sub:#7a7a7a; --muted:#111111; --chip:#0d0d0d; --chip-b:#0d0d0d; --accent:#9a9a9a; --border:#0d0d0d; --chip-bg:#0d0d0d; --chip-fg:#e4e4e4;
 }
 html[data-theme="minimal-light"]{
   --bg:#fafafa; --panel:#f4f4f5; --soft:#f0f0f1; --card:#ffffff; --text:#18181b; --sub:#6b6b70; --muted:#e4e4e7; --chip:#f0f0f1; --chip-b:#e0e0e3; --accent:#52525b; --border:#e0e0e3; --chip-bg:#f0f0f1; --chip-fg:#18181b;
@@ -3907,6 +3914,11 @@ html[data-theme^="minimal-"] .btn.ghost.active{
   color:var(--bg)!important;
   border:none!important;
 }
+html[data-theme^="minimal-"] .mispriced-mode-btn.active{
+  background:var(--sub)!important;
+  color:var(--bg)!important;
+  border-color:var(--sub)!important;
+}
 
 /* Token grid tiles -- the single most repeated element on the page.
    Softer corner than the pill treatment elsewhere but still a real
@@ -4085,4 +4097,68 @@ html[data-theme^="minimal-"] svg [fill="#e6edf7"]{
   margin-left:auto;
   color:var(--text)!important;
   font-weight:600;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Minimal theme -- round two, per jv's direct feedback
+   ══════════════════════════════════════════════════════════════════════════
+   Three concrete things found and fixed here:
+   (1) Several text colors were hardcoded directly in the STYLESHEET
+       itself (not inline styles) -- the earlier [style*="..."] catch-alls
+       could never have reached these regardless, since those only ever
+       match inline style attributes. #floorPill specifically, and the
+       header's own "Trait" logo text (.title-chain), were both stuck at
+       a hardcoded near-white regardless of theme -- confirmed exactly
+       what jv saw: unreadable light text against a light background.
+   (2) .c-panel/.card.panel -- the actual container wrapping the entire
+       filter/grid area -- was never targeted at all. Its own
+       border+backdrop-blur+shadow is exactly the border jv said he
+       didn't want around the grid.
+   (3) minimal-dark's own color values were too close in practice to the
+       existing themes' -- jv explicitly asked for "black on black":
+       page background and every surface on top of it collapsing to
+       nearly the same tone, relying on the artwork itself for visual
+       interest rather than layered panel contrast. */
+
+html[data-theme^="minimal-"] .c-panel,
+html[data-theme^="minimal-"] .card.panel{
+  border:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  box-shadow:none!important;
+  background:var(--panel)!important;
+}
+html[data-theme^="minimal-"] .c-panel:hover,
+html[data-theme^="minimal-"] .card.panel:hover{
+  border:none!important;
+  box-shadow:none!important;
+}
+
+html[data-theme^="minimal-"] #floorPill,
+html[data-theme^="minimal-"] #floorPill *{
+  color:var(--text)!important;
+  background:var(--muted)!important;
+  border:none!important;
+}
+html[data-theme^="minimal-"] .title-chain,
+html[data-theme^="minimal-"] .title-stars{
+  color:var(--text)!important;
+  text-shadow:none!important;
+}
+html[data-theme^="minimal-"] #jumpSpot .title{
+  color:var(--text)!important;
+}
+html[data-theme^="minimal-"] .tt:hover::after{
+  color:var(--text)!important;
+  background:var(--card)!important;
+  border-color:var(--border)!important;
+  box-shadow:none!important;
+}
+html[data-theme^="minimal-"] #tokenGrid.view-2x2 .token[data-id]::after,
+html[data-theme^="minimal-"] #tokenGrid.view-5x5 .token[data-id]::after,
+html[data-theme^="minimal-"] #tokenGrid.compact .token[data-id]::after{
+  color:var(--text)!important;
+  background:rgba(0,0,0,.55)!important;
+  border:none!important;
+  box-shadow:none!important;
 }
