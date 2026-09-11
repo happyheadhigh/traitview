@@ -411,7 +411,7 @@ a{color:var(--accent)!important}
     scrollbar-width:none!important;-ms-overflow-style:none!important;padding-bottom:1px!important;
   }
   #mobileMetaRow::-webkit-scrollbar{display:none!important}
-  #mobileMenu{top:96px!important;right:8px!important;min-width:min(280px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important}
+  #mobileMenu{top:96px!important;right:8px!important;min-width:min(280px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 96px - 24px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
 
   /* ── Filter drawer (left column) ── */
   #filtersColumn{
@@ -2333,6 +2333,17 @@ html[data-theme="ink"] body::before {
   gap: 8px;
   min-width: 220px;
   box-shadow: 0 18px 46px rgba(0,0,0,0.52);
+  /* Confirmed live: jv's new Minimal theme button pushed this menu's
+     content past the bottom of the screen, and with no max-height or
+     overflow set at all, the browser just clips it there -- no scrollbar,
+     no way to reach it. Constrains to whatever vertical space is actually
+     left below the menu's own top offset (with a small bottom margin), and
+     lets it scroll internally once its content genuinely exceeds that --
+     this was already a real risk with any menu this long, tallying up as
+     more toggles/settings get added, not just from this specific button. */
+  max-height: calc(100vh - 76px - 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 #mobileMenu.open { display: flex; }
 #mobileMenuLinks{
