@@ -411,7 +411,7 @@ a{color:var(--accent)!important}
     scrollbar-width:none!important;-ms-overflow-style:none!important;padding-bottom:1px!important;
   }
   #mobileMetaRow::-webkit-scrollbar{display:none!important}
-  #mobileMenu{top:96px!important;right:8px!important;min-width:min(280px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 96px - 24px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+  #mobileMenu{top:96px!important;right:8px!important;min-width:min(280px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 96px - 24px)!important;max-height:calc(100dvh - 96px - 24px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
 
   /* ── Filter drawer (left column) ── */
   #filtersColumn{
@@ -2341,7 +2341,18 @@ html[data-theme="ink"] body::before {
      lets it scroll internally once its content genuinely exceeds that --
      this was already a real risk with any menu this long, tallying up as
      more toggles/settings get added, not just from this specific button. */
+  /* dvh (dynamic viewport height) rather than vh -- confirmed live this
+     still didn't scroll on mobile even with max-height set. On mobile
+     Safari specifically, 100vh reports a value that doesn't shrink when
+     the address bar is visible, so this max-height could compute LARGER
+     than the space actually visible on screen -- the element's own box
+     extends past the bottom edge regardless of overflow-y being set
+     correctly, since the overflow only matters once the box's own bounds
+     are already correct. dvh reflects the real, current visible viewport.
+     100vh kept first as a fallback for the rare browser without dvh
+     support -- the dvh rule right after it wins wherever it's understood. */
   max-height: calc(100vh - 76px - 24px);
+  max-height: calc(100dvh - 76px - 24px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
