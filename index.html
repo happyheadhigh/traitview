@@ -14,7 +14,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609118">
+  <link rel="stylesheet" href="./css/styles.css?v=202609119">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -91,6 +91,9 @@
           <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9a1 1 0 0 1-1 1h-1.5a2.5 2.5 0 0 0 0 5H19a2 2 0 0 0 1.86-2.72A9 9 0 0 0 12 3Zm-4 9a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 8 12Zm4-4a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 8Zm4 4a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 16 12Z" fill="currentColor"></path></svg>
         </span>
         <span id="desktopThemeLabel">Slate</span>
+      </button>
+      <button type="button" id="desktopMinimalThemeCycle" class="btn ghost" onclick="cycleMinimalTheme(event)" aria-label="Cycle minimal theme" title="Cycle minimal theme (separate from the theme above)" style="font-size:11px;font-weight:600;letter-spacing:0.03em;padding:4px 8px">
+        <span>Minimal: <span id="desktopMinimalThemeLabel">Off</span></span>
       </button>
       <button type="button" id="desktopFavoritesBtn" class="favbtn" aria-label="Toggle favorites view" title="Favorites">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg>
@@ -674,6 +677,11 @@
       <span class="mobile-menu-label">Theme: <span id="mobileThemeLabel">Slate</span></span>
       <span class="mobile-menu-arrow">cycle</span>
     </button>
+    <button type="button" id="minimalThemeButton" class="mobile-theme-cycle" onclick="cycleMinimalTheme(event)" aria-label="Cycle minimal theme">
+      <span class="mobile-menu-icon">◐</span>
+      <span class="mobile-menu-label">Minimal: <span id="minimalThemeLabel">Off</span></span>
+      <span class="mobile-menu-arrow">cycle</span>
+    </button>
   </div>
 </div>
 
@@ -794,29 +802,29 @@
 
 
 
-<script src="./js/config.js?v=202609118" defer></script>
-<script src="./js/dataConfig.js?v=202609118" defer></script>
-<script src="./js/formatUtils.js?v=202609118" defer></script>
-<script src="./js/imageMap.js?v=202609118" defer></script>
-<script src="./js/state.js?v=202609118" defer></script>
-<script src="./js/appState.js?v=202609118" defer></script>
-<script src="./js/favorites.js?v=202609118" defer></script>
-<script src="./js/wallet.js?v=202609118" defer></script>
-<script src="./js/api.js?v=202609118" defer></script>
-<script src="./js/rankSort.js?v=202609118" defer></script>
-<script src="./js/rankDisplay.js?v=202609118" defer></script>
-<script src="./js/walletConnect.js?v=202609118" defer></script>
-<script src="./js/walletAnalytics.js?v=202609118" defer></script>
-<script src="./js/mispriced.js?v=202609118" defer></script>
-<script src="./js/traitUtils.js?v=202609118" defer></script>
-<script src="./js/listingMeta.js?v=202609118" defer></script>
-<script src="./js/listCards.js?v=202609118" defer></script>
-<script src="./js/chart.js?v=202609118" defer></script>
-<script src="./js/tooltip.js?v=202609118" defer></script>
-<script src="./js/comboInsights.js?v=202609118" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609118" defer></script>
-<script src="./js/downloadLoader.js?v=202609118" defer></script>
-<script src="./js/app.js?v=202609118" defer></script>
+<script src="./js/config.js?v=202609119" defer></script>
+<script src="./js/dataConfig.js?v=202609119" defer></script>
+<script src="./js/formatUtils.js?v=202609119" defer></script>
+<script src="./js/imageMap.js?v=202609119" defer></script>
+<script src="./js/state.js?v=202609119" defer></script>
+<script src="./js/appState.js?v=202609119" defer></script>
+<script src="./js/favorites.js?v=202609119" defer></script>
+<script src="./js/wallet.js?v=202609119" defer></script>
+<script src="./js/api.js?v=202609119" defer></script>
+<script src="./js/rankSort.js?v=202609119" defer></script>
+<script src="./js/rankDisplay.js?v=202609119" defer></script>
+<script src="./js/walletConnect.js?v=202609119" defer></script>
+<script src="./js/walletAnalytics.js?v=202609119" defer></script>
+<script src="./js/mispriced.js?v=202609119" defer></script>
+<script src="./js/traitUtils.js?v=202609119" defer></script>
+<script src="./js/listingMeta.js?v=202609119" defer></script>
+<script src="./js/listCards.js?v=202609119" defer></script>
+<script src="./js/chart.js?v=202609119" defer></script>
+<script src="./js/tooltip.js?v=202609119" defer></script>
+<script src="./js/comboInsights.js?v=202609119" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609119" defer></script>
+<script src="./js/downloadLoader.js?v=202609119" defer></script>
+<script src="./js/app.js?v=202609119" defer></script>
 </body>
 </html>
 

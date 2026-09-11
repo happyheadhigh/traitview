@@ -32,6 +32,22 @@ html[data-theme="cyber"]{
 html[data-theme="ink"]{
   --bg:#0b0b0c; --panel:#0e0e10; --card:#101012; --muted:#1c1d21; --text:#ececec; --sub:#bdbdbd; --accent:#b7a2ff; --chip:#15161b;
 }
+/* Confirmed live: jv wants a genuinely separate visual identity for
+   Argonauts -- solid colors, no pills, no borders, no glow -- distinct
+   from the neon/retro look the four themes above share (which all differ
+   only by accent color, never by shape). Kept fully separate from that
+   cycle rather than a fifth stop on it, per jv's own request, with its
+   own dedicated control instead. --accent here is deliberately a quiet,
+   desaturated neutral (not a bright hue) since jv asked for "clean and
+   neutral" rather than a specific color -- it still needs to read as
+   "the active/selected one" against the surrounding grays, just without
+   drawing attention to itself the way the neon accents do. */
+html[data-theme="minimal-dark"]{
+  --bg:#111113; --panel:#18181b; --soft:#151517; --card:#1c1c1f; --text:#e4e4e7; --sub:#8b8b92; --muted:#232326; --chip:#1c1c1f; --chip-b:#2a2a2e; --accent:#a1a1aa; --border:#2a2a2e; --chip-bg:#1c1c1f; --chip-fg:#e4e4e7;
+}
+html[data-theme="minimal-light"]{
+  --bg:#fafafa; --panel:#f4f4f5; --soft:#f0f0f1; --card:#ffffff; --text:#18181b; --sub:#6b6b70; --muted:#e4e4e7; --chip:#f0f0f1; --chip-b:#e0e0e3; --accent:#52525b; --border:#e0e0e3; --chip-bg:#f0f0f1; --chip-fg:#18181b;
+}
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;max-width:100%;overflow-x:hidden}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
@@ -3808,4 +3824,130 @@ body.wallet-drawer-open #sidebarExpandToggle{display:flex}
 #walletConnectBtn.connected{
   color:#2dd4bf;
   border-bottom-color:#2dd4bf;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Minimal theme (light + dark) — structural overrides
+   ══════════════════════════════════════════════════════════════════════════
+   Confirmed live: the four existing themes (Slate/Midnight/Cyber/Ink) only
+   ever swap color variables -- the pill shapes, borders, and glow effects
+   that define the "neon/retro" look are hardcoded throughout the base CSS,
+   not tied to the theme system at all. jv wants Argonauts to feel
+   deliberately different: solid colors, no pills, no borders, no glow.
+   Rather than rewrite ~400 individual declarations, this groups every
+   selector that uses the repeating border-radius:999px "pill" pattern (or
+   a glow-style box-shadow) into one set of overrides, scoped to
+   [data-theme^="minimal-"] so it applies to both minimal-light and
+   minimal-dark without duplicating this whole block twice -- the two
+   variants differ only in the color variables set above, not in shape. */
+
+html[data-theme^="minimal-"] .chip,
+html[data-theme^="minimal-"] .badge,
+html[data-theme^="minimal-"] .linkpill,
+html[data-theme^="minimal-"] #tokenGrid .owned-badge,
+html[data-theme^="minimal-"] .vs-owned-badge,
+html[data-theme^="minimal-"] .pinbtn,
+html[data-theme^="minimal-"] .market-tag,
+html[data-theme^="minimal-"] #walletConnectBtn,
+html[data-theme^="minimal-"] .connected-holder-stat,
+html[data-theme^="minimal-"] .connected-holder-panel .holder-tag,
+html[data-theme^="minimal-"] .render-tools-pill,
+html[data-theme^="minimal-"] .wallet-transfer-kind,
+html[data-theme^="minimal-"] .wallet-edge-tag,
+html[data-theme^="minimal-"] .extinct-chip,
+html[data-theme^="minimal-"] .burn-best-tag,
+html[data-theme^="minimal-"] .burn-best-pts,
+html[data-theme^="minimal-"] .burn-rank,
+html[data-theme^="minimal-"] .burn-hist-label,
+html[data-theme^="minimal-"] .trait-count .pill,
+html[data-theme^="minimal-"] .trait-count .chip,
+html[data-theme^="minimal-"] .trait-count button{
+  border-radius:6px!important;
+  border:none!important;
+  box-shadow:none!important;
+  background:var(--chip)!important;
+}
+
+/* Buttons generally -- flatten the rounded/bordered look to a quiet,
+   flat rectangle. Active/selected state relies on background contrast
+   alone rather than a colored border or glow. */
+html[data-theme^="minimal-"] .btn,
+html[data-theme^="minimal-"] button:not(.mobile-menu-link):not(.mobile-theme-cycle){
+  border-radius:6px!important;
+  box-shadow:none!important;
+}
+html[data-theme^="minimal-"] .btn.ghost{
+  border:none!important;
+  background:var(--muted)!important;
+}
+html[data-theme^="minimal-"] .btn.ghost.active{
+  background:var(--sub)!important;
+  color:var(--bg)!important;
+  border:none!important;
+}
+
+/* Token grid tiles -- the single most repeated element on the page.
+   Softer corner than the pill treatment elsewhere but still a real
+   rectangle, not fully square (0px reads as a data table, not a
+   gallery of images) -- and no border or glow around each one, relying
+   on the tile's own background/card contrast against the page bg
+   instead of an outline. */
+html[data-theme^="minimal-"] #tokenGrid .token{
+  border:none!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+html[data-theme^="minimal-"] #tokenGrid .token:hover{
+  box-shadow:none!important;
+  background:var(--muted)!important;
+}
+
+/* Inputs, selects, dropdowns -- flat rectangles, subtle single-color
+   border instead of the glow-on-focus treatment used elsewhere. */
+html[data-theme^="minimal-"] input,
+html[data-theme^="minimal-"] select,
+html[data-theme^="minimal-"] textarea{
+  border-radius:6px!important;
+  box-shadow:none!important;
+  border:1px solid var(--border)!important;
+}
+html[data-theme^="minimal-"] input:focus,
+html[data-theme^="minimal-"] select:focus,
+html[data-theme^="minimal-"] textarea:focus{
+  box-shadow:none!important;
+  border-color:var(--accent)!important;
+  outline:none!important;
+}
+
+/* Header / topbar -- remove the backdrop blur + gradient treatment,
+   replace with a flat, solid-color bar and a single hairline rule
+   instead of a glow-edged border. */
+html[data-theme^="minimal-"] .topbar{
+  background:var(--bg)!important;
+  backdrop-filter:none!important;
+  border-bottom:1px solid var(--border)!important;
+  box-shadow:none!important;
+}
+html[data-theme^="minimal-"] #collectionAvatarLink{
+  border:none!important;
+  box-shadow:none!important;
+  background:transparent!important;
+}
+
+/* Modal -- flat card, no glow, softer corner than 0 but well short of
+   the rounded-pill treatment used for smaller chips elsewhere. */
+html[data-theme^="minimal-"] #modal .modal-content,
+html[data-theme^="minimal-"] #modal .mcard{
+  border-radius:10px!important;
+  border:none!important;
+  box-shadow:none!important;
+  background:var(--card)!important;
+}
+
+/* Any remaining glow-style box-shadows (colored, multi-layer inset
+   effects used throughout for the neon look) collapse to none -- a
+   flat design shouldn't have anything visibly glowing regardless of
+   which specific selector it's attached to. */
+html[data-theme^="minimal-"] [style*="box-shadow"]{
+  box-shadow:none!important;
 }

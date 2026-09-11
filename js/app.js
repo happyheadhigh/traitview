@@ -3670,6 +3670,53 @@ function setThemeMobile(theme, closeMenu = true){
   applyThemeMobile(theme);
   if(closeMenu) document.getElementById('mobileMenu')?.classList.remove('open');
 }
+
+// ── Minimal theme (separate control, per jv's request) ──────────────────────
+// Deliberately its own independent on/off/light/dark state rather than a
+// fifth stop on the existing neon theme cycle -- jv specifically asked for
+// a separate control. Stored under its own localStorage key so it doesn't
+// interfere with the existing 'theme' key at all; when minimal is "off",
+// this restores whatever neon theme was already saved there, rather than
+// this feature needing to know or care what that value is.
+function _applyMinimalTheme(mode){
+  const normalized = ['off','light','dark'].includes(mode) ? mode : 'off';
+  localStorage.setItem('minimalTheme', normalized);
+  if(normalized === 'off'){
+    const savedNeon = (localStorage.getItem('theme') || 'slate').toLowerCase();
+    document.documentElement.setAttribute('data-theme', ['slate','midnight','cyber','ink'].includes(savedNeon) ? savedNeon : 'slate');
+  } else {
+    document.documentElement.setAttribute('data-theme', normalized === 'light' ? 'minimal-light' : 'minimal-dark');
+  }
+  const labelText = normalized === 'off' ? 'Off' : (normalized === 'light' ? 'Light' : 'Dark');
+  const mobileLabel = document.getElementById('minimalThemeLabel');
+  const desktopLabel = document.getElementById('desktopMinimalThemeLabel');
+  if(mobileLabel) mobileLabel.textContent = labelText;
+  if(desktopLabel) desktopLabel.textContent = labelText;
+}
+function cycleMinimalTheme(evt){
+  if(evt){ evt.preventDefault(); evt.stopPropagation(); }
+  const order = ['off','light','dark'];
+  const current = (localStorage.getItem('minimalTheme') || 'off').toLowerCase();
+  const idx = order.indexOf(current);
+  const next = order[((idx >= 0 ? idx : 0) + 1) % order.length];
+  _applyMinimalTheme(next);
+}
+// Applied once at page load (see init() call below) so a saved minimal
+// theme choice actually persists across a reload, same as the neon theme
+// already does via applyThemeMobile() -- without this, minimal mode would
+// silently reset to "off" every time the page refreshed.
+function restoreMinimalThemeOnLoad(){
+  const saved = (localStorage.getItem('minimalTheme') || 'off').toLowerCase();
+  if(saved !== 'off') _applyMinimalTheme(saved);
+  else {
+    // Still update the label even when off, so it doesn't show blank/wrong
+    // before the user ever interacts with the button this session.
+    const mobileLabel = document.getElementById('minimalThemeLabel');
+    const desktopLabel = document.getElementById('desktopMinimalThemeLabel');
+    if(mobileLabel) mobileLabel.textContent = 'Off';
+    if(desktopLabel) desktopLabel.textContent = 'Off';
+  }
+}
 function cycleThemeMobile(evt){
   if(evt){
     evt.preventDefault();
@@ -4834,6 +4881,14 @@ async function quickPreviewOutside(id){
   });
   pick(saved); setTimeout(()=>pick(saved),0);
 })();
+// Runs AFTER the neon theme restoration above, so a saved minimal theme
+// choice correctly overrides it on load (rather than the reverse -- minimal
+// mode is meant to fully replace the neon look while it's active, not sit
+// underneath it). Deferred the same way the IIFE above defers its own
+// second pick(saved) call -- without this, that delayed call would run
+// after this one and silently overwrite a saved minimal theme back to neon.
+restoreMinimalThemeOnLoad();
+setTimeout(restoreMinimalThemeOnLoad, 0);
 function osAssetUrl(id){
   const chain = (window.CHAIN || 'ethereum');
   const addr  = (window.CONTRACT || '<YOUR_CONTRACT_ADDRESS>');
