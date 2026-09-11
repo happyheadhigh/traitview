@@ -171,6 +171,35 @@ function resetCollectionState(){
   OPEN_GROUPS.clear();
   LAST_SALE_CACHE.clear(); LAST_SALE_PENDING.clear();
 
+  // Confirmed live via jv's own per-chunk diagnostic: CHUNK_CACHE itself was
+  // 100% complete for every real token -- this was never a data problem at
+  // all. The actual bug: VS's own DOM-node reuse cache keys tiles as
+  // `${mode}:${id}` -- collection is never part of that key. A tile built
+  // while viewing one collection (with THAT collection's image baked into
+  // its <img> src) gets silently reused by the SAME numeric id under a
+  // different collection, since token ids commonly overlap across
+  // collections (both OCAS and Argonauts have their own token #907, etc).
+  // This exactly explains the pattern jv isolated: browsing by id (Live
+  // Listings off) mostly hits ids never rendered yet this session, while
+  // sorting by price (Live Listings on) pulls a scattered set of ids that
+  // can easily overlap with whatever got cached during the brief initial
+  // page load for the previous collection.
+  if(typeof VS !== 'undefined' && VS._nodeCache) VS._nodeCache.clear();
+
+  // Confirmed live: several other caches share the exact same vulnerability
+  // as VS._nodeCache above -- keyed purely by token id, with no awareness
+  // of which collection that id belonged to when it was cached. Clearing
+  // proactively here, before the same bug shows up in one of these too --
+  // low risk, since the only cost is a few extra re-fetches right after a
+  // switch, not a correctness issue.
+  if(typeof _OWNER_CACHE !== 'undefined') _OWNER_CACHE.clear();
+  if(typeof _burnHistoryCache !== 'undefined') _burnHistoryCache.clear();
+  if(typeof MARKET_TAG_CACHE !== 'undefined') MARKET_TAG_CACHE.clear();
+  if(typeof HOLDER_TAG_CACHE !== 'undefined') HOLDER_TAG_CACHE.clear();
+  if(typeof priceHistoryCache !== 'undefined') priceHistoryCache.clear();
+  if(typeof tokenHistoryCache !== 'undefined') tokenHistoryCache.clear();
+  if(typeof TWIN_CACHE !== 'undefined') TWIN_CACHE.clear();
+
   // imageMap.js
   if(typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) IMAGES_MAP.clear();
 
