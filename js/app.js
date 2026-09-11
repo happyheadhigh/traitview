@@ -336,6 +336,15 @@ function rankTier(rank){
   return '';
 }
 function rankColor(rank){
+  // Confirmed live with jv: minimal theme should mean genuinely fewer
+  // colors throughout, not just the badges/pills -- this rank-tier
+  // gold/purple/blue rainbow is exactly the kind of thing that competes
+  // with the art rather than the tokens themselves. A single neutral tone
+  // regardless of tier when minimal is active; the tier-color system stays
+  // fully intact for the existing four themes.
+  if((document.documentElement.getAttribute('data-theme') || '').startsWith('minimal-')){
+    return 'var(--sub)';
+  }
   const r = parseInt(rank, 10);
   if(!r) return '#e6edf7';
   if(r <= 100)  return '#FFD700'; // gold
@@ -4063,8 +4072,38 @@ const VS = {
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
     const imgSrc = this._imgSrc(id);
+    const isMinimal = (document.documentElement.getAttribute('data-theme') || '').startsWith('minimal-');
     const d = document.createElement('div');
     d.dataset.id = id;
+    if(isMinimal){
+      // Confirmed live with jv: the previous overlay-badges-on-every-corner
+      // treatment was exactly the "competing with the art" look he wanted
+      // OUT of this theme specifically -- this is a genuinely different
+      // structure for minimal, not just a recolor of the same one. A single
+      // small, quiet id label sits on the image itself (always visible);
+      // rank+price only appear as a soft overlay on hover, since hover has
+      // no meaning on mobile touch and no gesture here already means
+      // "reveal detail" without colliding with tap-to-open-modal; and the
+      // same rank+price info is repeated below the image at all times,
+      // which is what actually serves mobile (and is also just there for
+      // anyone on desktop who isn't actively hovering this exact tile).
+      d.style.cssText = 'display:flex;flex-direction:column;min-width:0;width:100%;max-width:100%;cursor:pointer;box-sizing:border-box';
+      const hoverDetail = (rank || priceStr) ? `<div class="minimal-tile-hover">${rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : ''}${priceStr ? `<span>Ξ${priceStr}</span>` : ''}</div>` : '';
+      d.innerHTML =
+        `<div class="minimal-tile-image" style="position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--muted)">` +
+          (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block">` : '') +
+          `<div class="minimal-tile-id">#${id}</div>` +
+          hoverDetail +
+        `</div>` +
+        `<div class="minimal-tile-meta">` +
+          `<span>#${id}</span>` +
+          (rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : '') +
+          (priceStr ? `<span class="minimal-tile-price">Ξ${priceStr}</span>` : '') +
+        `</div>`;
+      if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
+      d.addEventListener('click', () => openModal(id));
+      return d;
+    }
     d.style.cssText = 'position:relative;min-width:0;width:100%;max-width:100%;border-radius:10px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1;contain:layout paint style;box-sizing:border-box';
     if(connectedWalletOwns(id)){
       d.className = 'owned-token';
@@ -4074,8 +4113,8 @@ const VS = {
     d.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>') +
       (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
-      `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
-      (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');
+      `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:var(--text,#e6edf7);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
+      (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:var(--accent,#2dd4bf);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');
     if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
     d.addEventListener('click', () => openModal(id));
     return d;

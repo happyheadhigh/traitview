@@ -3957,13 +3957,20 @@ html[data-theme^="minimal-"] #collectionAvatarLink{
 }
 
 /* Modal -- flat card, no glow, softer corner than 0 but well short of
-   the rounded-pill treatment used for smaller chips elsewhere. */
-html[data-theme^="minimal-"] #modal .modal-content,
-html[data-theme^="minimal-"] #modal .mcard{
+   the rounded-pill treatment used for smaller chips elsewhere.
+   Confirmed live: the modal's actual structure is #modal > .box -- the
+   .modal-content/.mcard this rule targeted before don't exist anywhere in
+   the real DOM, so this never took effect at all. Also removing the
+   backdrop blur+saturate here, same reasoning as the header bar earlier
+   in this file -- that's a neon-specific effect, not something a flat
+   design should carry over by default. */
+html[data-theme^="minimal-"] #modal .box{
   border-radius:10px!important;
   border:none!important;
   box-shadow:none!important;
   background:var(--card)!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
 }
 
 /* Any remaining glow-style box-shadows (colored, multi-layer inset
@@ -3972,4 +3979,110 @@ html[data-theme^="minimal-"] #modal .mcard{
    which specific selector it's attached to. */
 html[data-theme^="minimal-"] [style*="box-shadow"]{
   box-shadow:none!important;
+}
+
+/* Confirmed live: a real, substantial number of the app's badges, price
+   labels, and highlight text (rank tiers, "live" price tags, twin-finder
+   match counts, tooltip stats, and more) set their color directly as an
+   inline style rather than through a CSS class -- meaning the two theme
+   overrides above (targeting .chip/.badge/etc by class) never reached
+   them at all. This is exactly why jv's first look at the dark variant
+   showed no real difference: the grid tiles themselves, the single most
+   repeated and most looked-at element on the page, never actually
+   changed. Rather than track down and edit every one of these individual
+   call sites in app.js (~25+ spread across many different features),
+   this catches them by the literal hex value they were hardcoded to,
+   using an attribute selector on the inline style itself -- covers
+   everywhere this specific teal/off-white/gold/purple/blue was used,
+   regardless of which function generated it. Kept fully scoped to
+   [data-theme^="minimal-"] so the four existing themes are entirely
+   unaffected -- they still show these same hardcoded colors exactly as
+   they always have. */
+html[data-theme^="minimal-"] [style*="color:#2dd4bf"],
+html[data-theme^="minimal-"] [style*="color: #2dd4bf"]{
+  color:var(--sub)!important;
+}
+html[data-theme^="minimal-"] [style*="color:#e6edf7"],
+html[data-theme^="minimal-"] [style*="color: #e6edf7"]{
+  color:var(--text)!important;
+}
+html[data-theme^="minimal-"] [style*="color:#FFD700"],
+html[data-theme^="minimal-"] [style*="color:#d8b4fe"],
+html[data-theme^="minimal-"] [style*="color:#60a5fa"]{
+  color:var(--sub)!important;
+}
+html[data-theme^="minimal-"] [style*="rgba(45,212,191"]{
+  background:var(--muted)!important;
+  border-color:var(--border)!important;
+}
+html[data-theme^="minimal-"] [style*="border-color:#354"],
+html[data-theme^="minimal-"] [style*="background:#0d261c"]{
+  background:var(--muted)!important;
+  border-color:var(--border)!important;
+}
+/* SVG fill (the rank diamond icon specifically uses fill, not color, for
+   its actual shape) -- same reasoning as the color catches above. */
+html[data-theme^="minimal-"] svg [fill="#FFD700"],
+html[data-theme^="minimal-"] svg [fill="#d8b4fe"],
+html[data-theme^="minimal-"] svg [fill="#60a5fa"],
+html[data-theme^="minimal-"] svg [fill="#e6edf7"]{
+  fill:var(--sub)!important;
+}
+
+/* New minimal-theme grid tile structure (see _gridCard() in app.js) --
+   quiet id label always on the image, rank+price only on hover (desktop
+   only -- no meaning on touch, no gesture conflict with tap-to-open since
+   there simply isn't one on mobile), and the same rank+price repeated in
+   a plain text row below the image at all times, which is what actually
+   serves mobile and anyone not currently hovering that exact tile. */
+.minimal-tile-image{
+  border-radius:8px;
+}
+.minimal-tile-id{
+  position:absolute;
+  bottom:6px; left:6px;
+  background:rgba(0,0,0,.55);
+  color:#fff;
+  font-size:10px;
+  font-weight:600;
+  padding:2px 6px;
+  border-radius:4px;
+  pointer-events:none;
+}
+.minimal-tile-hover{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:rgba(0,0,0,.45);
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+  opacity:0;
+  transition:opacity .15s ease;
+  pointer-events:none;
+}
+.minimal-tile-image:hover .minimal-tile-hover{
+  opacity:1;
+}
+.minimal-tile-meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 2px 2px;
+  font-size:11px;
+  color:var(--sub);
+  overflow:hidden;
+  white-space:nowrap;
+}
+.minimal-tile-meta > span:first-child{
+  color:var(--text);
+  font-weight:600;
+}
+.minimal-tile-price{
+  margin-left:auto;
+  color:var(--text)!important;
+  font-weight:600;
 }
