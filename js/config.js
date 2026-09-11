@@ -230,12 +230,45 @@ function switchCollection(slug){
     .filter(Boolean);
   sels.forEach(sel => { sel.disabled = true; });
   history.pushState({}, '', `/?collection=${encodeURIComponent(slug)}`);
+  _applyCollectionSwitch(slug).finally(() => { sels.forEach(sel => { sel.disabled = false; }); });
+}
+
+/* Shared by switchCollection() (user picked a new collection from the
+   dropdown) and the popstate handler below (browser back/forward button) --
+   everything switchCollection() does except the URL update itself, since
+   for popstate the URL has already changed by the time this runs. */
+function _applyCollectionSwitch(slug){
   activateCollection(slug);
   resetCollectionState();
   populateCollectionSwitcher();
   applyCollectionFeatureGating();
-  Promise.resolve(init()).finally(() => { sels.forEach(sel => { sel.disabled = false; }); });
+  return Promise.resolve(init());
 }
+
+/* Confirmed live: jv reported stats bar and grid showing two DIFFERENT
+   collections' data simultaneously (OCAS stats, Argonauts grid tiles) --
+   traced to this being completely missing. switchCollection() updates the
+   URL via history.pushState(), but nothing ever listened for the
+   corresponding popstate event the browser fires on back/forward
+   navigation. On iOS Safari specifically, going back can restore the page
+   from memory (old DOM, including stale grid tiles from before the button
+   press) while the URL itself changes to the previous collection -- with no
+   listener, nothing here ever re-synced the app's actual state (LIVE_SLUG,
+   CHUNK_CACHE, etc.) to match, leaving stats/data partially updated by
+   whatever else happened to notice the URL change, and the grid left
+   entirely stale. */
+window.addEventListener('popstate', () => {
+  const slug = collectionSlugFromUrl();
+  // activateCollection() already resolves a falsy/unknown slug to the
+  // default collection on its own -- comparing against COLLECTIONS[slug]'s
+  // resolved value (not the raw slug itself) so navigating back to a plain,
+  // no-param URL still correctly re-syncs to the default collection rather
+  // than silently doing nothing just because slug itself was null.
+  const resolvedSlug = (COLLECTIONS[slug] || COLLECTIONS[DEFAULT_COLLECTION_SLUG]).slug;
+  if(resolvedSlug !== LIVE_SLUG){
+    _applyCollectionSwitch(resolvedSlug);
+  }
+});
 
 /* Hides UI that only makes sense for collections with hasBurnMechanic:true
    (currently just OCAS -- Argonauts and any future collection have no burn
