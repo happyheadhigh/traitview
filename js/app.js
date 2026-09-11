@@ -3864,6 +3864,24 @@ const VS = {
         if(this.mode === 'list') card = this._listCard(id);
         else if(window.innerWidth <= 900) card = this._gridCard(id);
         else card = await this._standardCard(id);
+        // Confirmed live via jv's exact repro sequence: toggling the SAME
+        // control (Live Listings) on/off/on reproduced the SAME broken/
+        // working pattern every single time within one collection session
+        // -- ruling out cross-collection cache poisoning (already fixed
+        // separately) and pointing here instead. Both _gridCard and
+        // _standardCard/gridThumbHtml omit the <img> tag entirely and fall
+        // back to a plain background div whenever the image genuinely
+        // wasn't ready yet at build time (e.g. a chunk not fully populated
+        // in this exact instant). Caching that placeholder unconditionally
+        // meant it was reused by id FOREVER after -- toggling back to the
+        // exact same unfiltered, price-sorted view kept re-serving that
+        // same cached, permanently-blank node, while a trait filter
+        // surfaced a different, never-before-cached set of ids that built
+        // correctly on their first (only) attempt. Only cache a card once
+        // it actually has a real <img> in it, so a momentarily-missing
+        // image gets a genuine retry the next time this id comes up,
+        // instead of being locked into failure the first time it happened.
+        if(card && !card.querySelector('img')) return card;
         if(card){
           this._nodeCache.set(key, card);
           if(this._nodeCache.size > this._cacheLimit){
