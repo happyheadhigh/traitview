@@ -2137,6 +2137,39 @@ async function init(){
           }
         }
         console.log('[TraitView] Loaded ' + Object.keys(data.tokens).length + ' live tokens from DB');
+        // TEMP DIAGNOSTIC (jv, remove once found): the LAST diagnostic
+        // banner blocked the menu button entirely, wasting several rounds
+        // of testing -- this time a small, tap-to-expand corner badge
+        // instead of a full-width bar, positioned mid-right where it can't
+        // cover the top menu button or the bottom nav bar. jv isolated this
+        // precisely: images work fine with Live Listings off (grid sorted
+        // by ID -- only low IDs ever actually render, since only visible
+        // tiles render at all) but fail specifically with Live Listings on
+        // (grid sorted by price -- pulls IDs scattered across every chunk
+        // in the whole collection). This checks each cached chunk's own
+        // image-completeness rate directly, to see whether some chunks are
+        // correctly populated while others genuinely aren't -- distinct
+        // from anything about onlyListed's own filtering logic, which
+        // never touches row.image at all.
+        (function(){
+          const perChunk = [];
+          for(const [idx, chunkData] of CHUNK_CACHE.entries()){
+            const ids = Object.keys(chunkData);
+            const withImg = ids.filter(sid => chunkData[sid] && chunkData[sid].image).length;
+            perChunk.push(`idx${idx}:${withImg}/${ids.length}`);
+          }
+          const badge=document.createElement('div');
+          badge.textContent='🔍';
+          badge.style.cssText='position:fixed;top:50%;right:8px;z-index:99999;background:#0a4;color:#fff;font-size:18px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)';
+          badge.addEventListener('click', () => {
+            const panel=document.createElement('div');
+            panel.style.cssText='position:fixed;top:50%;right:8px;transform:translateY(-100%);z-index:99999;background:#0a4;color:#fff;font-size:10px;padding:8px;border-radius:8px;max-width:80vw;max-height:50vh;overflow-y:auto;word-break:break-all;box-shadow:0 2px 12px rgba(0,0,0,.5)';
+            panel.textContent=`per-chunk image completeness: ${perChunk.join(' | ')}`;
+            panel.addEventListener('click', () => panel.remove());
+            document.body.appendChild(panel);
+          });
+          document.body.appendChild(badge);
+        })();
         return data;
       })
       .catch(err => {
