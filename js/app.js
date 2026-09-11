@@ -1762,6 +1762,84 @@ function quickScrollToId(id){
 // prefix filter or jump that was set after init started
 window.__INIT_LOADING__ = false;
 
+// ── Live sale feedback ───────────────────────────────────────────────────────
+// jv asked for the grid to update instantly when a token sells. Backend
+// holds one persistent OpenSea Stream connection per collection (the API
+// key can never be exposed to the browser) and relays item_sold events to
+// this page over Server-Sent Events -- see lib/sale-stream.js on the
+// backend for the full architecture writeup.
+let _saleStreamSource = null;
+
+function connectSaleStream(){
+  // Confirmed live pattern from this session: a collection switch must
+  // close out anything scoped to the previous collection before opening
+  // the new one, same as CHUNK_CACHE/VS._nodeCache/etc already are in
+  // resetCollectionState() -- an EventSource left open from a previous
+  // collection would keep delivering that OTHER collection's sale events
+  // into whatever's currently on screen.
+  if(_saleStreamSource){
+    _saleStreamSource.close();
+    _saleStreamSource = null;
+  }
+  if(!RAILWAY_API || !LIVE_SLUG) return;
+  const url = `${RAILWAY_API}/db/sales-stream?slug=${encodeURIComponent(LIVE_SLUG)}&key=${encodeURIComponent(RAILWAY_KEY)}`;
+  const source = new EventSource(url);
+  _saleStreamSource = source;
+  source.onmessage = (ev) => {
+    if(!ev.data || ev.data.startsWith(':')) return; // keep-alive comment lines
+    let msg;
+    try{ msg = JSON.parse(ev.data); }catch{ return; }
+    if(msg?.type === 'sale' && msg.tokenId != null) _handleTokenSold(msg);
+  };
+  // EventSource auto-reconnects on its own after a network hiccup -- no
+  // manual retry loop needed, just avoid spamming the console on the
+  // inevitable disconnect when the user navigates away or switches tabs.
+  source.onerror = () => { /* browser will retry automatically */ };
+}
+
+function _handleTokenSold(msg){
+  const id = +msg.tokenId;
+  // The grid's own "is this listed" check reads window.LISTINGS[id] directly
+  // (renderTokenGrid's onlyListed branch) -- removing it here is what
+  // actually makes a sold token disappear from the Live Listings view,
+  // not just a visual flourish.
+  if(window.LISTINGS && window.LISTINGS[id]) delete window.LISTINGS[id];
+
+  // Flash a brief "SOLD" banner on the tile if it's currently on screen,
+  // then let the grid settle back to whatever it should show next.
+  const tile = document.querySelector(`[data-id="${id}"]`);
+  if(tile){
+    const flash = document.createElement('div');
+    flash.textContent = `SOLD${msg.priceEth != null ? ' · Ξ' + Number(msg.priceEth).toFixed(4) : ''}`;
+    flash.style.cssText = 'position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:rgba(220,38,38,.88);color:#fff;font-weight:800;font-size:13px;letter-spacing:.5px;border-radius:inherit;pointer-events:none;animation:tvSoldFade 3s ease forwards';
+    if(!document.getElementById('tvSoldFadeKeyframes')){
+      const style = document.createElement('style');
+      style.id = 'tvSoldFadeKeyframes';
+      style.textContent = '@keyframes tvSoldFade{0%{opacity:0}10%{opacity:1}75%{opacity:1}100%{opacity:0}}';
+      document.head.appendChild(style);
+    }
+    tile.style.position = tile.style.position || 'relative';
+    tile.appendChild(flash);
+    setTimeout(() => {
+      flash.remove();
+      const onlyListed = document.getElementById('onlyListed')?.checked;
+      // Only re-render if Live Listings is on -- that's the one view where
+      // a sold token should actually vanish. With it off, the token stays
+      // visible (it still exists, it's just no longer for sale), matching
+      // how the rest of the grid already treats unlisted tokens.
+      if(onlyListed && typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+    }, 3000);
+  }
+
+  // If the modal happens to be open on the exact token that just sold,
+  // refresh it so the listing/price display doesn't show a stale price.
+  // _modalCurrentId alone isn't enough -- it can still hold the last-opened
+  // id after the modal's been closed, same distinction openModal's own
+  // fresh-image logic already draws elsewhere.
+  const modalEl = document.getElementById('modal');
+  if(window._modalCurrentId === id && modalEl?.style.display !== 'none' && typeof openModal === 'function') openModal(id);
+}
+
 async function init(){
   try{
     populateCollectionSwitcher();
@@ -2086,6 +2164,7 @@ async function init(){
     loadProbabilities();
     window.__INIT_LOADING__ = true;
     startBackgroundListingsLoad();
+    connectSaleStream();
 
     // Fetch all surviving tokens' traits from DB — replaces static chunk files.
     // Server caches for 5 min so this is fast for all visitors after the first.
