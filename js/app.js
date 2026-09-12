@@ -616,7 +616,33 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
       // __count was already computed for the sort above; just also surface
       // it in the display text rather than only using it internally.
       const __pctTxt = __pct!=null ? `<i class="trait-pct" style="opacity:.75;font-style:normal;font-size:12px;flex-shrink:0;margin-left:auto;padding-left:8px">${__count.toLocaleString()} · ${__pct < 0.1 ? __pct.toFixed(3) : __pct.toFixed(2)}%</i>` : '';
-      row.innerHTML=`<input type="checkbox" id="${id}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}
+      row.innerHTML=`<input type="checkbox" id="${id}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name);
+      // jv: "I scrolled down to the bottom trait... it jumped to the top of
+      // the crown trait" -- confirmed the earlier fix (restoring a raw
+      // scrollTop pixel value) wasn't enough. Selecting a trait recalculates
+      // AVAILABLE_DOMAIN for every category, not just this one -- other
+      // categories' counts, sort order, and (with "only present" on) which
+      // values even still show up can all shift, changing the total height
+      // of everything ABOVE this row. Restoring the same raw pixel offset
+      // then lands on whatever content happens to occupy that pixel range
+      // now, not this same row. Anchoring to this specific row instead:
+      // capture where it sits on screen right now, before the rebuild, then
+      // after re-rendering find this exact same value's row again by its
+      // deterministic id and nudge scroll by however far it moved -- correct
+      // regardless of how much content above it changed height.
+      const _beforeTop = row.getBoundingClientRect().top;
+      await updateChartAndList();
+      const _rowAfter = document.getElementById(id)?.closest('label');
+      if(_rowAfter){
+        const _afterTop = _rowAfter.getBoundingClientRect().top;
+        const _delta = _afterTop - _beforeTop;
+        if(_delta){
+          const _fc = document.getElementById('filtersColumn');
+          if(_fc) _fc.scrollTop += _delta;
+          acc.scrollTop += _delta;
+        }
+      }
+      }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}
   acc.scrollTop = _prevAccScroll;
   if(filtersCol) filtersCol.scrollTop = _prevColScroll;
 }
