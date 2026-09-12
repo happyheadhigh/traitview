@@ -579,7 +579,21 @@ async function renderTokenGridFromState(){
 /* traits UI */
 function renderActiveChips(){ const host=$('#activeChips'); host.innerHTML=''; const entries=[...activeTraits.entries()].flatMap(([g,s])=>[...s].map(v=>({group:g,value:String(v)}))); if(entries.length===0){ host.innerHTML='<span class="section" style="opacity:.8">No traits selected</span>'; return;} for(const {group,value} of entries){ const chip=el('div','chip',`<b>${group}</b>: ${value} &nbsp;×`); chip.title='Remove this filter'; chip.onclick=async()=>{ const s=activeTraits.get(group); if(!s) return; s.delete(value); if(s.size===0) activeTraits.delete(group); await updateChartAndList(); }; host.appendChild(chip);} }
 function renderTraitChips(b){ const host=$('#traitChips'); host.innerHTML=''; const maxSeen=Math.max(16,...Object.keys(b).map(Number)); for(let c=1;c<=maxSeen;c++){ const count=b[c]||0; const chip=el('div','chip',`Traits: <b>${c}</b> <span style="color:var(--muted)">(${fmt(count)})</span>`); chip.dataset.count=String(c); chip.classList.toggle('active',currentTraitCount===c); chip.addEventListener('click', async ()=>{ currentTraitCount=(currentTraitCount===c?null:c); document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.toggle('active',Number(n.dataset.count)===currentTraitCount)); await renderTokenGridFromState(); const cols2=colorsFor(LAST_XS); Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]); }); host.appendChild(chip);}}
-function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$('#accTraits'); acc.innerHTML=''; const onlyPresent=$('#onlyPresent').checked; const names=Object.keys(TRAIT_DOMAIN).sort(); for(const name of names){ const groupMatch=!q||name.toLowerCase().includes(q); let values=[...TRAIT_DOMAIN[name]]; if(onlyPresent && AVAILABLE_DOMAIN && AVAILABLE_DOMAIN[name]){ const m=AVAILABLE_DOMAIN[name]; values=values.filter(v=>m.has(v)); } if(q && !groupMatch){ values=values.filter(v=>String(v).toLowerCase().includes(q)); } if(values.length===0 && !groupMatch) continue;
+function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$('#accTraits');
+  // jv: "when selecting a trait it auto scrolls to the top... it should
+  // stay fixed" -- this function wipes and rebuilds the accordion's DOM
+  // from scratch on every single checkbox change (via updateChartAndList(),
+  // which needs the re-render since each value's count/%/sort order can
+  // shift once a filter is active), and replacing an element's content
+  // resets its own scroll position to 0. On mobile specifically, #accTraits
+  // itself isn't the element that actually scrolls (it becomes
+  // overflow:visible there) -- #filtersColumn, the full filter panel
+  // wrapping it, is -- so both are captured and restored here rather than
+  // just the one that's scrollable on desktop.
+  const filtersCol = document.getElementById('filtersColumn');
+  const _prevAccScroll = acc.scrollTop;
+  const _prevColScroll = filtersCol ? filtersCol.scrollTop : 0;
+  acc.innerHTML=''; const onlyPresent=$('#onlyPresent').checked; const names=Object.keys(TRAIT_DOMAIN).sort(); for(const name of names){ const groupMatch=!q||name.toLowerCase().includes(q); let values=[...TRAIT_DOMAIN[name]]; if(onlyPresent && AVAILABLE_DOMAIN && AVAILABLE_DOMAIN[name]){ const m=AVAILABLE_DOMAIN[name]; values=values.filter(v=>m.has(v)); } if(q && !groupMatch){ values=values.filter(v=>String(v).toLowerCase().includes(q)); } if(values.length===0 && !groupMatch) continue;
       // jv: "traits are pretty sporadic... should be displayed as rarest at
       // the top down to most common" -- this used to sort alphabetically
       // (localeCompare) with only "none" pushed last, which is exactly the
@@ -602,7 +616,10 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
       // __count was already computed for the sort above; just also surface
       // it in the display text rather than only using it internally.
       const __pctTxt = __pct!=null ? `<i class="trait-pct" style="opacity:.75;font-style:normal;font-size:12px;flex-shrink:0;margin-left:auto;padding-left:8px">${__count.toLocaleString()} · ${__pct < 0.1 ? __pct.toFixed(3) : __pct.toFixed(2)}%</i>` : '';
-      row.innerHTML=`<input type="checkbox" id="${id}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}}
+      row.innerHTML=`<input type="checkbox" id="${id}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}
+  acc.scrollTop = _prevAccScroll;
+  if(filtersCol) filtersCol.scrollTop = _prevColScroll;
+}
 
 /* tooltip helpers moved to js/tooltip.js */
 
