@@ -3920,17 +3920,30 @@ html[data-theme^="minimal-"] .mispriced-mode-btn.active{
   border-color:var(--sub)!important;
 }
 
+/* jv: "dark tint on the sides of page" -- traced to body::before, a
+   fixed, full-viewport pseudo-element layering colored radial glows
+   across the entire page (the neon aesthetic's atmospheric background
+   effect). This had no theme scoping at all, so it applied under
+   minimal too -- against a light background specifically, these low-
+   opacity glows read as a visible darkening at the edges rather than
+   the intended subtle color wash they're going for on a dark
+   background. A flat, minimal design shouldn't have any atmospheric
+   glow behind it regardless of which specific theme variant set it. */
+html[data-theme^="minimal-"] body::before{
+  background:none!important;
+}
+
 /* jv: "dead space on the sides... fades to black a little in light mode"
-   -- traced to .c-body-inner's own 16px horizontal padding, the container
-   wrapping the entire filter/grid area. That padding is also very likely
-   the "fade" itself -- --panel is a touch darker than --bg in this theme
-   (intentional, if extremely subtle, for the sake of having ANY visual
-   distinction at all), and that difference shows through the 16px gap
-   around the grid's own edges. Reduced substantially so the grid gets
-   real extra width, not just less visible panel-color peeking through. */
+   / (follow-up) "trim more of the dead space, push images a little
+   bigger" -- traced to .c-body-inner's own horizontal padding, the
+   container wrapping the entire filter/grid area (which also holds Twin
+   Finder / Live Listings / Sort, not just the grid -- kept a couple px
+   here rather than zero so those controls don't sit completely flush
+   against the screen edge, with the grid's own padding below trimmed
+   further since that's the part that actually needs the width). */
 html[data-theme^="minimal-"] .c-body-inner{
-  padding-left:4px!important;
-  padding-right:4px!important;
+  padding-left:2px!important;
+  padding-right:2px!important;
 }
 
 /* Token grid tiles -- the single most repeated element on the page.

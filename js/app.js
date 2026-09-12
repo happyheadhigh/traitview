@@ -3942,7 +3942,7 @@ const VS = {
     // padding around the whole grid drops to near-zero for minimal,
     // freeing up real width for every tile to grow into.
     const isMinimalTheme = (document.documentElement.getAttribute('data-theme') || '').startsWith('minimal-');
-    const outerPad = isMinimalTheme ? 2 : gap;
+    const outerPad = isMinimalTheme ? 0 : gap;
     tg._vsRows.style.cssText = this.mode === 'list'
       ? `display:flex;flex-direction:column;gap:${gap}px;width:100%;padding:${outerPad}px;box-sizing:border-box`
       : `display:grid;grid-template-columns:repeat(${this.cols}, minmax(0, 1fr));gap:${gap}px;width:100%;max-width:100%;min-width:0;padding:${outerPad}px;box-sizing:border-box;overflow-x:hidden`;
