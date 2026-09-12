@@ -800,6 +800,12 @@ function renderRarityImprovement(result){
 async function loadWalletRarityImprovement(data){
   const hosts = ['rarityImproveHost', 'mobileRarityImproveHost']
     .map(id => document.getElementById(id)).filter(Boolean);
+  // Same reasoning as loadWalletBurnStats -- hide the whole card (not just
+  // show an empty placeholder inside it) for any collection with no
+  // meaningful burn-driven rarity data, e.g. Argonauts which has no burn
+  // mechanic at all.
+  const cards = ['rarityImproveCard', 'mobileRarityImproveCard']
+    .map(id => document.getElementById(id)).filter(Boolean);
   const summary = data?.summary?.summary || data?.summary || {};
   const owned = Array.isArray(summary.top_tokens) ? summary.top_tokens : [];
   // Build the shared traits map regardless of whether the rarity hosts exist
@@ -812,9 +818,15 @@ async function loadWalletRarityImprovement(data){
   if(!hosts.length) return;
   try{
     const result = await computeWalletRarityImprovement(owned);
+    if(!result || !result.perToken.length){
+      cards.forEach(c => { c.style.display = 'none'; });
+      return;
+    }
+    cards.forEach(c => { c.style.display = ''; });
     const html = renderRarityImprovement(result);
     hosts.forEach(h => h.innerHTML = html);
   }catch(e){
+    cards.forEach(c => { c.style.display = ''; });
     hosts.forEach(h => h.innerHTML = '<div class="wallet-empty-state">Could not compute rarity data.</div>');
   }
 }
@@ -916,13 +928,30 @@ function renderWalletBurnStats(stats){
 async function loadWalletBurnStats(address){
   const hosts = ['walletBurnStatsHost', 'mobileWalletBurnStatsHost']
     .map(id => document.getElementById(id)).filter(Boolean);
+  // Confirmed live: jv wants this whole card hidden entirely for collections
+  // with no burn activity, rather than always showing (down to an empty
+  // "no burns yet" placeholder even for a collection like Argonauts that has
+  // no burn mechanic at all). Hiding the CARD containers (not just the inner
+  // host divs the try/catch below fills), so no header/section survives
+  // when there's nothing real to show.
+  const cards = ['walletBurnStatsCard', 'mobileWalletBurnStatsCard']
+    .map(id => document.getElementById(id)).filter(Boolean);
   if(!hosts.length || !address) return;
   try{
     const data = await dbFetch(`/db/wallet/${encodeURIComponent(address)}/burn-stats`);
     _lastWalletBurnStats = data;
+    if(!data || !data.burnCount){
+      cards.forEach(c => { c.style.display = 'none'; });
+      return;
+    }
+    cards.forEach(c => { c.style.display = ''; });
     const html = renderWalletBurnStats(data);
     hosts.forEach(h => { h.innerHTML = html; if(typeof applyBurnThumbSizeClass === 'function') applyBurnThumbSizeClass(h, getBurnThumbSize()); });
   }catch(e){
+    // A real failure to load (not simply "no burns") still surfaces the
+    // card so the person can see something went wrong, rather than being
+    // silently hidden -- only the confirmed-zero case above hides it.
+    cards.forEach(c => { c.style.display = ''; });
     hosts.forEach(h => h.innerHTML = '<div class="wallet-empty-state">Could not load burn stats.</div>');
   }
 }
@@ -981,11 +1010,11 @@ function walletMobileAnalyticsHtml(data){
         <div class="wallet-stat-cell"><span>Floor ETH</span><b>${walletEth(summary.floor_eth)}</b></div>
       </div>
     </div>
-    <div class="wallet-analytics-card">
+    <div class="wallet-analytics-card" id="mobileRarityImproveCard">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title" style="color:#1CFFAF">Rarity Gained From Burns</div></div>
       <div id="mobileRarityImproveHost"><div class="wallet-empty-state">Calculating…</div></div>
     </div>
-    <div class="wallet-analytics-card">
+    <div class="wallet-analytics-card" id="mobileWalletBurnStatsCard">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">🔥 Your Burns</div></div>
       <div id="mobileWalletBurnStatsHost"><div class="wallet-empty-state">Loading…</div></div>
     </div>
@@ -1062,7 +1091,7 @@ function walletDesktopAnalyticsHtml(data){
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">Wallet Activity Timeline</div><div class="wallet-analytics-sub">Real history + transfer rows</div></div>
       ${walletActivityChartHtml(data)}
     </div>
-    <div class="wallet-analytics-card">
+    <div class="wallet-analytics-card" id="walletBurnStatsCard">
       <div class="wallet-analytics-head"><div class="wallet-analytics-title">🔥 Your Burns</div></div>
       <div id="walletBurnStatsHost"><div class="wallet-empty-state">Loading…</div></div>
     </div>
@@ -1090,7 +1119,7 @@ function walletDesktopAnalyticsHtml(data){
         ${topTokens.length ? `<div class="wallet-top-token-grid" id="walletOwnedGrid">${topTokens.map(walletTopTokenCard).join('')}</div>` : '<div class="wallet-empty-state">Owned tokens will appear after wallet summary sync completes.</div>'}
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <div class="wallet-analytics-card">
+        <div class="wallet-analytics-card" id="rarityImproveCard">
           <div class="wallet-analytics-head"><div class="wallet-analytics-title" style="color:#1CFFAF">Rarity Gained From Burns</div></div>
           <div id="rarityImproveHost"><div class="wallet-empty-state">Calculating…</div></div>
         </div>
