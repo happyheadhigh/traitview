@@ -324,7 +324,7 @@ async function updateChartAndList(){
   const _accEl = document.getElementById('accTraits');
   const _scroller = (_fc && _fc.scrollHeight > _fc.clientHeight + 1) ? _fc
                    : (_accEl && _accEl.scrollHeight > _accEl.clientHeight + 1) ? _accEl : null;
-  let _anchorSelector = null, _anchorOffset = 0;
+  let _anchorSelector = null, _anchorFallbackSelector = null, _anchorOffset = 0;
   if(_scroller){
     const _scrollerTop = _scroller.getBoundingClientRect().top;
     const _candidates = _accEl ? [..._accEl.querySelectorAll('.acc-head, .checklist label input[type=checkbox]')] : [];
@@ -339,9 +339,27 @@ async function updateChartAndList(){
     }
     if(_best){
       const elx = _best.el;
-      _anchorSelector = elx.classList.contains('acc-head')
+      const isHead = elx.classList.contains('acc-head');
+      _anchorSelector = isHead
         ? `.acc-head[data-cat="${CSS.escape(elx.dataset.cat)}"]`
         : `#${CSS.escape(elx.id)}`;
+      // Confirmed live: jv's exact case (Palette, "only present" filtering
+      // on) shrinks a category from every one of its values down to just
+      // the one now selected -- selecting a single-value-per-token trait
+      // like a background color means every OTHER value in that same
+      // category has zero tokens left to be "present" for, so they
+      // disappear from the list entirely, not just re-sort. If the topmost
+      // anchor was one of those now-vanished values, its selector can never
+      // be found again no matter how the rebuild goes, and the correction
+      // below silently did nothing -- exactly the "still jumps" jv reported
+      // even after the first version of this anchor fix. Falling back to
+      // that value's own category HEADER, which survives regardless of how
+      // many of its values get filtered away, since the category itself
+      // isn't removed, only its value list shrinks.
+      if(!isHead){
+        const catName = elx.closest('.acc-item')?.querySelector('h4')?.textContent;
+        if(catName) _anchorFallbackSelector = `.acc-head[data-cat="${CSS.escape(catName)}"]`;
+      }
       _anchorOffset = elx.getBoundingClientRect().top - _scrollerTop;
     }
   }
@@ -349,7 +367,7 @@ async function updateChartAndList(){
   const {buckets, idByCount, avail}=await computeFilteredState(); CHART_ID_MAP=idByCount; AVAILABLE_DOMAIN=avail; drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
 
   if(_scroller && _anchorSelector){
-    const _again = document.querySelector(_anchorSelector);
+    const _again = document.querySelector(_anchorSelector) || (_anchorFallbackSelector && document.querySelector(_anchorFallbackSelector));
     if(_again){
       const _newTop = _again.getBoundingClientRect().top - _scroller.getBoundingClientRect().top;
       _scroller.scrollTop += (_newTop - _anchorOffset);
