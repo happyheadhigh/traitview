@@ -3920,17 +3920,38 @@ html[data-theme^="minimal-"] .mispriced-mode-btn.active{
   border-color:var(--sub)!important;
 }
 
-/* jv: "dark tint on the sides of page" -- traced to body::before, a
-   fixed, full-viewport pseudo-element layering colored radial glows
-   across the entire page (the neon aesthetic's atmospheric background
-   effect). This had no theme scoping at all, so it applied under
-   minimal too -- against a light background specifically, these low-
-   opacity glows read as a visible darkening at the edges rather than
-   the intended subtle color wash they're going for on a dark
-   background. A flat, minimal design shouldn't have any atmospheric
-   glow behind it regardless of which specific theme variant set it. */
+/* jv: "dark tint on the sides of page" -- my first attempt at this
+   targeted body::before (a fixed, full-viewport pseudo-element layering
+   colored radial glows for the neon themes), reasoning it was carrying
+   over unscoped into minimal. Turned out to be already display:none on
+   mobile from an existing rule, so that fix, while harmless, was never
+   actually addressing the real cause -- jv confirmed the tint was still
+   there after. Kept the override below anyway since it's still correct
+   in principle (this glow genuinely shouldn't apply under minimal), just
+   not what was causing what jv was seeing.
+
+   Empirically reproduced jv's exact screenshots locally (measuring
+   actual rendered pixel values, then walking the full DOM for elements
+   whose box-shadow could reach the viewport edges) to find the real
+   cause: three drawer panels (#filtersColumn on the left,
+   #mobileWalletDrawer / #mobileHolderDrawer on the right) sit
+   permanently in the DOM at position:fixed, translated exactly to the
+   viewport's own edge when "closed" (not further off-screen) --
+   left:0/right:0 with transform:translateX(±100%) of their own width.
+   Each carries a box-shadow with a 40px blur radius, which -- since a
+   shadow travels with its element under a transform -- bleeds roughly
+   40-48px into the visible page from both edges even while the drawer
+   itself is fully off-screen. This is present under every theme, but
+   was never visible against the dark themes' own near-black background;
+   it only becomes obvious against a light one. */
 html[data-theme^="minimal-"] body::before{
   background:none!important;
+}
+html[data-theme^="minimal-"] #filtersColumn,
+html[data-theme^="minimal-"] #mobileWalletDrawer,
+html[data-theme^="minimal-"] #mobileHolderDrawer,
+html[data-theme^="minimal-"] #desktopWalletDrawer{
+  box-shadow:none!important;
 }
 
 /* jv: "dead space on the sides... fades to black a little in light mode"
