@@ -328,12 +328,30 @@ async function updateChartAndList(){
   if(_scroller){
     const _scrollerTop = _scroller.getBoundingClientRect().top;
     const _candidates = _accEl ? [..._accEl.querySelectorAll('.acc-head, .checklist label input[type=checkbox]')] : [];
-    let _best = null, _bestTop = -Infinity;
+    let _best = null;
     for(const elx of _candidates){
-      const top = elx.getBoundingClientRect().top;
+      const rect = elx.getBoundingClientRect();
+      // Confirmed live (second bug found the same day as the first):
+      // checkboxes belonging to a COLLAPSED category are still present in
+      // the DOM, just visually hidden -- getBoundingClientRect() on a
+      // hidden element returns top:0, which was incorrectly winning as
+      // "topmost" every single time regardless of actual scroll position,
+      // since 0 is always the smallest possible value. Filtering these out
+      // by checking for actual rendered size.
+      if(rect.width === 0 && rect.height === 0) continue;
+      const top = rect.top;
       // topmost element whose bottom hasn't already scrolled past the
       // scroller's own top edge -- i.e. the first thing still visible.
-      if(top >= _scrollerTop - 2 && top > _bestTop === false && (_best === null || top < _best._top)){
+      // Confirmed live: an earlier version of this exact condition had a
+      // dead clause (`top > _bestTop === false`, comparing against a
+      // variable that was declared but never actually updated in the
+      // loop, always evaluating to false) that silently made this whole
+      // block a no-op -- _best was never assigned at all, so no
+      // correction ever ran despite local testing seeming to show it
+      // working (those specific test scenarios apparently didn't drift
+      // enough on their own to expose it). Simplified to just the two
+      // conditions that actually matter.
+      if(top >= _scrollerTop - 2 && (_best === null || top < _best._top)){
         _best = { el: elx, _top: top };
       }
     }
