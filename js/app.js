@@ -290,7 +290,72 @@ function _applyHoldersTraitFilter(){
   }
 }
 
-async function updateChartAndList(){ const {buckets, idByCount, avail}=await computeFilteredState(); CHART_ID_MAP=idByCount; AVAILABLE_DOMAIN=avail; drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter(); }
+async function updateChartAndList(){
+  // jv: "when selecting a trait it auto scrolls to the top... it should
+  // stay fixed." Two earlier attempts at this both failed for confirmed,
+  // specific reasons -- worth recording so a future pass doesn't repeat
+  // them:
+  // (1) Restoring a raw scrollTop pixel value doesn't work because THIS
+  //     function's own earlier steps (renderTraitChips, renderActiveChips)
+  //     already shift the filter panel's scroll themselves as a side
+  //     effect of changing their own content height, before
+  //     renderTraitAccordion() even runs -- confirmed directly by logging
+  //     scrollTop after every single step in here: it drifts during
+  //     renderTraitChips AND again during renderActiveChips, not just
+  //     during the accordion rebuild. A raw-pixel restore inside
+  //     renderTraitAccordion() alone was always restoring to an
+  //     already-drifted value.
+  // (2) Anchoring to the specific row that was clicked doesn't work either
+  //     when that row is scrolled near the very BOTTOM of the panel (jv's
+  //     exact case: "scrolled down to the bottom trait"). Confirmed
+  //     directly: selecting a trait can shrink the panel's total scrollable
+  //     height by ~20-30px (other categories' available counts/visibility
+  //     change), and when already scrolled to the old maximum, the browser
+  //     clamps scrollTop to the new, smaller maximum -- there's physically
+  //     no room left to scroll further down to compensate, so the row
+  //     unavoidably ends up somewhat higher on screen than before.
+  // Fix: anchor to whatever row or category header is currently at/near
+  // the TOP of the visible panel instead of the specific row clicked --
+  // an anchor near the top essentially never runs into "no room left to
+  // scroll," since there's still the whole rest of the panel below it to
+  // absorb any height change, regardless of which specific row triggered
+  // the rebuild or where in the list it happened to be.
+  const _fc = document.getElementById('filtersColumn');
+  const _accEl = document.getElementById('accTraits');
+  const _scroller = (_fc && _fc.scrollHeight > _fc.clientHeight + 1) ? _fc
+                   : (_accEl && _accEl.scrollHeight > _accEl.clientHeight + 1) ? _accEl : null;
+  let _anchorSelector = null, _anchorOffset = 0;
+  if(_scroller){
+    const _scrollerTop = _scroller.getBoundingClientRect().top;
+    const _candidates = _accEl ? [..._accEl.querySelectorAll('.acc-head, .checklist label input[type=checkbox]')] : [];
+    let _best = null, _bestTop = -Infinity;
+    for(const elx of _candidates){
+      const top = elx.getBoundingClientRect().top;
+      // topmost element whose bottom hasn't already scrolled past the
+      // scroller's own top edge -- i.e. the first thing still visible.
+      if(top >= _scrollerTop - 2 && top > _bestTop === false && (_best === null || top < _best._top)){
+        _best = { el: elx, _top: top };
+      }
+    }
+    if(_best){
+      const elx = _best.el;
+      _anchorSelector = elx.classList.contains('acc-head')
+        ? `.acc-head[data-cat="${CSS.escape(elx.dataset.cat)}"]`
+        : `#${CSS.escape(elx.id)}`;
+      _anchorOffset = elx.getBoundingClientRect().top - _scrollerTop;
+    }
+  }
+
+  const {buckets, idByCount, avail}=await computeFilteredState(); CHART_ID_MAP=idByCount; AVAILABLE_DOMAIN=avail; drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
+
+  if(_scroller && _anchorSelector){
+    const _again = document.querySelector(_anchorSelector);
+    if(_again){
+      const _newTop = _again.getBoundingClientRect().top - _scroller.getBoundingClientRect().top;
+      _scroller.scrollTop += (_newTop - _anchorOffset);
+    }
+  }
+}
 
 /* grid */
 function gridThumbHtml(id,row){
@@ -580,19 +645,6 @@ async function renderTokenGridFromState(){
 function renderActiveChips(){ const host=$('#activeChips'); host.innerHTML=''; const entries=[...activeTraits.entries()].flatMap(([g,s])=>[...s].map(v=>({group:g,value:String(v)}))); if(entries.length===0){ host.innerHTML='<span class="section" style="opacity:.8">No traits selected</span>'; return;} for(const {group,value} of entries){ const chip=el('div','chip',`<b>${group}</b>: ${value} &nbsp;×`); chip.title='Remove this filter'; chip.onclick=async()=>{ const s=activeTraits.get(group); if(!s) return; s.delete(value); if(s.size===0) activeTraits.delete(group); await updateChartAndList(); }; host.appendChild(chip);} }
 function renderTraitChips(b){ const host=$('#traitChips'); host.innerHTML=''; const maxSeen=Math.max(16,...Object.keys(b).map(Number)); for(let c=1;c<=maxSeen;c++){ const count=b[c]||0; const chip=el('div','chip',`Traits: <b>${c}</b> <span style="color:var(--muted)">(${fmt(count)})</span>`); chip.dataset.count=String(c); chip.classList.toggle('active',currentTraitCount===c); chip.addEventListener('click', async ()=>{ currentTraitCount=(currentTraitCount===c?null:c); document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.toggle('active',Number(n.dataset.count)===currentTraitCount)); await renderTokenGridFromState(); const cols2=colorsFor(LAST_XS); Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]); }); host.appendChild(chip);}}
 function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$('#accTraits');
-  // jv: "when selecting a trait it auto scrolls to the top... it should
-  // stay fixed" -- this function wipes and rebuilds the accordion's DOM
-  // from scratch on every single checkbox change (via updateChartAndList(),
-  // which needs the re-render since each value's count/%/sort order can
-  // shift once a filter is active), and replacing an element's content
-  // resets its own scroll position to 0. On mobile specifically, #accTraits
-  // itself isn't the element that actually scrolls (it becomes
-  // overflow:visible there) -- #filtersColumn, the full filter panel
-  // wrapping it, is -- so both are captured and restored here rather than
-  // just the one that's scrollable on desktop.
-  const filtersCol = document.getElementById('filtersColumn');
-  const _prevAccScroll = acc.scrollTop;
-  const _prevColScroll = filtersCol ? filtersCol.scrollTop : 0;
   acc.innerHTML=''; const onlyPresent=$('#onlyPresent').checked; const names=Object.keys(TRAIT_DOMAIN).sort(); for(const name of names){ const groupMatch=!q||name.toLowerCase().includes(q); let values=[...TRAIT_DOMAIN[name]]; if(onlyPresent && AVAILABLE_DOMAIN && AVAILABLE_DOMAIN[name]){ const m=AVAILABLE_DOMAIN[name]; values=values.filter(v=>m.has(v)); } if(q && !groupMatch){ values=values.filter(v=>String(v).toLowerCase().includes(q)); } if(values.length===0 && !groupMatch) continue;
       // jv: "traits are pretty sporadic... should be displayed as rarest at
       // the top down to most common" -- this used to sort alphabetically
@@ -608,7 +660,7 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
         if(typeof TRAIT_FREQ === 'object' && TRAIT_FREQ[name] && TRAIT_FREQ[name][v]) return TRAIT_FREQ[name][v];
         return null;
       };
-      values.sort((a,b)=>{ const an=String(a).toLowerCase()==='none'?1:0; const bn=String(b).toLowerCase()==='none'?1:0; if(an!==bn) return an-bn; const ca=countFor(a), cb=countFor(b); if(ca==null && cb==null) return String(a).localeCompare(String(b),undefined,{numeric:true}); if(ca==null) return 1; if(cb==null) return -1; if(ca!==cb) return ca-cb; return String(a).localeCompare(String(b),undefined,{numeric:true}); }); const item=document.createElement('div'); item.className='acc-item'; if(OPEN_GROUPS.has(name)) item.classList.add('open'); const head=document.createElement('div'); head.className='acc-head'; head.innerHTML=`<h4>${name}</h4><span class="section">${values.length} values</span>`; head.onclick=()=>{ item.classList.toggle('open'); if(item.classList.contains('open')) OPEN_GROUPS.add(name); else OPEN_GROUPS.delete(name); }; const body=document.createElement('div'); body.className='acc-body'; const list=document.createElement('div'); list.className='checklist'; for(const v of values){ const id=`ck_${name}_${String(v).replace(/[^a-z0-9]+/gi,'_')}`; const row=document.createElement('label'); row.className='check'; 
+      values.sort((a,b)=>{ const an=String(a).toLowerCase()==='none'?1:0; const bn=String(b).toLowerCase()==='none'?1:0; if(an!==bn) return an-bn; const ca=countFor(a), cb=countFor(b); if(ca==null && cb==null) return String(a).localeCompare(String(b),undefined,{numeric:true}); if(ca==null) return 1; if(cb==null) return -1; if(ca!==cb) return ca-cb; return String(a).localeCompare(String(b),undefined,{numeric:true}); }); const item=document.createElement('div'); item.className='acc-item'; if(OPEN_GROUPS.has(name)) item.classList.add('open'); const head=document.createElement('div'); head.className='acc-head'; head.dataset.cat=name; head.innerHTML=`<h4>${name}</h4><span class="section">${values.length} values</span>`; head.onclick=()=>{ item.classList.toggle('open'); if(item.classList.contains('open')) OPEN_GROUPS.add(name); else OPEN_GROUPS.delete(name); }; const body=document.createElement('div'); body.className='acc-body'; const list=document.createElement('div'); list.className='checklist'; for(const v of values){ const id=`ck_${name}_${String(v).replace(/[^a-z0-9]+/gi,'_')}`; const row=document.createElement('label'); row.className='check'; 
       const __count = countFor(v);
       const __total = TOKEN_COUNT || (MANIFEST && (MANIFEST.tokenCount || (MANIFEST.files?.at(-1)?.end))) || 10000;
       const __pct = (__count && __total) ? ((__count/__total)*100) : null;
@@ -616,35 +668,7 @@ function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$
       // __count was already computed for the sort above; just also surface
       // it in the display text rather than only using it internally.
       const __pctTxt = __pct!=null ? `<i class="trait-pct" style="opacity:.75;font-style:normal;font-size:12px;flex-shrink:0;margin-left:auto;padding-left:8px">${__count.toLocaleString()} · ${__pct < 0.1 ? __pct.toFixed(3) : __pct.toFixed(2)}%</i>` : '';
-      row.innerHTML=`<input type="checkbox" id="${id}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name);
-      // jv: "I scrolled down to the bottom trait... it jumped to the top of
-      // the crown trait" -- confirmed the earlier fix (restoring a raw
-      // scrollTop pixel value) wasn't enough. Selecting a trait recalculates
-      // AVAILABLE_DOMAIN for every category, not just this one -- other
-      // categories' counts, sort order, and (with "only present" on) which
-      // values even still show up can all shift, changing the total height
-      // of everything ABOVE this row. Restoring the same raw pixel offset
-      // then lands on whatever content happens to occupy that pixel range
-      // now, not this same row. Anchoring to this specific row instead:
-      // capture where it sits on screen right now, before the rebuild, then
-      // after re-rendering find this exact same value's row again by its
-      // deterministic id and nudge scroll by however far it moved -- correct
-      // regardless of how much content above it changed height.
-      const _beforeTop = row.getBoundingClientRect().top;
-      await updateChartAndList();
-      const _rowAfter = document.getElementById(id)?.closest('label');
-      if(_rowAfter){
-        const _afterTop = _rowAfter.getBoundingClientRect().top;
-        const _delta = _afterTop - _beforeTop;
-        if(_delta){
-          const _fc = document.getElementById('filtersColumn');
-          if(_fc) _fc.scrollTop += _delta;
-          acc.scrollTop += _delta;
-        }
-      }
-      }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}
-  acc.scrollTop = _prevAccScroll;
-  if(filtersCol) filtersCol.scrollTop = _prevColScroll;
+      row.innerHTML=`<input type="checkbox" id="${id}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>${__pctTxt}`; const cur=activeTraits.get(name); if(cur && cur.has(v)) row.querySelector('input').checked=true; row.querySelector('input').addEventListener('change', async (e)=>{ const set=activeTraits.get(name)||new Set(); if(e.target.checked) set.add(v); else set.delete(v); set.size?activeTraits.set(name,set):activeTraits.delete(name); OPEN_GROUPS.add(name); await updateChartAndList(); }); list.appendChild(row);} body.appendChild(list); item.appendChild(head); item.appendChild(body); acc.appendChild(item);}
 }
 
 /* tooltip helpers moved to js/tooltip.js */
@@ -3569,6 +3593,12 @@ function setMispricedMode(mode){
 
 // ── Mobile filter drawer ──────────────────────────────────────────────────────
 
+// jv: "a memory so if you close or tap out of the trait panel when you
+// open it back up it opens exactly where it was closed at." Module-level
+// (not localStorage) since this only needs to survive within the current
+// page session, not across a reload.
+let _savedFilterDrawerScroll = 0;
+
 function openMobileFilter(){
   document.getElementById('mobileMenu')?.classList.remove('open');
   const leftCol = document.querySelector('#filtersColumn');
@@ -3582,7 +3612,7 @@ function openMobileFilter(){
   if(arr) arr.textContent = '‹';
 
   requestAnimationFrame(()=>{
-    try{ leftCol.scrollTop = 0; }catch{}
+    try{ leftCol.scrollTop = _savedFilterDrawerScroll; }catch{}
     // Render traits, with retry if TRAIT_DOMAIN not yet loaded
     function tryRenderTraits(attemptsLeft){
       if(typeof renderTraitAccordion !== 'function') return;
@@ -3590,6 +3620,12 @@ function openMobileFilter(){
       if(!acc) return;
       if(Object.keys(TRAIT_DOMAIN||{}).length > 0){
         renderTraitAccordion(document.getElementById('traitSearch')?.value || '');
+        // Re-apply after the accordion actually finishes rendering --
+        // rendering it can itself change the drawer's total scrollable
+        // height (e.g. if a category was left open from before), so the
+        // assignment above (made before this render) might land at a
+        // position that no longer means the same thing.
+        try{ leftCol.scrollTop = _savedFilterDrawerScroll; }catch{}
       } else if(attemptsLeft > 0){
         setTimeout(()=>tryRenderTraits(attemptsLeft - 1), 300);
       }
@@ -3601,6 +3637,7 @@ function openMobileFilter(){
 function closeMobileFilter(){
   const leftCol = document.querySelector('#filtersColumn');
   if(!leftCol) return;
+  _savedFilterDrawerScroll = leftCol.scrollTop;
   leftCol.classList.remove('drawer-open');
   const overlay = document.getElementById('filterDrawerOverlay');
   if(overlay) overlay.classList.remove('open');
