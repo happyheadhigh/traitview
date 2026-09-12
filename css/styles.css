@@ -3920,6 +3920,19 @@ html[data-theme^="minimal-"] .mispriced-mode-btn.active{
   border-color:var(--sub)!important;
 }
 
+/* jv: "dead space on the sides... fades to black a little in light mode"
+   -- traced to .c-body-inner's own 16px horizontal padding, the container
+   wrapping the entire filter/grid area. That padding is also very likely
+   the "fade" itself -- --panel is a touch darker than --bg in this theme
+   (intentional, if extremely subtle, for the sake of having ANY visual
+   distinction at all), and that difference shows through the 16px gap
+   around the grid's own edges. Reduced substantially so the grid gets
+   real extra width, not just less visible panel-color peeking through. */
+html[data-theme^="minimal-"] .c-body-inner{
+  padding-left:4px!important;
+  padding-right:4px!important;
+}
+
 /* Token grid tiles -- the single most repeated element on the page.
    Softer corner than the pill treatment elsewhere but still a real
    rectangle, not fully square (0px reads as a data table, not a

@@ -271,6 +271,16 @@ function _applyCollectionSwitch(slug){
   resetCollectionState();
   populateCollectionSwitcher();
   applyCollectionFeatureGating();
+  // Confirmed live: jv reported the header stats bar (floor, volume,
+  // sales, 24h, owners) never actually switching over on a collection
+  // change -- traced to a separate, page-load-only IIFE in app.js that
+  // only ever fetched once and then relied purely on its own multi-minute
+  // setInterval timers after that. activateCollection() above already
+  // updated LIVE_SLUG/LIVE_CONTRACT synchronously, so this can fire
+  // immediately, in parallel with init() below, rather than waiting on it
+  // -- the header refresh doesn't depend on the grid finishing its own
+  // (potentially slower) load.
+  if(typeof window.refreshHeaderStats === 'function') window.refreshHeaderStats();
   return Promise.resolve(init());
 }
 

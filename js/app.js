@@ -3933,9 +3933,19 @@ const VS = {
     tg._vsTop.style.cssText  = 'height:0;width:100%;flex-shrink:0';
     tg._vsBot.style.cssText  = 'height:0;width:100%;flex-shrink:0';
     const gap = window.innerWidth <= 900 ? 6 : 8;
+    // jv: "dead space on the sides... push the grid images a little
+    // bigger" -- this container's own padding (previously reusing the
+    // same value as the gap BETWEEN tiles) compounds with .c-body-inner's
+    // padding above it, adding up to real, visible dead space at the
+    // grid's outer edges specifically. Kept the gap between individual
+    // tiles the same (still needed for visual separation) but the
+    // padding around the whole grid drops to near-zero for minimal,
+    // freeing up real width for every tile to grow into.
+    const isMinimalTheme = (document.documentElement.getAttribute('data-theme') || '').startsWith('minimal-');
+    const outerPad = isMinimalTheme ? 2 : gap;
     tg._vsRows.style.cssText = this.mode === 'list'
-      ? `display:flex;flex-direction:column;gap:${gap}px;width:100%;padding:${gap}px;box-sizing:border-box`
-      : `display:grid;grid-template-columns:repeat(${this.cols}, minmax(0, 1fr));gap:${gap}px;width:100%;max-width:100%;min-width:0;padding:${gap}px;box-sizing:border-box;overflow-x:hidden`;
+      ? `display:flex;flex-direction:column;gap:${gap}px;width:100%;padding:${outerPad}px;box-sizing:border-box`
+      : `display:grid;grid-template-columns:repeat(${this.cols}, minmax(0, 1fr));gap:${gap}px;width:100%;max-width:100%;min-width:0;padding:${outerPad}px;box-sizing:border-box;overflow-x:hidden`;
 
     tg.appendChild(tg._vsTop);
     tg.appendChild(tg._vsRows);
@@ -5451,8 +5461,6 @@ async function loadManifest(){
 /* === Floor Price — fetches via your Cloudflare Worker /os/stats === */
 (function(){
   const WORKER    = 'https://nft-live-listings.jvweb3.workers.dev';
-  const OS_SLUG   = LIVE_SLUG; // confirmed live: was hardcoded to OCAS's slug -- see the sales-fetching IIFE's comment above for the same fix reasoning.
-  const CONTRACT  = LIVE_CONTRACT;
   const REFRESH   = 120000; // refresh every 2 minutes
 
   const setText = (id, v) => {
@@ -5519,7 +5527,15 @@ async function loadManifest(){
 
   async function fetchOwners(){
     try{
-      const r = await fetch(`${WORKER}/nft/holders?contract=${CONTRACT}`, { cache: 'force-cache' });
+      // Reads LIVE_CONTRACT directly (not a captured local const) --
+      // confirmed live this whole IIFE only ever runs once at initial page
+      // load, then hands off to setInterval forever after. A captured
+      // const would keep fetching whatever collection was active at THAT
+      // moment, permanently, even after switching collections later --
+      // reading the live global here means every tick (and any future
+      // manual refresh) automatically reflects whichever collection is
+      // actually active right now.
+      const r = await fetch(`${WORKER}/nft/holders?contract=${LIVE_CONTRACT}`, { cache: 'force-cache' });
       if(!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
       if(j?.ok){
@@ -5532,7 +5548,9 @@ async function loadManifest(){
 
   async function fetchFloor(){
     try{
-      const r = await fetch(`${WORKER}/os/stats?slug=${OS_SLUG}`, { cache: 'no-store' });
+      // Same fix as fetchOwners() above -- LIVE_SLUG read directly, not a
+      // captured local const.
+      const r = await fetch(`${WORKER}/os/stats?slug=${LIVE_SLUG}`, { cache: 'no-store' });
       if(!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
       const t = j?.total || j?.stats || j || {};
@@ -5611,6 +5629,19 @@ async function loadManifest(){
   fetchOwners();
   setInterval(fetchFloor, REFRESH);
   setInterval(fetchOwners, 300000);
+  // Confirmed live: jv reported header stats (floor, volume, sales, 24h,
+  // owners) never actually switching over when changing collections --
+  // this whole IIFE only ever runs its initial fetchFloor()/fetchOwners()
+  // once, at page load, then relies purely on the setInterval timers above
+  // for anything after that. Those timers use whatever LIVE_SLUG/
+  // LIVE_CONTRACT happen to be AT THE MOMENT EACH TICK FIRES (fixed above,
+  // previously captured once and frozen forever) -- but that could still
+  // mean up to a full REFRESH interval (2 minutes) of stale data showing
+  // after a switch, before the next natural tick catches up. Exposing this
+  // so switchCollection()/_applyCollectionSwitch() in config.js can call
+  // it directly, refreshing the header immediately on switch rather than
+  // waiting for it.
+  window.refreshHeaderStats = () => { fetchFloor(); fetchOwners(); };
 })();
 
 // ---- extracted script block ----
