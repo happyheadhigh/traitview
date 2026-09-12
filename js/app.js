@@ -5147,6 +5147,45 @@ if(_only){
   });
 })();
 
+// jv: "when the page first loads it loads with the bottom bar 1/4 of the
+// way up the page" -- #mobileBottomBar is plain position:fixed;bottom:0
+// with nothing dynamic touching it in JS, and reproducing this locally
+// (headless Chromium, same viewport size) shows it correctly pinned to the
+// real viewport bottom immediately after load -- so this isn't a CSS
+// positioning bug at all, but a known, long-standing iOS Safari quirk:
+// position:fixed elements present during the page's very first layout can
+// get frozen relative to the viewport height AT THAT EXACT MOMENT (often
+// mid-transition while the address bar is still collapsing from its
+// initial expanded state), and stay stuck there until something forces a
+// fresh layout pass -- which is likely why jv sees it settle if the page
+// scrolls or resizes at all afterward. This can't be reproduced in a
+// simulation that doesn't share Safari's own address-bar-collapse
+// behavior, so the fix is the standard workaround for this exact class of
+// bug: force one extra layout recalculation shortly after load completes,
+// which is enough to make Safari re-anchor the element to the viewport's
+// actual current bottom edge.
+(function(){
+  const bar = document.getElementById('mobileBottomBar');
+  if(!bar) return;
+  const nudge = () => {
+    // Reading offsetHeight forces a synchronous layout; toggling display
+    // off then back on forces Safari to fully recompute this element's
+    // fixed position against the viewport as it actually is right now,
+    // rather than whatever it was anchored to during the very first paint.
+    void bar.offsetHeight;
+    bar.style.display = 'none';
+    void bar.offsetHeight;
+    bar.style.display = '';
+  };
+  window.addEventListener('load', () => setTimeout(nudge, 50), { once:true });
+  // Also nudge on the very first user scroll/touch, since that's exactly
+  // the moment Safari's address bar finishes collapsing if it hasn't
+  // already -- covers the case where the fixed load-time nudge above still
+  // lands mid-transition on a particularly slow load.
+  window.addEventListener('scroll', nudge, { once:true, passive:true });
+  window.addEventListener('touchmove', nudge, { once:true, passive:true });
+})();
+
 // ---- extracted script block ----
 
 (function(){
