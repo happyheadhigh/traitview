@@ -45,15 +45,14 @@ const COLLECTIONS = {
     apiBase: 'https://tv-bot-api-production.up.railway.app',
     apiKey: 'TraitViewBot2k26',
     hasBurnMechanic: false,
-    // Backfilled separately via /db/collections/backfill-links (this
-    // collection onboarded before opensea_url/website_url/twitter_url
-    // existed at all) -- left null here rather than guessed, so the menu
-    // correctly hides a row it has no real URL for until that runs, instead
-    // of showing OCAS's own links under a DIFFERENT collection's name (the
-    // exact bug jv reported).
     openseaUrl: 'https://opensea.io/collection/argonauts',
+    // Confirmed via /db/collections/backfill-links: OpenSea's own collection
+    // page for Argonauts genuinely has no website/external_url set at all --
+    // null here is correct, not a placeholder waiting to be filled in, so
+    // the menu correctly keeps hiding that row rather than showing a wrong
+    // or fabricated link.
     websiteUrl: null,
-    twitterUrl: null,
+    twitterUrl: 'https://twitter.com/lphaCentauriKid',
   },
 };
 const DEFAULT_COLLECTION_SLUG = 'on-chain-all-stars';
@@ -93,7 +92,22 @@ async function loadDynamicCollections(){
     for(const row of j.collections){
       if(row.status !== 'ready') continue; // still backfilling, or failed -- not ready to show
       const slug = String(row.slug || '').toLowerCase();
-      if(!slug || COLLECTIONS[slug]) continue; // already known (hardcoded, or a previous dynamic load)
+      if(!slug) continue;
+      if(COLLECTIONS[slug]){
+        // Confirmed live: jv ran /db/collections/backfill-links for
+        // Argonauts (already a hardcoded baseline entry, not newly
+        // discovered) and the site never picked up the result -- this loop
+        // used to skip already-known collections entirely, so a baseline
+        // entry's links could only ever be updated by hand-editing this
+        // file again. Refreshing just the link fields for anything already
+        // known (never touching apiBase/apiKey/hasBurnMechanic, which
+        // aren't sourced from this endpoint) means a future backfill-links
+        // run picks up automatically on next page load instead.
+        COLLECTIONS[slug].openseaUrl = row.opensea_url || COLLECTIONS[slug].openseaUrl;
+        COLLECTIONS[slug].websiteUrl = row.website_url || null;
+        COLLECTIONS[slug].twitterUrl = row.twitter_url || null;
+        continue;
+      }
       COLLECTIONS[slug] = {
         slug,
         name: row.name || slug,

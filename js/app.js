@@ -29,11 +29,25 @@ activateCollection(collectionSlugFromUrl());
    way is pickable by hand too, not just reachable by a direct link. */
 (function(){
   const requestedSlug = collectionSlugFromUrl();
+  // jv: automatic detection so a future backfill-links run (or a brand new
+  // collection) shows up correctly without a code change here. Two things
+  // happen once loadDynamicCollections() resolves: (1) if the URL asked for
+  // a collection that wasn't in the hardcoded baseline (activateCollection()
+  // silently fell back to the default one), and it turns out to be real,
+  // switch to it now -- late, but correct. (2) if the CURRENTLY active
+  // collection's own entry just got its link fields refreshed (this
+  // matters for baseline entries like Argonauts specifically, which
+  // loadDynamicCollections() updates in place rather than treating as
+  // newly-added, so a switch never naturally happens for it), re-render
+  // the menu links for it directly rather than relying on a switch that
+  // was never going to occur. Either way, refresh the collection-switcher
+  // dropdown so anything discovered this way is pickable by hand too.
   loadDynamicCollections().then(newlyAdded => {
     if(requestedSlug && newlyAdded.includes(requestedSlug.toLowerCase()) && LIVE_SLUG !== requestedSlug.toLowerCase()){
       if(typeof _applyCollectionSwitch === 'function') _applyCollectionSwitch(requestedSlug.toLowerCase());
-    } else if(newlyAdded.length && typeof populateCollectionSwitcher === 'function'){
-      populateCollectionSwitcher();
+    } else {
+      if(typeof updateMenuLinks === 'function' && COLLECTIONS[LIVE_SLUG]) updateMenuLinks(COLLECTIONS[LIVE_SLUG]);
+      if(newlyAdded.length && typeof populateCollectionSwitcher === 'function') populateCollectionSwitcher();
     }
   });
 })();
