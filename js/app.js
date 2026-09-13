@@ -5889,6 +5889,24 @@ async function buildMispricedPanel(listedIds){
     return;
   }
 
+  // jv: "there is no images showing for the Mispriced tokens." Traced to a
+  // real timing gap: this panel can be triggered (e.g. opening the mobile
+  // Mispriced tab right after page load) before loadImagesMap() -- a
+  // genuinely separate, multi-fetch async process -- has actually finished
+  // populating IMAGES_MAP. Every card's image lookup below (IMAGES_MAP.get)
+  // would come back empty at that moment, and nothing ever re-rendered the
+  // panel once images did finish loading afterward -- a one-time snapshot,
+  // not a live view. Waiting here, same retry pattern already used
+  // elsewhere (openMobileFilter's tryRenderTraits) for the same class of
+  // problem (a different async load not finished yet), rather than
+  // rendering immediately with data that isn't ready.
+  if(typeof IMAGES_MAP === 'undefined' || IMAGES_MAP === null || IMAGES_MAP.size === 0){
+    for(let attemptsLeft = 15; attemptsLeft > 0; attemptsLeft--){
+      await new Promise(r => setTimeout(r, 300));
+      if(typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP && IMAGES_MAP.size > 0) break;
+    }
+  }
+
   // Score each listed token: price / rarity_score
   // rarity_score = 1/rank  (rank 1 = rarest = highest value)
   // value_score = price_eth * rank  →  low price * low rank number = best deal
