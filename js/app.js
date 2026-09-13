@@ -385,7 +385,26 @@ async function updateChartAndList(){
   const {buckets, idByCount, avail}=await computeFilteredState(); CHART_ID_MAP=idByCount; AVAILABLE_DOMAIN=avail; drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
 
   if(_scroller && _anchorSelector){
-    const _again = document.querySelector(_anchorSelector) || (_anchorFallbackSelector && document.querySelector(_anchorFallbackSelector));
+    // Confirmed live (third bug in this same mechanism): document.querySelector
+    // finds an element regardless of whether it's actually visible right now --
+    // if the anchor's own category collapsed during the rebuild (e.g. it was
+    // programmatically closed, or its "open" state didn't carry over for some
+    // reason), the anchor technically still exists in the DOM but is hidden,
+    // and a hidden element's getBoundingClientRect() returns all zeros. That
+    // fed a wildly wrong delta into the scroll adjustment -- explains jv's
+    // "jumps to the bottom, underneath the trait counts" report, since a
+    // sufficiently large incorrect delta just gets clamped to the container's
+    // actual maximum scroll. Checking for real rendered size here too, exactly
+    // like the initial candidate search already does, and falling through to
+    // the category-header fallback (or skipping the correction entirely) if
+    // the primary match isn't actually visible.
+    const _isVisible = el => { const r = el.getBoundingClientRect(); return r.width > 0 || r.height > 0; };
+    let _again = document.querySelector(_anchorSelector);
+    if(_again && !_isVisible(_again)) _again = null;
+    if(!_again && _anchorFallbackSelector){
+      _again = document.querySelector(_anchorFallbackSelector);
+      if(_again && !_isVisible(_again)) _again = null;
+    }
     if(_again){
       const _newTop = _again.getBoundingClientRect().top - _scroller.getBoundingClientRect().top;
       _scroller.scrollTop += (_newTop - _anchorOffset);
