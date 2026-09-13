@@ -812,6 +812,21 @@ a{color:var(--accent)!important}
     overscroll-behavior-y:none;
     touch-action:pan-y;
     flex:1;padding:4px 8px 16px;
+    /* jv: "when I open the sales panel it runs off the top of the page."
+       Classic flexbox gotcha: a flex:1 child's default min-height is auto,
+       which means it won't actually shrink below its own content's natural
+       size to respect the flex column parent's max-height -- confirmed
+       directly (injecting a realistic volume of sale cards) that the sheet
+       grew to 698px tall and extended hundreds of pixels below the
+       viewport instead of being contained/scrollable within its own
+       82vh ceiling. This bug already existed for any tab with enough
+       content; it just never surfaced for Sales specifically before, since
+       its old hardcoded max-height:320px never let it grow large enough to
+       hit this. Standard, correct fix for this exact class of flexbox
+       issue -- lets this actually shrink to fit the available space and
+       scroll its own overflow, rather than forcing the whole sheet to grow
+       to match its content. */
+    min-height:0;
   }
   #mobileAnalyticsInner .top-tabs{
     overflow-x:auto!important;flex-wrap:nowrap!important;

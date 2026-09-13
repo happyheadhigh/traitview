@@ -2798,6 +2798,23 @@ function switchAnalyticsSheetTab(name){
 
 function closeMobileAnalytics(){
   document.body.style.overscrollBehavior = '';
+  // jv: "the panel doesn't fully close now causing me not able to open it
+  // back up." Root cause: openMobileAnalytics() sets an inline style.bottom
+  // on the sheet (to clear the bottom nav bar while OPEN), but the CLOSED
+  // state's CSS transform (translateY(100%)) moves the element down by its
+  // OWN height, not the viewport's -- with a non-zero bottom offset still
+  // in place, that leaves a residual strip exactly as tall as the offset
+  // still sitting inside the viewport even after "closing" (confirmed
+  // directly: sheet top landed at 799px in an 852px-tall viewport, a 53px
+  // remnant matching the bar's height) -- which then covers the very
+  // button needed to reopen it, the same click-blocking bug as before, just
+  // reintroduced in a different spot. Resetting the offset back out on
+  // close makes the standard bottom:0 + translateY(100%) fully clear the
+  // viewport again, exactly as it did before that offset existed.
+  const sheet = document.getElementById('mobileAnalyticsSheet');
+  const overlay = document.getElementById('mobileAnalyticsOverlay');
+  if(sheet) sheet.style.bottom = '';
+  if(overlay) overlay.style.bottom = '';
   // Restore any moved panels back to #topTabPanel
   const tabPanel = document.getElementById('topTabPanel');
   const body = document.getElementById('analyticsSheetBody');
