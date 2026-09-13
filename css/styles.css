@@ -410,7 +410,7 @@ a{color:var(--accent)!important}
     scrollbar-width:none!important;-ms-overflow-style:none!important;padding-bottom:1px!important;
   }
   #mobileMetaRow::-webkit-scrollbar{display:none!important}
-  #mobileMenu{top:96px!important;right:8px!important;min-width:min(280px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 96px - 24px)!important;max-height:calc(100dvh - 96px - 24px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+  #mobileMenu{top:96px!important;right:8px!important;min-width:min(280px,calc(100vw - 16px))!important;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 96px - var(--mobile-bottom-bar-height, 60px))!important;max-height:calc(100dvh - 96px - var(--mobile-bottom-bar-height, 60px))!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
 
   /* ── Filter drawer (left column) ── */
   #filtersColumn{

@@ -3684,7 +3684,22 @@ function closeMobileFilter(){
 // ── Mobile menu ───────────────────────────────────────────────────────────────
 function toggleMobileMenu(){
   closeMobileFilter();
-  document.getElementById('mobileMenu')?.classList.toggle('open');
+  const menu = document.getElementById('mobileMenu');
+  const opening = menu && !menu.classList.contains('open');
+  menu?.classList.toggle('open');
+  if(opening){
+    // jv: menu's own bottom content was hiding behind the fixed bottom nav
+    // bar. The CSS max-height only ever accounted for a flat, guessed 24px
+    // gap at the bottom -- #mobileBottomBar (icon + its own padding + the
+    // device's safe-area-inset-bottom) actually runs closer to 55-70px
+    // depending on the device, so that guess was never enough room.
+    // Measuring the bar's real, rendered height here instead of guessing a
+    // fixed number keeps this correct across every device's actual
+    // safe-area inset, not just the one this was eyeballed against.
+    const bar = document.getElementById('mobileBottomBar');
+    const barHeight = bar ? bar.getBoundingClientRect().height : 60;
+    menu.style.setProperty('--mobile-bottom-bar-height', `${barHeight}px`);
+  }
 }
 document.addEventListener('click', e => {
   if(!e.target.closest('#mobileMenu') && !e.target.closest('#mobileMenuBtn')){
