@@ -291,141 +291,25 @@ function _applyHoldersTraitFilter(){
 }
 
 async function updateChartAndList(){
-  // jv: "when selecting a trait it auto scrolls to the top... it should
-  // stay fixed." Two earlier attempts at this both failed for confirmed,
-  // specific reasons -- worth recording so a future pass doesn't repeat
-  // them:
-  // (1) Restoring a raw scrollTop pixel value doesn't work because THIS
-  //     function's own earlier steps (renderTraitChips, renderActiveChips)
-  //     already shift the filter panel's scroll themselves as a side
-  //     effect of changing their own content height, before
-  //     renderTraitAccordion() even runs -- confirmed directly by logging
-  //     scrollTop after every single step in here: it drifts during
-  //     renderTraitChips AND again during renderActiveChips, not just
-  //     during the accordion rebuild. A raw-pixel restore inside
-  //     renderTraitAccordion() alone was always restoring to an
-  //     already-drifted value.
-  // (2) Anchoring to the specific row that was clicked doesn't work either
-  //     when that row is scrolled near the very BOTTOM of the panel (jv's
-  //     exact case: "scrolled down to the bottom trait"). Confirmed
-  //     directly: selecting a trait can shrink the panel's total scrollable
-  //     height by ~20-30px (other categories' available counts/visibility
-  //     change), and when already scrolled to the old maximum, the browser
-  //     clamps scrollTop to the new, smaller maximum -- there's physically
-  //     no room left to scroll further down to compensate, so the row
-  //     unavoidably ends up somewhat higher on screen than before.
-  // Fix: anchor to whatever row or category header is currently at/near
-  // the TOP of the visible panel instead of the specific row clicked --
-  // an anchor near the top essentially never runs into "no room left to
-  // scroll," since there's still the whole rest of the panel below it to
-  // absorb any height change, regardless of which specific row triggered
-  // the rebuild or where in the list it happened to be.
-  const _fc = document.getElementById('filtersColumn');
-  const _accEl = document.getElementById('accTraits');
-  const _scroller = (_fc && _fc.scrollHeight > _fc.clientHeight + 1) ? _fc
-                   : (_accEl && _accEl.scrollHeight > _accEl.clientHeight + 1) ? _accEl : null;
-  let _anchorSelector = null, _anchorFallbackSelector = null, _anchorOffset = 0;
-  if(_scroller){
-    const _scrollerTop = _scroller.getBoundingClientRect().top;
-    const _candidates = _accEl ? [..._accEl.querySelectorAll('.acc-head, .checklist label input[type=checkbox]')] : [];
-    let _best = null;
-    for(const elx of _candidates){
-      const rect = elx.getBoundingClientRect();
-      // Confirmed live (second bug found the same day as the first):
-      // checkboxes belonging to a COLLAPSED category are still present in
-      // the DOM, just visually hidden -- getBoundingClientRect() on a
-      // hidden element returns top:0, which was incorrectly winning as
-      // "topmost" every single time regardless of actual scroll position,
-      // since 0 is always the smallest possible value. Filtering these out
-      // by checking for actual rendered size.
-      if(rect.width === 0 && rect.height === 0) continue;
-      const top = rect.top;
-      // topmost element whose bottom hasn't already scrolled past the
-      // scroller's own top edge -- i.e. the first thing still visible.
-      // Confirmed live: an earlier version of this exact condition had a
-      // dead clause (`top > _bestTop === false`, comparing against a
-      // variable that was declared but never actually updated in the
-      // loop, always evaluating to false) that silently made this whole
-      // block a no-op -- _best was never assigned at all, so no
-      // correction ever ran despite local testing seeming to show it
-      // working (those specific test scenarios apparently didn't drift
-      // enough on their own to expose it). Simplified to just the two
-      // conditions that actually matter.
-      if(top >= _scrollerTop - 2 && (_best === null || top < _best._top)){
-        _best = { el: elx, _top: top };
-      }
-    }
-    if(_best){
-      const elx = _best.el;
-      const isHead = elx.classList.contains('acc-head');
-      _anchorSelector = isHead
-        ? `.acc-head[data-cat="${CSS.escape(elx.dataset.cat)}"]`
-        : `#${CSS.escape(elx.id)}`;
-      // Confirmed live: jv's exact case (Palette, "only present" filtering
-      // on) shrinks a category from every one of its values down to just
-      // the one now selected -- selecting a single-value-per-token trait
-      // like a background color means every OTHER value in that same
-      // category has zero tokens left to be "present" for, so they
-      // disappear from the list entirely, not just re-sort. If the topmost
-      // anchor was one of those now-vanished values, its selector can never
-      // be found again no matter how the rebuild goes, and the correction
-      // below silently did nothing -- exactly the "still jumps" jv reported
-      // even after the first version of this anchor fix. Falling back to
-      // that value's own category HEADER, which survives regardless of how
-      // many of its values get filtered away, since the category itself
-      // isn't removed, only its value list shrinks.
-      if(!isHead){
-        const catName = elx.closest('.acc-item')?.querySelector('h4')?.textContent;
-        if(catName) _anchorFallbackSelector = `.acc-head[data-cat="${CSS.escape(catName)}"]`;
-      }
-      _anchorOffset = elx.getBoundingClientRect().top - _scrollerTop;
-    }
-  }
-
+  // jv: multiple attempts at preserving scroll position through this
+  // rebuild (raw pixel restore, anchoring to the clicked row, anchoring to
+  // the topmost visible row/header, a category-header fallback when the
+  // anchor value itself disappears, a visibility re-check on the re-found
+  // anchor, a hard cap on how large a single correction could be) each
+  // fixed a specific, confirmed bug in isolation and were verified working
+  // in extensive local testing -- including a version with the hard cap
+  // that should have made an extreme jump mathematically impossible from
+  // this mechanism -- and jv still hit a new failure each time in the real
+  // app regardless. That gap between passing local tests and a live
+  // failure that a hard cap shouldn't allow means something about this
+  // mechanism doesn't behave the way it does in local testing, for a
+  // reason not yet identified. Removed the whole thing rather than
+  // continue guessing at increasingly specific patches -- the safer state
+  // given repeated failures is the plain rebuild below, with no attempt at
+  // scroll preservation at all, until this can be revisited with a way to
+  // actually see what's happening in the real environment rather than only
+  // in local simulation.
   const {buckets, idByCount, avail}=await computeFilteredState(); CHART_ID_MAP=idByCount; AVAILABLE_DOMAIN=avail; drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
-
-  if(_scroller && _anchorSelector){
-    // Confirmed live (third bug in this same mechanism): document.querySelector
-    // finds an element regardless of whether it's actually visible right now --
-    // if the anchor's own category collapsed during the rebuild (e.g. it was
-    // programmatically closed, or its "open" state didn't carry over for some
-    // reason), the anchor technically still exists in the DOM but is hidden,
-    // and a hidden element's getBoundingClientRect() returns all zeros. That
-    // fed a wildly wrong delta into the scroll adjustment -- explains jv's
-    // "jumps to the bottom, underneath the trait counts" report, since a
-    // sufficiently large incorrect delta just gets clamped to the container's
-    // actual maximum scroll. Checking for real rendered size here too, exactly
-    // like the initial candidate search already does, and falling through to
-    // the category-header fallback (or skipping the correction entirely) if
-    // the primary match isn't actually visible.
-    const _isVisible = el => { const r = el.getBoundingClientRect(); return r.width > 0 || r.height > 0; };
-    let _again = document.querySelector(_anchorSelector);
-    if(_again && !_isVisible(_again)) _again = null;
-    if(!_again && _anchorFallbackSelector){
-      _again = document.querySelector(_anchorFallbackSelector);
-      if(_again && !_isVisible(_again)) _again = null;
-    }
-    if(_again){
-      const _newTop = _again.getBoundingClientRect().top - _scroller.getBoundingClientRect().top;
-      const _delta = _newTop - _anchorOffset;
-      // Safety net: after three rounds of finding and fixing subtle bugs in
-      // this exact mechanism (a dead condition that made it a no-op, hidden
-      // elements winning as "topmost", a re-found element not re-checked for
-      // visibility) and jv still hitting a new failure each time regardless,
-      // capping how large a single correction is allowed to be rather than
-      // continuing to chase edge cases one at a time. A legitimate
-      // correction (content shifting because other categories' counts
-      // changed) should essentially never need to move more than about one
-      // viewport's worth -- if it's asking for more than that, something
-      // about the anchor is almost certainly wrong (whatever the exact
-      // reason), and applying it does far more damage (jv's exact "jumps to
-      // the bottom" report) than just leaving the natural, unadjusted
-      // scroll position in that rare case.
-      if(Math.abs(_delta) <= _scroller.clientHeight){
-        _scroller.scrollTop += _delta;
-      }
-    }
-  }
 }
 
 /* grid */
