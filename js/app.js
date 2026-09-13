@@ -2637,6 +2637,25 @@ function openMobileAnalytics(){
   const inner   = document.getElementById('mobileAnalyticsInner');
   if(!sheet || !inner) return;
 
+  // jv: "I don't see anywhere on mobile to filter the trait and traits
+  // counts" while viewing Sales. Confirmed live: this sheet and
+  // #mobileBottomBar are both position:fixed;bottom:0, and this sheet's own
+  // z-index (601) sits above the bottom bar's (500) -- meaning the sheet's
+  // own DOM physically covers the bottom bar's entire clickable area
+  // whenever it's open, even though the bar's semi-transparent background
+  // can still make it look visible underneath. The filter icon in that bar
+  // (which opens #filtersColumn, the actual trait/trait-count filter UI)
+  // was completely unreachable this whole time whenever this sheet was
+  // open -- not a discoverability problem, an actual click-blocking one.
+  // Same fix pattern as the earlier hamburger-menu-hides-behind-the-bar
+  // bug: measure the bar's real, rendered height and shift the sheet's own
+  // bottom position up by that amount, so it never physically overlaps the
+  // bar's clickable area at all, on any device's actual safe-area-inset.
+  const bar = document.getElementById('mobileBottomBar');
+  const barHeight = bar ? bar.getBoundingClientRect().height : 60;
+  sheet.style.bottom = `${barHeight}px`;
+  if(overlay) overlay.style.bottom = `${barHeight}px`;
+
   // Build lightweight tab UI — no DOM moves, no large elements
   const isMob = window.innerWidth <= 900;
   const tabs = isMob
