@@ -20,6 +20,12 @@ const LIVE_ENDPOINT = 'https://nft-live-listings.jvweb3.workers.dev';
    hasBurnMechanic gates the OCAS-only burn UI (Burns tab, survivor counts,
    burn history, etc.) -- these features only exist for OCAS's own token
    lifecycle and must not be shown/attempted for any other collection. */
+/* jv's bot invite link -- same for every collection regardless of which
+   community/server it's for, since this invites the bot itself rather than
+   linking to any one collection's own Discord server. Every collection's
+   menu Discord row points here, not to a per-collection Discord invite. */
+const BOT_DISCORD_INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=1539291253370261635&permissions=268486656&integration_type=0&scope=bot+applications.commands';
+
 const COLLECTIONS = {
   'on-chain-all-stars': {
     slug: 'on-chain-all-stars',
@@ -28,6 +34,9 @@ const COLLECTIONS = {
     apiBase: 'https://ocas-production-api-production.up.railway.app',
     apiKey: 'APIbot2k26MAINprodOCAS',
     hasBurnMechanic: true,
+    openseaUrl: 'https://opensea.io/collection/on-chain-all-stars',
+    websiteUrl: 'https://onchainallstars.xyz',
+    twitterUrl: 'https://twitter.com/onchainallstars',
   },
   'argonauts': {
     slug: 'argonauts',
@@ -36,6 +45,15 @@ const COLLECTIONS = {
     apiBase: 'https://tv-bot-api-production.up.railway.app',
     apiKey: 'TraitViewBot2k26',
     hasBurnMechanic: false,
+    // Backfilled separately via /db/collections/backfill-links (this
+    // collection onboarded before opensea_url/website_url/twitter_url
+    // existed at all) -- left null here rather than guessed, so the menu
+    // correctly hides a row it has no real URL for until that runs, instead
+    // of showing OCAS's own links under a DIFFERENT collection's name (the
+    // exact bug jv reported).
+    openseaUrl: 'https://opensea.io/collection/argonauts',
+    websiteUrl: null,
+    twitterUrl: null,
   },
 };
 const DEFAULT_COLLECTION_SLUG = 'on-chain-all-stars';
@@ -87,6 +105,9 @@ async function loadDynamicCollections(){
         // OpenSea metadata alone -- false is the only safe default for any
         // collection discovered this way.
         hasBurnMechanic: false,
+        openseaUrl: row.opensea_url || `https://opensea.io/collection/${slug}`,
+        websiteUrl: row.website_url || null,
+        twitterUrl: row.twitter_url || null,
       };
       newlyAdded.push(slug);
     }
@@ -135,7 +156,46 @@ function activateCollection(slug){
   LIVE_CONTRACT = entry.contract;
   RAILWAY_API = entry.apiBase;
   RAILWAY_KEY = entry.apiKey;
+  updateMenuLinks(entry);
   return entry;
+}
+
+/* jv: "The links in the hamburger menu are for OCAS. Is it possible to
+   update the links per collection whenever a collection is added?" Updates
+   both the desktop header icons and the mobile hamburger menu rows to
+   match whichever collection is now active. OpenSea/Website/Twitter come
+   from the collection's own entry (hardcoded for OCAS, fetched from
+   OpenSea's own collection metadata at onboarding time for everything
+   else -- see lib/collection-onboard.js on the backend); a link this
+   collection genuinely doesn't have (most commonly Website/Twitter for a
+   project that never filled those in on OpenSea) hides that row entirely
+   rather than showing a broken/wrong link. Etherscan is always derivable
+   from the contract address alone, so it's always shown. Discord is
+   deliberately NOT per-collection -- jv wants every collection's menu to
+   point at the bot's own invite link, not any individual community's own
+   Discord server. */
+function updateMenuLinks(entry){
+  const etherscanUrl = `https://etherscan.io/token/${entry.contract}`;
+  const links = [
+    { key: 'openseaUrl', url: entry.openseaUrl, desktopClass: 'os', mobileId: 'mobileMenuLinkOS' },
+    { key: 'websiteUrl', url: entry.websiteUrl, desktopClass: 'web', mobileId: 'mobileMenuLinkWeb' },
+    { key: 'twitterUrl', url: entry.twitterUrl, desktopClass: 'twitter', mobileId: 'mobileMenuLinkTwitter' },
+    { key: 'etherscanUrl', url: etherscanUrl, desktopClass: 'etherscan', mobileId: 'mobileMenuLinkEtherscan' },
+    { key: 'discordUrl', url: BOT_DISCORD_INVITE_URL, desktopClass: 'bot', mobileId: 'mobileMenuLinkDiscord' },
+  ];
+  for(const link of links){
+    const desktopEl = document.querySelector(`.desktop-icon-link.${link.desktopClass}`);
+    const mobileEl = document.getElementById(link.mobileId);
+    const show = !!link.url;
+    if(desktopEl){
+      desktopEl.style.display = show ? '' : 'none';
+      if(show) desktopEl.href = link.url;
+    }
+    if(mobileEl){
+      mobileEl.style.display = show ? '' : 'none';
+      if(show) mobileEl.href = link.url;
+    }
+  }
 }
 
 /* Read once at load time so app.js's bootstrap can call activateCollection
@@ -227,6 +287,12 @@ function resetCollectionState(){
   SURVIVOR_COUNT_MAP.clear();
   OPEN_GROUPS.clear();
   LAST_SALE_CACHE.clear(); LAST_SALE_PENDING.clear();
+
+  // jv: Argonauts' Sales tab was showing OCAS's sales. See app.js's own
+  // sales IIFE for the two-part fix -- this clears the already-loaded
+  // stale-collection sales and forces a fresh fetch for whichever
+  // collection is now active.
+  if(typeof window.resetSalesState === 'function') window.resetSalesState();
 
   // Confirmed live via jv's own per-chunk diagnostic: CHUNK_CACHE itself was
   // 100% complete for every real token -- this was never a data problem at

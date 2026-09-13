@@ -619,7 +619,33 @@ async function renderTokenGridFromState(){
 
 /* traits UI */
 function renderActiveChips(){ const host=$('#activeChips'); host.innerHTML=''; const entries=[...activeTraits.entries()].flatMap(([g,s])=>[...s].map(v=>({group:g,value:String(v)}))); if(entries.length===0){ host.innerHTML='<span class="section" style="opacity:.8">No traits selected</span>'; return;} for(const {group,value} of entries){ const chip=el('div','chip',`<b>${group}</b>: ${value} &nbsp;×`); chip.title='Remove this filter'; chip.onclick=async()=>{ const s=activeTraits.get(group); if(!s) return; s.delete(value); if(s.size===0) activeTraits.delete(group); await updateChartAndList(); }; host.appendChild(chip);} }
-function renderTraitChips(b){ const host=$('#traitChips'); host.innerHTML=''; const maxSeen=Math.max(16,...Object.keys(b).map(Number)); for(let c=1;c<=maxSeen;c++){ const count=b[c]||0; const chip=el('div','chip',`Traits: <b>${c}</b> <span style="color:var(--muted)">(${fmt(count)})</span>`); chip.dataset.count=String(c); chip.classList.toggle('active',currentTraitCount===c); chip.addEventListener('click', async ()=>{ currentTraitCount=(currentTraitCount===c?null:c); document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.toggle('active',Number(n.dataset.count)===currentTraitCount)); await renderTokenGridFromState(); const cols2=colorsFor(LAST_XS); Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]); }); host.appendChild(chip);}}
+function renderTraitChips(b){
+  const host=$('#traitChips'); host.innerHTML='';
+  // jv: "there doesn't need to be all these tokens [trait-count pills]...
+  // if a collection only has the lowest 4 traits and highest 8 traits,
+  // then there doesn't need to show anything below 4 or above 8." The old
+  // Math.max(16, ...) floor meant every collection always showed pills for
+  // counts 1-16 regardless of what's actually in it -- Argonauts' real
+  // range is 3-7, so 1, 2, and 8-16 were all rendered as dead "(0)" pills.
+  // Only rendering counts that actually have at least one token now, for
+  // any collection's real range, not a fixed floor/ceiling.
+  const maxSeen=Math.max(0,...Object.keys(b).map(Number));
+  for(let c=1;c<=maxSeen;c++){
+    const count=b[c]||0;
+    if(count===0) continue;
+    const chip=el('div','chip',`Traits: <b>${c}</b> <span style="color:var(--muted)">(${fmt(count)})</span>`);
+    chip.dataset.count=String(c);
+    chip.classList.toggle('active',currentTraitCount===c);
+    chip.addEventListener('click', async ()=>{
+      currentTraitCount=(currentTraitCount===c?null:c);
+      document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.toggle('active',Number(n.dataset.count)===currentTraitCount));
+      await renderTokenGridFromState();
+      const cols2=colorsFor(LAST_XS);
+      Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]);
+    });
+    host.appendChild(chip);
+  }
+}
 function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$('#accTraits');
   acc.innerHTML=''; const onlyPresent=$('#onlyPresent').checked; const names=Object.keys(TRAIT_DOMAIN).sort(); for(const name of names){ const groupMatch=!q||name.toLowerCase().includes(q); let values=[...TRAIT_DOMAIN[name]]; if(onlyPresent && AVAILABLE_DOMAIN && AVAILABLE_DOMAIN[name]){ const m=AVAILABLE_DOMAIN[name]; values=values.filter(v=>m.has(v)); } if(q && !groupMatch){ values=values.filter(v=>String(v).toLowerCase().includes(q)); } if(values.length===0 && !groupMatch) continue;
       // jv: "traits are pretty sporadic... should be displayed as rarest at
@@ -5311,7 +5337,18 @@ async function loadManifest(){
    ================================================================ */
 (function(){
   const WORKER_BASE = 'https://nft-live-listings.jvweb3.workers.dev';
-  const OS_SLUG     = LIVE_SLUG; // confirmed live: was hardcoded to OCAS's own slug, completely bypassing the collections registry -- exactly why "recent sales" always showed OCAS's sales regardless of the active collection. activateCollection() already ran (at the very top of this file) by the time this IIFE executes, so LIVE_SLUG is correctly set here.
+  // jv: Argonauts' Sales tab was showing OCAS's sales. Traced to this exact
+  // line -- confirmed live: LIVE_SLUG was captured into OS_SLUG only ONCE,
+  // at the moment this IIFE first runs (page load). LIVE_SLUG itself DOES
+  // update correctly when switching collections via the dropdown
+  // (_applyCollectionSwitch() re-assigns it), but this const never re-reads
+  // it afterward -- every fetchPage() call kept using whatever collection
+  // was active at the very first page load, regardless of what's actually
+  // selected now. A prior fix already replaced a literal, hardcoded OCAS
+  // slug string with this same broken pattern -- it fixed the WRONG
+  // collection showing on first load, but not staying wrong after a switch.
+  // Reading window.LIVE_SLUG fresh inside fetchPage() itself instead, so
+  // every single fetch reflects whatever's actually selected at call time.
   const PAGE_SIZE   = 100;   // max OpenSea allows per request
   const REFRESH_MS  = 60000; // auto-refresh interval for newest sales
 
@@ -5379,7 +5416,7 @@ async function loadManifest(){
   // ── fetch from Cloudflare Worker (your key lives there securely) ──────────
   async function fetchPage(cursor){
     const qs = new URLSearchParams({
-      slug:       OS_SLUG,
+      slug:       LIVE_SLUG,
       event_type: 'sale',
       limit:      String(PAGE_SIZE),
     });
@@ -5557,6 +5594,24 @@ async function loadManifest(){
 
   // ── public hook: called when trait filters change ─────────────────────────
   window.renderSalesForCurrentTraits = function(){ renderSales(false); };
+
+  // jv: Argonauts' Sales tab was showing OCAS's sales -- fetchPage()'s slug
+  // fix above handles that for any fetch going forward, but the sales tab
+  // could still be showing a PREVIOUS collection's already-loaded sales
+  // (and its own already-set auto-refresh timer, which would otherwise keep
+  // re-fetching that stale slug forever) at the moment of a switch itself.
+  // Exposed so resetCollectionState() (config.js, already the single place
+  // every other per-collection cache gets cleared on a switch) can clear
+  // this state too and force an immediate re-fetch for the newly active
+  // collection.
+  window.resetSalesState = function(){
+    ALL_SALES = [];
+    nextCursor = null;
+    salesKnownIds.clear();
+    if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+    fetchNewest(false);
+    autoRefreshTimer = setInterval(()=> fetchNewest(true), REFRESH_MS);
+  };
 
   // ── button wiring ─────────────────────────────────────────────────────────
   const refreshBtn = document.getElementById('salesRefreshBtn');
