@@ -644,9 +644,11 @@ function renderTraitChips(b){
   // Only rendering counts that actually have at least one token now, for
   // any collection's real range, not a fixed floor/ceiling.
   const maxSeen=Math.max(0,...Object.keys(b).map(Number));
+  const realCounts = [];
   for(let c=1;c<=maxSeen;c++){
     const count=b[c]||0;
     if(count===0) continue;
+    realCounts.push(c);
     const chip=el('div','chip',`Traits: <b>${c}</b> <span style="color:var(--muted)">(${fmt(count)})</span>`);
     chip.dataset.count=String(c);
     chip.classList.toggle('active',currentTraitCount===c);
@@ -656,9 +658,27 @@ function renderTraitChips(b){
       await renderTokenGridFromState();
       const cols2=colorsFor(LAST_XS);
       Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]);
+      if(typeof window.syncSalesFilterUI === 'function') window.syncSalesFilterUI();
+      if(typeof window.renderSalesForCurrentTraits === 'function') window.renderSalesForCurrentTraits();
     });
     host.appendChild(chip);
   }
+  // jv: "the ability to be able to filter the sales through traits or
+  // trait counts would be very nice" -- populates the Sales tab's own
+  // visible trait-count dropdown with this same real, non-zero range
+  // (never a hardcoded 1-16), so it always matches whatever pills/chart
+  // show for this collection. Only rebuilds the option list when the set
+  // of real counts actually changed (e.g. on a collection switch) --
+  // rebuilding on every single render would reset the dropdown's own
+  // selection state for no reason.
+  const salesSel = document.getElementById('salesTraitCountFilter');
+  if(salesSel && salesSel.dataset.builtFor !== realCounts.join(',')){
+    salesSel.dataset.builtFor = realCounts.join(',');
+    const prevValue = salesSel.value;
+    salesSel.innerHTML = '<option value="">Any</option>' + realCounts.map(c => `<option value="${c}">${c}</option>`).join('');
+    salesSel.value = realCounts.includes(Number(prevValue)) ? prevValue : '';
+  }
+  if(typeof window.syncSalesFilterUI === 'function') window.syncSalesFilterUI();
 }
 function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$('#accTraits');
   acc.innerHTML=''; const onlyPresent=$('#onlyPresent').checked; const names=Object.keys(TRAIT_DOMAIN).sort(); for(const name of names){ const groupMatch=!q||name.toLowerCase().includes(q); let values=[...TRAIT_DOMAIN[name]]; if(onlyPresent && AVAILABLE_DOMAIN && AVAILABLE_DOMAIN[name]){ const m=AVAILABLE_DOMAIN[name]; values=values.filter(v=>m.has(v)); } if(q && !groupMatch){ values=values.filter(v=>String(v).toLowerCase().includes(q)); } if(values.length===0 && !groupMatch) continue;
@@ -5661,6 +5681,55 @@ async function loadManifest(){
     fetchNewest(false);
     autoRefreshTimer = setInterval(()=> fetchNewest(true), REFRESH_MS);
   };
+
+  // jv: "put the filtering options up top" (matching the Mispriced tab's
+  // own visible controls) -- these back the new #salesTraitCountFilter
+  // dropdown and #salesClearFilterBtn added directly to the Sales tab in
+  // index.html. currentTraitCount/activeTraits are the same shared,
+  // global filter state the main grid already uses (see
+  // saleMatchesTraitFilter above) -- setting them from here keeps
+  // everything in sync: switching to the Traits tab shows the identical
+  // filter already applied, not a separate, Sales-only filter state.
+  window.setSalesTraitCountFilter = function(value){
+    currentTraitCount = value === '' ? null : Number(value);
+    document.querySelectorAll('#traitChips .chip').forEach(n => n.classList.toggle('active', Number(n.dataset.count) === currentTraitCount));
+    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+    if(typeof LAST_XS !== 'undefined' && typeof colorsFor === 'function' && typeof Plotly !== 'undefined'){
+      const cols2 = colorsFor(LAST_XS);
+      Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]);
+    }
+    syncSalesFilterUI();
+    renderSales(false);
+  };
+
+  window.clearSalesFilters = function(){
+    currentTraitCount = null;
+    if(typeof activeTraits !== 'undefined' && activeTraits.clear) activeTraits.clear();
+    document.querySelectorAll('#traitChips .chip').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('#accTraits input[type=checkbox]').forEach(cb => cb.checked = false);
+    if(typeof renderActiveChips === 'function') renderActiveChips();
+    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+    syncSalesFilterUI();
+    renderSales(false);
+  };
+
+  // Keeps the Sales tab's own dropdown/note/clear-button in sync with
+  // whatever the actual filter state is, regardless of whether it was just
+  // changed from THIS tab's dropdown, the main filter panel's trait-count
+  // pills, or an individual trait checkbox -- there's one shared state,
+  // and every place that can display or change it needs to reflect the
+  // same thing.
+  function syncSalesFilterUI(){
+    const sel = document.getElementById('salesTraitCountFilter');
+    if(sel) sel.value = (currentTraitCount == null) ? '' : String(currentTraitCount);
+    const hasTraitValues = typeof getActiveTraitMap === 'function' && getActiveTraitMap().size > 0;
+    const hasAnyFilter = hasTraitValues || (typeof currentTraitCount !== 'undefined' && currentTraitCount !== null);
+    const note = document.getElementById('salesFilterNote');
+    if(note) note.style.display = hasTraitValues ? '' : 'none';
+    const clearBtn = document.getElementById('salesClearFilterBtn');
+    if(clearBtn) clearBtn.style.display = hasAnyFilter ? '' : 'none';
+  }
+  window.syncSalesFilterUI = syncSalesFilterUI;
 
   // ── button wiring ─────────────────────────────────────────────────────────
   const refreshBtn = document.getElementById('salesRefreshBtn');
