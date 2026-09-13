@@ -678,6 +678,28 @@ function renderTraitChips(b){
     salesSel.innerHTML = '<option value="">Any</option>' + realCounts.map(c => `<option value="${c}">${c}</option>`).join('');
     salesSel.value = realCounts.includes(Number(prevValue)) ? prevValue : '';
   }
+  // jv: "how about we add a search bar beside the trait count filtering
+  // where I can type in traits and it will auto populate to the trait
+  // sales that's typed out?" Native <input list>+<datalist> gives built-in
+  // type-to-filter autocomplete for free, no custom dropdown UI needed.
+  // Built from TRAIT_DOMAIN -- the same source of truth as the main
+  // filter panel's own accordion -- as "TraitName: value" strings, so
+  // it's always the real, current set for whichever collection is active,
+  // never a stale or hardcoded list. Only rebuilt when the trait domain's
+  // own signature actually changes (collection switch, or first load),
+  // same guard reasoning as the trait-count dropdown just above.
+  const searchOptionsEl = document.getElementById('salesTraitSearchOptions');
+  if(searchOptionsEl){
+    const domainKeys = Object.keys(TRAIT_DOMAIN||{}).sort().join(',');
+    if(searchOptionsEl.dataset.builtFor !== domainKeys){
+      searchOptionsEl.dataset.builtFor = domainKeys;
+      const opts = [];
+      for(const [name, values] of Object.entries(TRAIT_DOMAIN||{})){
+        for(const v of values){ opts.push(`${name}: ${v}`); }
+      }
+      searchOptionsEl.innerHTML = opts.sort().map(o => `<option value="${o.replace(/"/g,'&quot;')}">`).join('');
+    }
+  }
   if(typeof window.syncSalesFilterUI === 'function') window.syncSalesFilterUI();
 }
 function renderTraitAccordion(q=''){ q=(q||'').trim().toLowerCase(); const acc=$('#accTraits');
@@ -5730,6 +5752,51 @@ async function loadManifest(){
     renderSales(false);
   };
 
+  // jv: "add a search bar beside the trait count filtering where I can
+  // type in traits and it will auto populate to the trait sales that's
+  // typed out." Parses "TraitName: value" (the exact format the
+  // <datalist> options use, built in renderTraitChips from TRAIT_DOMAIN).
+  // Only actually applies a filter once the typed text is a complete,
+  // real match -- partial text while still typing intentionally does
+  // nothing yet, rather than filtering against a trait/value pair that
+  // doesn't really exist. Sets activeTraits to EXACTLY this one trait
+  // (not added alongside whatever was already selected) -- this is a
+  // standalone search box for quickly finding sales for one specific
+  // trait, not a way to combine with the main filter panel's own
+  // multi-select checkboxes. Clearing the input clears trait-value
+  // filtering the same way the Clear button does, but leaves
+  // currentTraitCount alone since that's a separate, independent filter.
+  window.setSalesTraitSearch = function(text){
+    const trimmed = (text||'').trim();
+    if(!trimmed){
+      if(typeof activeTraits !== 'undefined' && activeTraits.clear) activeTraits.clear();
+      document.querySelectorAll('#accTraits input[type=checkbox]').forEach(cb => cb.checked = false);
+      if(typeof renderActiveChips === 'function') renderActiveChips();
+      if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+      syncSalesFilterUI();
+      renderSales(false);
+      return;
+    }
+    const sepIdx = trimmed.indexOf(': ');
+    if(sepIdx < 0) return; // no complete "Name: value" match yet -- still typing
+    const name = trimmed.slice(0, sepIdx);
+    const value = trimmed.slice(sepIdx + 2);
+    if(!TRAIT_DOMAIN?.[name]?.has(value)) return; // typed text doesn't match a real trait -- wait for a real one
+
+    if(typeof activeTraits !== 'undefined' && activeTraits.clear){
+      activeTraits.clear();
+      activeTraits.set(name, new Set([value]));
+    }
+    document.querySelectorAll('#accTraits input[type=checkbox]').forEach(cb => {
+      const label = cb.closest('label') || cb.parentElement;
+      cb.checked = !!(label && label.textContent.trim().startsWith(value));
+    });
+    if(typeof renderActiveChips === 'function') renderActiveChips();
+    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+    syncSalesFilterUI();
+    renderSales(false);
+  };
+
   // Keeps the Sales tab's own dropdown/note/clear-button in sync with
   // whatever the actual filter state is, regardless of whether it was just
   // changed from THIS tab's dropdown, the main filter panel's trait-count
@@ -5745,6 +5812,21 @@ async function loadManifest(){
     if(note) note.style.display = hasTraitValues ? '' : 'none';
     const clearBtn = document.getElementById('salesClearFilterBtn');
     if(clearBtn) clearBtn.style.display = hasAnyFilter ? '' : 'none';
+    // Reflects the search box's own text to match whatever the actual
+    // filter is, same reasoning as the dropdown just above -- e.g. hitting
+    // the main Clear button should visibly empty this input too, not just
+    // silently change what it filters without updating what it shows.
+    const searchInput = document.getElementById('salesTraitSearch');
+    if(searchInput && document.activeElement !== searchInput){
+      const traitMap = getActiveTraitMap();
+      if(traitMap.size === 1){
+        const [[name, values]] = traitMap;
+        const val = values.values().next().value;
+        searchInput.value = (values.size === 1 && val != null) ? `${name}: ${val}` : '';
+      } else {
+        searchInput.value = '';
+      }
+    }
   }
   window.syncSalesFilterUI = syncSalesFilterUI;
 
