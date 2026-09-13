@@ -201,13 +201,28 @@ function updateMenuLinks(entry){
     const desktopEl = document.querySelector(`.desktop-icon-link.${link.desktopClass}`);
     const mobileEl = document.getElementById(link.mobileId);
     const show = !!link.url;
+    // jv: "on the desktop the website for argonauts is going to ocas
+    // website" -- confirmed live: .desktop-icon-link's own CSS sets
+    // display:inline-flex!important. A plain style.display='none' from JS
+    // can never override a stylesheet !important rule (only another
+    // !important wins) -- every hide attempt here was silently a no-op,
+    // leaving every desktop icon permanently visible regardless of
+    // whether this collection actually has that link. Worse, href was
+    // only ever updated in the show branch, so a hidden-but-still-visible
+    // icon kept whatever href the PREVIOUS collection had set (OCAS's own
+    // website, if that was the first collection loaded this session) --
+    // exactly the bug reported. setProperty's third argument can override
+    // an !important stylesheet rule from JS, which plain assignment
+    // cannot; href now always gets set (to the real url, or stripped
+    // entirely when there isn't one) regardless of visibility, so a link
+    // can never silently retain a stale target from a different collection.
     if(desktopEl){
-      desktopEl.style.display = show ? '' : 'none';
-      if(show) desktopEl.href = link.url;
+      desktopEl.style.setProperty('display', show ? 'inline-flex' : 'none', 'important');
+      if(show) desktopEl.href = link.url; else desktopEl.removeAttribute('href');
     }
     if(mobileEl){
       mobileEl.style.display = show ? '' : 'none';
-      if(show) mobileEl.href = link.url;
+      if(show) mobileEl.href = link.url; else mobileEl.removeAttribute('href');
     }
   }
 }
