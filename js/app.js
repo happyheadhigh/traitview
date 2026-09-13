@@ -5403,8 +5403,21 @@ async function loadManifest(){
 
   function saleMatchesTraitFilter(sale){
     const traitMap = getActiveTraitMap();
-    if(traitMap.size === 0) return true;
     const nftTraits = sale.nft?.traits || [];
+    // jv: "the ability to be able to filter the sales through traits or
+    // trait counts would be very nice" -- trait VALUE filtering already
+    // applied here (both this function and the main grid read the same
+    // activeTraits state), but trait COUNT (the "Traits: N" pills,
+    // currentTraitCount) never did. Using the sale's own nft.traits array
+    // length as its trait count -- this is OpenSea's own sale-event payload,
+    // a different data source than the main grid's chunk-based row.traits
+    // object, so it's the best count available for a sale without a
+    // separate per-token lookup, even if it could theoretically diverge in
+    // an edge case neither of us has actually seen happen.
+    if(typeof currentTraitCount !== 'undefined' && currentTraitCount !== null){
+      if(nftTraits.length !== currentTraitCount) return false;
+    }
+    if(traitMap.size === 0) return true;
     const lookup = {};
     for(const t of nftTraits) lookup[t.trait_type] = String(t.value);
     for(const [name, valueSet] of traitMap){
@@ -5491,7 +5504,10 @@ async function loadManifest(){
   // ── render ────────────────────────────────────────────────────────────────
   async function renderSales(isRefresh){
     const traitMap       = getActiveTraitMap();
-    const hasTraitFilter = traitMap.size > 0;
+    // jv's trait-count filtering request needs this to also fire when only
+    // currentTraitCount is set with no individual trait values selected --
+    // traitMap.size alone would miss that case entirely.
+    const hasTraitFilter = traitMap.size > 0 || (typeof currentTraitCount !== 'undefined' && currentTraitCount !== null);
 
     let toShow = ALL_SALES;
     if(hasTraitFilter) toShow = ALL_SALES.filter(saleMatchesTraitFilter);
