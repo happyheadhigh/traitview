@@ -40,6 +40,63 @@ const COLLECTIONS = {
 };
 const DEFAULT_COLLECTION_SLUG = 'on-chain-all-stars';
 
+/* jv: "I'd like it to pull its collection list from the backend
+   automatically" -- rather than only ever knowing about whatever's
+   hardcoded above. OCAS itself can't be discovered this way (it lives on
+   a separate, older service with no collections table at all -- see the
+   comment on COLLECTIONS above), so it stays hardcoded as the permanent
+   baseline. But every other collection -- Argonauts today, anything
+   onboarded after it -- lives in tv-bot-api-production's own `collections`
+   table, and that table is exactly what /db/collections/onboard populates
+   as a collection moves through backfill to 'ready'. This fetches that
+   list directly and merges in anything not already known, so a newly
+   onboarded collection can show up on the site without a code change or
+   redeploy here at all -- just the bot-side onboarding finishing.
+
+   Deliberately NOT awaited by activateCollection()'s own very first,
+   synchronous call in app.js -- that call has to stay synchronous (it's
+   the very first line of the app's bootstrap, before anything else can
+   run), and the two entries hardcoded above are guaranteed to resolve
+   correctly without needing this fetch at all. This runs in parallel
+   instead: if the requested slug wasn't in the hardcoded baseline, the
+   page still loads immediately (falling back to the default collection),
+   and if this fetch later confirms that slug is real, the caller can
+   switch to it once it's known -- see the call site in app.js for how
+   that handoff works. */
+const TV_BOT_API_BASE = COLLECTIONS['argonauts'].apiBase;
+const TV_BOT_API_KEY  = COLLECTIONS['argonauts'].apiKey;
+async function loadDynamicCollections(){
+  try{
+    const r = await fetch(`${TV_BOT_API_BASE}/db/collections?key=${encodeURIComponent(TV_BOT_API_KEY)}`);
+    if(!r.ok) return [];
+    const j = await r.json();
+    if(!j.ok || !Array.isArray(j.collections)) return [];
+    const newlyAdded = [];
+    for(const row of j.collections){
+      if(row.status !== 'ready') continue; // still backfilling, or failed -- not ready to show
+      const slug = String(row.slug || '').toLowerCase();
+      if(!slug || COLLECTIONS[slug]) continue; // already known (hardcoded, or a previous dynamic load)
+      COLLECTIONS[slug] = {
+        slug,
+        name: row.name || slug,
+        contract: row.contract,
+        apiBase: TV_BOT_API_BASE,
+        apiKey: TV_BOT_API_KEY,
+        // Burn mechanic is a real, distinct token lifecycle feature specific
+        // to OCAS, not something a generic onboarding flow can infer from
+        // OpenSea metadata alone -- false is the only safe default for any
+        // collection discovered this way.
+        hasBurnMechanic: false,
+      };
+      newlyAdded.push(slug);
+    }
+    return newlyAdded;
+  }catch(e){
+    console.warn('[Collections] dynamic collections list fetch failed:', e.message);
+    return [];
+  }
+}
+
 /* ── Currently-active collection state ────────────────────────────────────
    These four used to be frozen `const` values, hardcoded to OCAS. They're
    now `let`, set by activateCollection() below -- everywhere else in the

@@ -17,6 +17,27 @@
    bookmark/link's current behavior unchanged. */
 activateCollection(collectionSlugFromUrl());
 
+/* Runs in parallel with everything else below -- see the detailed
+   reasoning on loadDynamicCollections() itself in config.js for why this
+   can't be awaited here. Two things happen once it resolves: (1) if the
+   URL asked for a collection that wasn't in the hardcoded baseline above
+   (so activateCollection() just silently fell back to the default one),
+   and it turns out to be a real, newly-onboarded collection, actually
+   switch to it now -- late, but correct, rather than silently stuck on
+   the wrong collection for the rest of the session. (2) either way,
+   refresh the collection-switcher dropdown so anything discovered this
+   way is pickable by hand too, not just reachable by a direct link. */
+(function(){
+  const requestedSlug = collectionSlugFromUrl();
+  loadDynamicCollections().then(newlyAdded => {
+    if(requestedSlug && newlyAdded.includes(requestedSlug.toLowerCase()) && LIVE_SLUG !== requestedSlug.toLowerCase()){
+      if(typeof _applyCollectionSwitch === 'function') _applyCollectionSwitch(requestedSlug.toLowerCase());
+    } else if(newlyAdded.length && typeof populateCollectionSwitcher === 'function'){
+      populateCollectionSwitcher();
+    }
+  });
+})();
+
 /* live settings */
 
 
