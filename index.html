@@ -14,7 +14,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609137">
+  <link rel="stylesheet" href="./css/styles.css?v=202609138">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -347,20 +347,6 @@
         <div id="connectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
         <!-- Active filter pills shown above grid -->
         <div id="activeMobilePills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;min-height:0"></div>
-        <div id="twinFinderPanel" aria-label="Twin Finder">
-          <div class="twin-finder-head">
-            <div>
-              <div class="twin-finder-title">Twin Finder</div>
-              <div style="font-size:11px;color:var(--sub)">Find closest visual matches by type, eyes, teeth, hair, headwear, clothes, and jewelry.</div>
-            </div>
-            <div class="twin-finder-controls">
-              <input id="twinFinderInput" class="input" type="number" min="1" inputmode="numeric" placeholder="Token #">
-              <button type="button" class="btn" onclick="runTwinFinderFromInput()" style="font-size:12px;padding:7px 12px">Find Twins</button>
-              <button type="button" class="btn ghost" onclick="toggleTwinFinder(false)" style="font-size:12px;padding:7px 12px">Close</button>
-            </div>
-          </div>
-          <div id="twinFinderResults"><div class="price-history-empty">Enter a token ID to find visual twins.</div></div>
-        </div>
 
         <div class="matching-panel-head">
   <div class="matching-panel-right">
@@ -369,7 +355,6 @@
 </div>
         <div class="matching-panel-controls">
   <div class="matching-panel-actions">
-    <button type="button" class="btn ghost" onclick="toggleTwinFinder()" style="font-size:11px;padding:5px 10px">Twin Finder</button>
     <button id="onlyListedPill" onclick="toggleLiveListingsMode()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:'Space Grotesk',sans-serif">
       <span style="width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0" id="onlyListedDot"></span>
       Live Listings
@@ -802,29 +787,29 @@
 
 
 
-<script src="./js/config.js?v=202609137" defer></script>
-<script src="./js/dataConfig.js?v=202609137" defer></script>
-<script src="./js/formatUtils.js?v=202609137" defer></script>
-<script src="./js/imageMap.js?v=202609137" defer></script>
-<script src="./js/state.js?v=202609137" defer></script>
-<script src="./js/appState.js?v=202609137" defer></script>
-<script src="./js/favorites.js?v=202609137" defer></script>
-<script src="./js/wallet.js?v=202609137" defer></script>
-<script src="./js/api.js?v=202609137" defer></script>
-<script src="./js/rankSort.js?v=202609137" defer></script>
-<script src="./js/rankDisplay.js?v=202609137" defer></script>
-<script src="./js/walletConnect.js?v=202609137" defer></script>
-<script src="./js/walletAnalytics.js?v=202609137" defer></script>
-<script src="./js/mispriced.js?v=202609137" defer></script>
-<script src="./js/traitUtils.js?v=202609137" defer></script>
-<script src="./js/listingMeta.js?v=202609137" defer></script>
-<script src="./js/listCards.js?v=202609137" defer></script>
-<script src="./js/chart.js?v=202609137" defer></script>
-<script src="./js/tooltip.js?v=202609137" defer></script>
-<script src="./js/comboInsights.js?v=202609137" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609137" defer></script>
-<script src="./js/downloadLoader.js?v=202609137" defer></script>
-<script src="./js/app.js?v=202609137" defer></script>
+<script src="./js/config.js?v=202609138" defer></script>
+<script src="./js/dataConfig.js?v=202609138" defer></script>
+<script src="./js/formatUtils.js?v=202609138" defer></script>
+<script src="./js/imageMap.js?v=202609138" defer></script>
+<script src="./js/state.js?v=202609138" defer></script>
+<script src="./js/appState.js?v=202609138" defer></script>
+<script src="./js/favorites.js?v=202609138" defer></script>
+<script src="./js/wallet.js?v=202609138" defer></script>
+<script src="./js/api.js?v=202609138" defer></script>
+<script src="./js/rankSort.js?v=202609138" defer></script>
+<script src="./js/rankDisplay.js?v=202609138" defer></script>
+<script src="./js/walletConnect.js?v=202609138" defer></script>
+<script src="./js/walletAnalytics.js?v=202609138" defer></script>
+<script src="./js/mispriced.js?v=202609138" defer></script>
+<script src="./js/traitUtils.js?v=202609138" defer></script>
+<script src="./js/listingMeta.js?v=202609138" defer></script>
+<script src="./js/listCards.js?v=202609138" defer></script>
+<script src="./js/chart.js?v=202609138" defer></script>
+<script src="./js/tooltip.js?v=202609138" defer></script>
+<script src="./js/comboInsights.js?v=202609138" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609138" defer></script>
+<script src="./js/downloadLoader.js?v=202609138" defer></script>
+<script src="./js/app.js?v=202609138" defer></script>
 </body>
 </html>
 

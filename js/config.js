@@ -198,7 +198,6 @@ function resetCollectionState(){
   if(typeof HOLDER_TAG_CACHE !== 'undefined') HOLDER_TAG_CACHE.clear();
   if(typeof priceHistoryCache !== 'undefined') priceHistoryCache.clear();
   if(typeof tokenHistoryCache !== 'undefined') tokenHistoryCache.clear();
-  if(typeof TWIN_CACHE !== 'undefined') TWIN_CACHE.clear();
 
   // imageMap.js
   if(typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) IMAGES_MAP.clear();
