@@ -407,7 +407,23 @@ async function updateChartAndList(){
     }
     if(_again){
       const _newTop = _again.getBoundingClientRect().top - _scroller.getBoundingClientRect().top;
-      _scroller.scrollTop += (_newTop - _anchorOffset);
+      const _delta = _newTop - _anchorOffset;
+      // Safety net: after three rounds of finding and fixing subtle bugs in
+      // this exact mechanism (a dead condition that made it a no-op, hidden
+      // elements winning as "topmost", a re-found element not re-checked for
+      // visibility) and jv still hitting a new failure each time regardless,
+      // capping how large a single correction is allowed to be rather than
+      // continuing to chase edge cases one at a time. A legitimate
+      // correction (content shifting because other categories' counts
+      // changed) should essentially never need to move more than about one
+      // viewport's worth -- if it's asking for more than that, something
+      // about the anchor is almost certainly wrong (whatever the exact
+      // reason), and applying it does far more damage (jv's exact "jumps to
+      // the bottom" report) than just leaving the natural, unadjusted
+      // scroll position in that rare case.
+      if(Math.abs(_delta) <= _scroller.clientHeight){
+        _scroller.scrollTop += _delta;
+      }
     }
   }
 }
