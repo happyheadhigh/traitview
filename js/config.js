@@ -47,16 +47,21 @@ const COLLECTIONS = {
     hasBurnMechanic: false,
     // jv confirmed live: Bones/Palette/Print are the three always-present
     // base attributes every Argonaut has regardless of what's worn (a
-    // "bare" Argonaut has only these three). Fate ("Burned") and Relic
-    // ("Gold") are a second, separate case -- both cap at exactly one
-    // possible value across the whole 9,999, unlike a real worn trait
-    // (Cloak/Crown/Sight/Artifact each have several) -- because ACK
-    // layered them onto burned tokens' metadata after the fact, for the
-    // animated-burn art. None of these five should count toward "traits
-    // worn"; excluding all five is what makes TraitView's trait-count
-    // histogram match the official site's own numbers (0-4 worn) exactly,
-    // rather than needing a +3 (or +5) offset to compare the two.
-    nonWornTraitCategories: ['Bones', 'Palette', 'Print', 'Fate', 'Relic'],
+    // "bare" Argonaut has only these three). Fate ("Burned") is a fourth,
+    // separate case -- unconditionally tied to burn status in the
+    // renderer's own verified source (only appended when isDead(tokenId)
+    // is true), so it's excluded the same way.
+    //
+    // CORRECTION: Relic was wrongly included in this list for one round --
+    // token #5207 has Relic:Gold with NO Fate at all (confirmed not
+    // burned), disproving the original theory that Relic was a second
+    // burn-only marker. That theory came from only ever having checked two
+    // tokens, both of which happened to be burned and have both fields --
+    // coincidence, not causation. Relic is a genuine (just rare) worn
+    // trait slot like Cloak/Crown/Sight/Artifact -- its "1 values" in the
+    // filter panel means every occurrence happens to be "Gold" so far, not
+    // that only one token has it. It counts normally now.
+    nonWornTraitCategories: ['Bones', 'Palette', 'Print', 'Fate'],
     openseaUrl: 'https://opensea.io/collection/argonauts',
     // Confirmed via /db/collections/backfill-links: OpenSea's own collection
     // page for Argonauts genuinely has no website/external_url set at all --
