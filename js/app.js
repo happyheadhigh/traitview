@@ -2776,11 +2776,21 @@ function switchAnalyticsSheetTab(name){
   if(name === 'floor'){
     const fh = document.getElementById('floorTrendHost');
     if(fh) fh.style.height = '240px';
+    // jv: "the graph floor trend tab doesn't seem to be displaying
+    // properly. It's all grouped up unreadable." Confirmed directly:
+    // unlike 'chart' and 'scatter' right next to this, this branch never
+    // called Plotly.Plots.resize() after constraining the container's
+    // height -- Plotly renders at whatever size the container had BEFORE
+    // this height change, then the CSS squishes the already-laid-out SVG
+    // into the smaller box without Plotly ever re-laying out its own axes/
+    // labels to match, producing exactly this overlapping, unreadable
+    // result.
     if(!window._floorLoaded || !window._floorEvents?.length){
       loadFloorTrend(false);
     } else {
       setTimeout(renderFloorTrend, 80);
     }
+    setTimeout(()=>{ try{ Plotly.Plots.resize('floorTrendHost'); }catch(e){} }, 300);
   }
   if(name === 'scatter'){
     const sh = document.getElementById('scatterHost');
@@ -5449,6 +5459,65 @@ async function loadManifest(){
   let salesKnownIds  = new Set();   // for new-sale flash animation
   let isLoadingMore  = false;
   let autoRefreshTimer = null;
+  // jv: "I don't think all of the sales for the trait counts are showing...
+  // I want full history" -- filtering ALL_SALES (OpenSea's own paginated
+  // recent-events feed, 100 at a time) can only ever show matches within
+  // whatever's currently loaded, never genuinely full history without
+  // repeatedly clicking Load More. null when no search/count filter is
+  // active (normal recent-sales view); an array (this collection's own
+  // full sales history matching the current search/count, via the new
+  // /db/sales-search endpoint) whenever one is.
+  let _fullHistorySales = null;
+  let _salesSearchDebounce = null;
+
+  // Debounced so a fast typist doesn't fire a request per keystroke --
+  // only the settled text actually triggers a fetch, matching how a
+  // search box like this normally behaves.
+  function _scheduleSalesSearch(){
+    if(_salesSearchDebounce) clearTimeout(_salesSearchDebounce);
+    _salesSearchDebounce = setTimeout(_runSalesSearch, 300);
+  }
+
+  async function _runSalesSearch(){
+    const q = (document.getElementById('salesTraitSearch')?.value || '').trim();
+    const hasQ = q.length > 0;
+    const hasCount = typeof currentTraitCount !== 'undefined' && currentTraitCount !== null;
+    if(!hasQ && !hasCount){
+      _fullHistorySales = null;
+      renderSales(false);
+      return;
+    }
+    const grid = document.getElementById('salesGrid');
+    if(grid) grid.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:10px 0">Searching full sales history…</div>';
+    try{
+      const params = {};
+      if(hasQ) params.q = q;
+      if(hasCount) params.trait_count = currentTraitCount;
+      const data = await dbFetch('/db/sales-search', params);
+      if(!data.ok) throw new Error(data.error || 'search failed');
+      // Transform this endpoint's plain DB shape into the same OpenSea
+      // event shape renderSales() already expects everywhere else (same
+      // transformation buildPriceHistory() already does for
+      // /db/token-sales) -- image comes from IMAGES_MAP client-side, since
+      // this endpoint (deliberately, like every other DB-backed sales
+      // endpoint) doesn't carry image data itself.
+      _fullHistorySales = (data.sales || []).map(s => {
+        const imgSrc = (typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) ? IMAGES_MAP.get(s.token_id) : null;
+        return {
+          event_timestamp: new Date(s.sale_ts).getTime() / 1000,
+          payment: { quantity: String(Math.round((s.price_eth||0) * 1e18)), decimals: 18, symbol: s.currency || 'ETH' },
+          nft: { identifier: String(s.token_id), image_url: imgSrc || null },
+          transaction: null,
+          seller: s.seller ? { address: s.seller } : null,
+          buyer:  s.buyer  ? { address: s.buyer  } : null,
+        };
+      });
+      renderSales(false);
+    }catch(e){
+      console.warn('[SalesSearch] failed:', e.message);
+      if(grid) grid.innerHTML = `<div style="color:#f87171;font-size:12px;padding:10px 0">Search failed: ${e.message}</div>`;
+    }
+  }
 
   // ── helpers ──────────────────────────────────────────────────────────────
   function timeSince(unixTs){
@@ -5601,21 +5670,31 @@ async function loadManifest(){
     // traitMap.size alone would miss that case entirely.
     const hasTraitFilter = traitMap.size > 0 || (typeof currentTraitCount !== 'undefined' && currentTraitCount !== null);
 
-    let toShow = ALL_SALES;
-    if(hasTraitFilter) toShow = ALL_SALES.filter(saleMatchesTraitFilter);
+    // _fullHistorySales (set by _runSalesSearch whenever a search/count
+    // filter is active) is already exactly the matching set, queried
+    // directly from this collection's own full sales history -- no need to
+    // additionally filter it against the loaded-recent-sales-only
+    // saleMatchesTraitFilter() the way the old ALL_SALES path still needs.
+    const usingFullHistory = _fullHistorySales !== null;
+    let toShow = usingFullHistory ? _fullHistorySales : ALL_SALES;
+    if(!usingFullHistory && hasTraitFilter) toShow = ALL_SALES.filter(saleMatchesTraitFilter);
 
     // filter note
     const note = document.getElementById('salesFilterNote');
-    if(note) note.style.display = hasTraitFilter ? 'block' : 'none';
+    if(note) note.style.display = (hasTraitFilter || usingFullHistory) ? 'block' : 'none';
 
     // count badge
     const badge = document.getElementById('salesCountBadge');
     if(badge){
-      const total = toShow.length;
-      const loaded = ALL_SALES.length;
-      badge.textContent = hasTraitFilter
-        ? `${total} matching / ${loaded} loaded`
-        : `${loaded} loaded`;
+      if(usingFullHistory){
+        badge.textContent = `${toShow.length} matching (full history)`;
+      } else {
+        const total = toShow.length;
+        const loaded = ALL_SALES.length;
+        badge.textContent = hasTraitFilter
+          ? `${total} matching / ${loaded} loaded`
+          : `${loaded} loaded`;
+      }
     }
 
     const grid = document.getElementById('salesGrid');
@@ -5623,7 +5702,9 @@ async function loadManifest(){
 
     if(!toShow.length){
       grid.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:10px 0">' +
-        (hasTraitFilter ? 'No sales match the selected traits in the loaded history. Try loading more below.' : 'No sales found.') +
+        (usingFullHistory ? 'No sales match this search in this collection\'s full history.'
+          : hasTraitFilter ? 'No sales match the selected traits in the loaded history. Try loading more below.'
+          : 'No sales found.') +
         '</div>';
       updateLoadMoreBtn();
       return;
@@ -5684,6 +5765,13 @@ async function loadManifest(){
   function updateLoadMoreBtn(){
     const btn = document.getElementById('salesLoadMoreBtn');
     if(!btn) return;
+    // "Load More" is meaningless for a full-history search result --
+    // /db/sales-search already returns everything matching, up to its own
+    // limit, with no pagination cursor concept at all.
+    if(_fullHistorySales !== null){
+      btn.style.display = 'none';
+      return;
+    }
     btn.style.display = 'block';
     btn.disabled = !nextCursor || isLoadingMore;
     btn.textContent = nextCursor ? 'Load More Sales ↓' : 'All sales loaded';
@@ -5738,7 +5826,11 @@ async function loadManifest(){
       Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]);
     }
     syncSalesFilterUI();
-    renderSales(false);
+    // jv: "I don't think all of the sales for the trait counts are
+    // showing... I want full history" -- a discrete dropdown change (not
+    // continuous typing) runs the full-history search immediately, no
+    // debounce needed.
+    _runSalesSearch();
   };
 
   window.clearSalesFilters = function(){
@@ -5746,55 +5838,29 @@ async function loadManifest(){
     if(typeof activeTraits !== 'undefined' && activeTraits.clear) activeTraits.clear();
     document.querySelectorAll('#traitChips .chip').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('#accTraits input[type=checkbox]').forEach(cb => cb.checked = false);
+    const searchInput = document.getElementById('salesTraitSearch');
+    if(searchInput) searchInput.value = '';
+    _fullHistorySales = null;
     if(typeof renderActiveChips === 'function') renderActiveChips();
     if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
     syncSalesFilterUI();
     renderSales(false);
   };
 
-  // jv: "add a search bar beside the trait count filtering where I can
-  // type in traits and it will auto populate to the trait sales that's
-  // typed out." Parses "TraitName: value" (the exact format the
-  // <datalist> options use, built in renderTraitChips from TRAIT_DOMAIN).
-  // Only actually applies a filter once the typed text is a complete,
-  // real match -- partial text while still typing intentionally does
-  // nothing yet, rather than filtering against a trait/value pair that
-  // doesn't really exist. Sets activeTraits to EXACTLY this one trait
-  // (not added alongside whatever was already selected) -- this is a
-  // standalone search box for quickly finding sales for one specific
-  // trait, not a way to combine with the main filter panel's own
-  // multi-select checkboxes. Clearing the input clears trait-value
-  // filtering the same way the Clear button does, but leaves
-  // currentTraitCount alone since that's a separate, independent filter.
+  // jv: "what I had in mind when I wanted the search feature is the trait
+  // sales to auto populate as I type. So I can type gold and all sales
+  // with gold traits will show." Redesigned from requiring an exact,
+  // complete "Name: value" datalist match to live substring search --
+  // every keystroke (debounced) now queries /db/sales-search directly, a
+  // free-text ILIKE match against either trait name or value in this
+  // collection's own full sales history, not just an exact pair within
+  // whatever's currently loaded. The <datalist> autocomplete jv
+  // specifically wants kept stays exactly as-is (built in
+  // renderTraitChips from TRAIT_DOMAIN) -- it's just no longer the ONLY
+  // way this box does anything; typing "gold" now works whether or not it
+  // matches a suggestion exactly.
   window.setSalesTraitSearch = function(text){
-    const trimmed = (text||'').trim();
-    if(!trimmed){
-      if(typeof activeTraits !== 'undefined' && activeTraits.clear) activeTraits.clear();
-      document.querySelectorAll('#accTraits input[type=checkbox]').forEach(cb => cb.checked = false);
-      if(typeof renderActiveChips === 'function') renderActiveChips();
-      if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
-      syncSalesFilterUI();
-      renderSales(false);
-      return;
-    }
-    const sepIdx = trimmed.indexOf(': ');
-    if(sepIdx < 0) return; // no complete "Name: value" match yet -- still typing
-    const name = trimmed.slice(0, sepIdx);
-    const value = trimmed.slice(sepIdx + 2);
-    if(!TRAIT_DOMAIN?.[name]?.has(value)) return; // typed text doesn't match a real trait -- wait for a real one
-
-    if(typeof activeTraits !== 'undefined' && activeTraits.clear){
-      activeTraits.clear();
-      activeTraits.set(name, new Set([value]));
-    }
-    document.querySelectorAll('#accTraits input[type=checkbox]').forEach(cb => {
-      const label = cb.closest('label') || cb.parentElement;
-      cb.checked = !!(label && label.textContent.trim().startsWith(value));
-    });
-    if(typeof renderActiveChips === 'function') renderActiveChips();
-    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
-    syncSalesFilterUI();
-    renderSales(false);
+    _scheduleSalesSearch();
   };
 
   // Keeps the Sales tab's own dropdown/note/clear-button in sync with
@@ -5807,26 +5873,19 @@ async function loadManifest(){
     const sel = document.getElementById('salesTraitCountFilter');
     if(sel) sel.value = (currentTraitCount == null) ? '' : String(currentTraitCount);
     const hasTraitValues = typeof getActiveTraitMap === 'function' && getActiveTraitMap().size > 0;
-    const hasAnyFilter = hasTraitValues || (typeof currentTraitCount !== 'undefined' && currentTraitCount !== null);
+    const searchInput = document.getElementById('salesTraitSearch');
+    const hasSearchText = !!(searchInput && searchInput.value.trim());
+    const hasAnyFilter = hasTraitValues || hasSearchText || (typeof currentTraitCount !== 'undefined' && currentTraitCount !== null);
     const note = document.getElementById('salesFilterNote');
-    if(note) note.style.display = hasTraitValues ? '' : 'none';
+    if(note) note.style.display = hasAnyFilter ? '' : 'none';
     const clearBtn = document.getElementById('salesClearFilterBtn');
     if(clearBtn) clearBtn.style.display = hasAnyFilter ? '' : 'none';
-    // Reflects the search box's own text to match whatever the actual
-    // filter is, same reasoning as the dropdown just above -- e.g. hitting
-    // the main Clear button should visibly empty this input too, not just
-    // silently change what it filters without updating what it shows.
-    const searchInput = document.getElementById('salesTraitSearch');
-    if(searchInput && document.activeElement !== searchInput){
-      const traitMap = getActiveTraitMap();
-      if(traitMap.size === 1){
-        const [[name, values]] = traitMap;
-        const val = values.values().next().value;
-        searchInput.value = (values.size === 1 && val != null) ? `${name}: ${val}` : '';
-      } else {
-        searchInput.value = '';
-      }
-    }
+    // jv wanted the search box driven by live, free-text substring search
+    // against this collection's full sales history (via /db/sales-search),
+    // not by activeTraits -- it no longer reads or writes that shared
+    // state at all, so there's nothing here to reflect back into it beyond
+    // what the user directly typed. clearSalesFilters() already empties it
+    // explicitly when the Clear button is pressed.
   }
   window.syncSalesFilterUI = syncSalesFilterUI;
 
