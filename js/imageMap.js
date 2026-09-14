@@ -12,6 +12,21 @@ function _rememberRawSvgForDownload(id, src){
 }
 
 async function loadImagesMap(){
+  // jv: "how many times do I have to bring this up" -- rightly frustrated.
+  // My earlier fix to _getRawSvgForDownload was correct for its own
+  // internal fallback logic, but missed this: loadImagesMap() itself has
+  // ZERO collection-awareness -- it always reads from OCAS's own static
+  // manifest/chunk files, no matter which collection is active, and is
+  // called from _getTokenDownloadSource() completely ungated (no LIVE_SLUG
+  // check at that call site at all). So it silently populated BOTH
+  // IMAGES_MAP and RAW_SVG_DOWNLOAD_CACHE with OCAS's own data keyed by
+  // the same numeric token ID -- and _getRawSvgForDownload's very first
+  // step checks that exact cache before anything else runs, completely
+  // bypassing my whole fixed fallback chain underneath it. Gating this
+  // inside the function itself, not just at its call sites, so no future
+  // caller (gated or not) can ever repoison either cache with wrong data
+  // for another collection again.
+  if(typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG !== 'on-chain-all-stars') return;
   IMAGES_MAP = new Map();
   try{
     // First, try manifest-based chunk loading
