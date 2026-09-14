@@ -656,9 +656,18 @@ function renderTraitChips(b){
   // range is 3-7, so 1, 2, and 8-16 were all rendered as dead "(0)" pills.
   // Only rendering counts that actually have at least one token now, for
   // any collection's real range, not a fixed floor/ceiling.
+  // jv confirmed live: this loop started at c=1, silently skipping a "0
+  // traits" bucket even when the data genuinely has one -- harmless when
+  // this was written (no collection's trait_count was ever 0 under the old
+  // counting scheme, since Bones/Palette/Print were always counted as part
+  // of it), but Argonauts' corrected worn-trait-only count means a bare
+  // Argonaut is a real, legitimate 0 now. Starting at c=0 fixes it for
+  // Argonauts without changing anything for any other collection, since
+  // b[0] is simply absent/0 for them and the loop just does one harmless
+  // extra no-op iteration.
   const maxSeen=Math.max(0,...Object.keys(b).map(Number));
   const realCounts = [];
-  for(let c=1;c<=maxSeen;c++){
+  for(let c=0;c<=maxSeen;c++){
     const count=b[c]||0;
     if(count===0) continue;
     realCounts.push(c);
