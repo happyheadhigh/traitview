@@ -5057,7 +5057,9 @@ async function exportTraitViewStudioPng(){
     if(typeof ensureTraitViewDownloadsLoaded === 'function') await ensureTraitViewDownloadsLoaded();
     _setDownloadBtnState(btn, 'Exporting...', true);
     const canvas = await renderStudioCanvas(STUDIO_TOKEN_ID, studioOptions());
-    await _downloadCanvasAsPng(canvas, `ocas-${STUDIO_TOKEN_ID}-studio-card.png`);
+    // Same fix as downloadTokenPng/downloadShareCardPng's filename.
+    const slugPrefix = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : 'ocas';
+    await _downloadCanvasAsPng(canvas, `${slugPrefix}-${STUDIO_TOKEN_ID}-studio-card.png`);
   }catch(e){
     console.error('TraitView Studio export:', e);
     alert('Studio export error: ' + (e?.message || String(e)));
@@ -5544,11 +5546,14 @@ async function loadManifest(){
       // Transform this endpoint's plain DB shape into the same OpenSea
       // event shape renderSales() already expects everywhere else (same
       // transformation buildPriceHistory() already does for
-      // /db/token-sales) -- image comes from IMAGES_MAP client-side, since
-      // this endpoint (deliberately, like every other DB-backed sales
-      // endpoint) doesn't carry image data itself.
-      _fullHistorySales = (data.sales || []).map(s => {
-        const imgSrc = (typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) ? IMAGES_MAP.get(s.token_id) : null;
+      // /db/token-sales). jv confirmed live: this used IMAGES_MAP directly,
+      // which only ever gets populated for OCAS -- every other collection's
+      // full-history search results showed no image at all, same bug class
+      // already fixed in buildMispricedPanel. _getTokenImgSrcAsync() is the
+      // correct, collision-safe, per-collection lookup chain everything
+      // else on the site already uses.
+      _fullHistorySales = await Promise.all((data.sales || []).map(async s => {
+        const imgSrc = (typeof _getTokenImgSrcAsync === 'function') ? await _getTokenImgSrcAsync(s.token_id) : null;
         return {
           event_timestamp: new Date(s.sale_ts).getTime() / 1000,
           payment: { quantity: String(Math.round((s.price_eth||0) * 1e18)), decimals: 18, symbol: s.currency || 'ETH' },
@@ -5557,7 +5562,7 @@ async function loadManifest(){
           seller: s.seller ? { address: s.seller } : null,
           buyer:  s.buyer  ? { address: s.buyer  } : null,
         };
-      });
+      }));
       renderSales(false);
     }catch(e){
       console.warn('[SalesSearch] failed:', e.message);

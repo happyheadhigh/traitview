@@ -477,7 +477,15 @@ function _downloadCanvasAsPng(canvas, filename){
 async function downloadTokenPng(id, withBg = true){
   const btn      = document.getElementById(withBg ? 'mDownloadBgBtn' : 'mDownloadNoBgBtn');
   const label    = withBg ? 'With BG' : 'No BG';
-  const filename = withBg ? `ocas-${id}.png` : `ocas-${id}-nobg.png`;
+  // jv: "make sure ... download button and share card button [are] correctly
+  // [pointing] to the correct token and collection." This was hardcoded to
+  // "ocas-" for every collection -- an Argonauts download would save as
+  // e.g. "ocas-2280.png", correct token id but wrong (and misleading)
+  // collection name baked into the file itself. LIVE_SLUG is always the
+  // real, currently-active collection, so this now names the file after
+  // whichever collection the token actually came from.
+  const slugPrefix = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : 'ocas';
+  const filename = withBg ? `${slugPrefix}-${id}.png` : `${slugPrefix}-${id}-nobg.png`;
   _setDownloadBtnState(btn, 'Preparing…', true);
 
   const SIZE = 4096;
@@ -957,7 +965,10 @@ async function downloadShareCardPng(id){
       ctx.fillText('No trait data available', 540, y);
     }
 
-    await _downloadCanvasAsPng(canvas, `ocas-${id}-share-card.png`);
+    // Same fix as downloadTokenPng's filename -- was hardcoded "ocas-"
+    // regardless of collection.
+    const slugPrefix = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : 'ocas';
+    await _downloadCanvasAsPng(canvas, `${slugPrefix}-${id}-share-card.png`);
   }catch(e){
     console.error('downloadShareCardPng:', e);
     alert('Share card error: ' + (e?.message || String(e)));
@@ -982,7 +993,9 @@ async function downloadTokenSvg(id){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ocas-${id}.svg`;
+    // Same fix as downloadTokenPng/downloadShareCardPng's filename.
+    const slugPrefix = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : 'ocas';
+    a.download = `${slugPrefix}-${id}.svg`;
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
