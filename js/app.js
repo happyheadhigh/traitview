@@ -455,8 +455,20 @@ async function renderTokenGrid(ids, opts){
     ids = ids.filter(id => !window._BURNED_IDS.has(id));
   }
   const preserveOrder = !!(opts && opts.preserveOrder);
+  // jv confirmed live: clicking a Discord sale/listing embed's TraitView
+  // link (?jump=ID) landed on an empty grid whenever "Live Listings" was
+  // checked and the target token wasn't currently listed -- exactly the
+  // case for a SALE link, since a token that just sold is by definition no
+  // longer listed. This filter is meant to narrow the general browsing
+  // grid, never to hide the one specific token a direct link was asked to
+  // show -- the entire point of a jump link is to show that token
+  // regardless of its listing state. skipListedFilter lets the ?jump=
+  // fast path opt out of it for this one render call, without touching
+  // the user's actual Live Listings toggle (so it's still exactly where
+  // they left it once they navigate away from the jumped token).
+  const skipListedFilter = !!(opts && opts.skipListedFilter);
   window.LAST_IDS = Array.isArray(ids) ? ids.slice() : [];
-  const onlyListed = document.getElementById('onlyListed').checked;
+  const onlyListed = !skipListedFilter && document.getElementById('onlyListed').checked;
   const tg=$('#tokenGrid'); tg.innerHTML='';
   const isMobile = window.innerWidth <= 900;
   const currentViewMode = tg.classList.contains('list') ? 'list' : (tg.classList.contains('compact') ? 'compact' : (tg.classList.contains('view-5x5') ? 'grid5' : 'grid'));
@@ -643,7 +655,10 @@ async function renderTokenGridFromState(){
   finalIds = applyConnectedOwnedFilter(finalIds);
   finalIds = await applyTokenTraitSearchToIds(finalIds);
   finalIds = applyTokenIdSearchToIds(finalIds);
-  await renderTokenGrid(finalIds);
+  // Same fix as the ?jump= fast path -- an exact single-ID search means
+  // the user wants to see that specific token, regardless of whether it's
+  // currently listed.
+  await renderTokenGrid(finalIds, { skipListedFilter: !!window.__TOKEN_ID_EXACT_SEARCH__ });
 }
 
 /* chart helpers moved to js/chart.js */
@@ -1874,7 +1889,9 @@ document.getElementById('rankClear').onclick=()=>{ document.getElementById('rank
     let finalIds = favoritesOnlyEnabled() ? allIds.filter(id => isFavorite(id)) : allIds;
     finalIds = applyConnectedOwnedFilter(finalIds);
     if(!exact) finalIds = finalIds.slice(0, 50);
-    await renderTokenGrid(finalIds);
+    // Same fix as the ?jump= fast path -- an exact single-ID jump means
+    // the user wants to see that specific token regardless of listing state.
+    await renderTokenGrid(finalIds, { skipListedFilter: exact });
   }
 
   // ── Exact jump ─────────────────────────────────────────────────────────────
@@ -2440,11 +2457,30 @@ async function init(){
     if(jumpNum){
       document.getElementById('jump').value = String(jumpNum);
 
-      // Only load the one chunk for this token + images
-      await Promise.all([ensureChunk(chunkIndexFor(jumpNum)), imagesPromise]);
+      // jv confirmed live: an Argonauts jump link's token image never
+      // loaded. allTraitsPromise (just awaited above) already correctly
+      // warms CHUNK_CACHE for any collection via the proper DB-backed
+      // fetch -- this direct ensureChunk() call was not just redundant
+      // for a successful load, it was actively harmful: ensureChunk()
+      // always fetches OCAS's own static /data/chunks/ files regardless
+      // of collection (same bug class already fixed in
+      // _getTokenImgSrcAsync and elsewhere), so it could silently
+      // overwrite the already-correct CHUNK_CACHE entry with a same-
+      // numbered OCAS token's wrong data. Only needed for OCAS, where
+      // CHUNK_CACHE really is backed by these per-chunk static files.
+      if(LIVE_SLUG === 'on-chain-all-stars') await ensureChunk(chunkIndexFor(jumpNum));
+      await imagesPromise;
 
-      // Show ONLY this token immediately
-      await renderTokenGrid([jumpNum]);
+      // Show ONLY this token immediately. jv confirmed live: clicking a
+      // Discord sale/listing embed's TraitView link landed on an empty
+      // grid whenever "Live Listings" happened to be checked and the
+      // target token wasn't currently listed -- exactly the case for a
+      // sale link, since a token that just sold is by definition no
+      // longer listed. skipListedFilter shows the specific token a jump
+      // link was asked to show regardless of the Live Listings toggle,
+      // without changing that toggle's actual state for the rest of the
+      // session.
+      await renderTokenGrid([jumpNum], { skipListedFilter: true });
 
       setTimeout(()=>{
         const el = document.querySelector(`[data-id="${jumpNum}"]`);
@@ -2467,7 +2503,7 @@ async function init(){
         const currentVal = document.getElementById('jump').value.trim();
         if(currentVal === String(jumpNum)){
           // Keep showing just this token — don't blast the grid with all 10k
-          await renderTokenGrid([jumpNum]);
+          await renderTokenGrid([jumpNum], { skipListedFilter: true });
           setTimeout(()=>{
             const el = document.querySelector(`[data-id="${jumpNum}"]`);
             if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
