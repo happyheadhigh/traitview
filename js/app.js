@@ -5614,15 +5614,16 @@ async function loadManifest(){
     // jv: "the ability to be able to filter the sales through traits or
     // trait counts would be very nice" -- trait VALUE filtering already
     // applied here (both this function and the main grid read the same
-    // activeTraits state), but trait COUNT (the "Traits: N" pills,
-    // currentTraitCount) never did. Using the sale's own nft.traits array
-    // length as its trait count -- this is OpenSea's own sale-event payload,
-    // a different data source than the main grid's chunk-based row.traits
-    // object, so it's the best count available for a sale without a
-    // separate per-token lookup, even if it could theoretically diverge in
-    // an edge case neither of us has actually seen happen.
+    // activeTraits state). Trait COUNT (the "Traits: N" pills,
+    // currentTraitCount) uses countSaleTraits() (traitUtils.js) rather than
+    // nftTraits.length directly -- confirmed live on Argonauts that raw
+    // length never matched at all, since OpenSea's own sale payload
+    // includes every attribute (Bones/Palette/Print/Fate) while
+    // currentTraitCount is the corrected worn-trait-only count. Same
+    // per-collection exclusion list as getTraitCount(), just adapted for
+    // the array shape a sale event uses instead of row.traits' object shape.
     if(typeof currentTraitCount !== 'undefined' && currentTraitCount !== null){
-      if(nftTraits.length !== currentTraitCount) return false;
+      if(countSaleTraits(nftTraits) !== currentTraitCount) return false;
     }
     if(traitMap.size === 0) return true;
     const lookup = {};
@@ -6162,23 +6163,19 @@ async function buildMispricedPanel(listedIds){
     return;
   }
 
-  // jv: "there is no images showing for the Mispriced tokens." Traced to a
-  // real timing gap: this panel can be triggered (e.g. opening the mobile
-  // Mispriced tab right after page load) before loadImagesMap() -- a
-  // genuinely separate, multi-fetch async process -- has actually finished
-  // populating IMAGES_MAP. Every card's image lookup below (IMAGES_MAP.get)
-  // would come back empty at that moment, and nothing ever re-rendered the
-  // panel once images did finish loading afterward -- a one-time snapshot,
-  // not a live view. Waiting here, same retry pattern already used
-  // elsewhere (openMobileFilter's tryRenderTraits) for the same class of
-  // problem (a different async load not finished yet), rather than
-  // rendering immediately with data that isn't ready.
-  if(typeof IMAGES_MAP === 'undefined' || IMAGES_MAP === null || IMAGES_MAP.size === 0){
-    for(let attemptsLeft = 15; attemptsLeft > 0; attemptsLeft--){
-      await new Promise(r => setTimeout(r, 300));
-      if(typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP && IMAGES_MAP.size > 0) break;
-    }
-  }
+  // jv confirmed live: no images at all for Mispriced on Argonauts. Traced
+  // to a real bug, not a timing issue -- this panel was reading straight
+  // from IMAGES_MAP, which only ever gets populated for OCAS (loadImagesMap()
+  // is explicitly OCAS-only, see init()); every other collection's images
+  // live in the DB instead. The fallback right below it, imgForId(), isn't
+  // even a real function anywhere in this codebase -- the typeof guard just
+  // silently no-ops. So this panel could never show an image for any
+  // non-OCAS collection, regardless of timing. Fixed by using
+  // _getTokenImgSrcAsync() (same collision-safe, per-collection lookup
+  // chain the main grid, hover tooltips, and everything else already use
+  // correctly) per-card below instead -- which also means the wait loop
+  // that used to sit here is no longer needed: each card now resolves its
+  // own image independently, correctly, for whichever collection is live.
 
   // Score each listed token: price / rarity_score
   // rarity_score = 1/rank  (rank 1 = rarest = highest value)
@@ -6321,8 +6318,7 @@ async function buildMispricedPanel(listedIds){
     // get image
     let imgHtml = '<div style="color:var(--muted);font-size:10px">…</div>';
     try{
-      const mapVal = (typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) ? IMAGES_MAP.get(id) : null;
-      const src    = mapVal || (typeof imgForId === 'function' ? imgForId(id) : null);
+      const src = await _getTokenImgSrcAsync(id);
       if(src){
         const s = String(src).trim();
         if(s.startsWith('<svg')) imgHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${s}</div>`;
