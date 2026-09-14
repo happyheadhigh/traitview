@@ -367,17 +367,36 @@ async function _getRawSvgForDownload(id){
   if(cachedRaw) return cachedRaw;
 
   // 1) Current map, but only if it still contains raw SVG/data SVG.
+  // (Harmless no-op for any non-OCAS collection -- IMAGES_MAP is only ever
+  // populated for OCAS, so mapVal is simply undefined and this falls
+  // through correctly.)
   const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
   const mapSvg = _svgTextFromAny(mapVal);
   if(mapSvg){ _rememberRawSvgForDownload(id, mapSvg); return mapSvg; }
 
-  // 2) Token row/chunk image field.
+  // 2) jv confirmed live: an Argonauts share card rendered OCAS's own
+  // artwork for the same numeric token ID. Root cause -- this used to call
+  // fetchRow(id), which calls ensureChunk(), which "fetches
+  // chunkUrlByIndex()'s path, which is always one of OCAS's own local
+  // static /data/chunks/ files -- it is NOT collection-aware at all"
+  // (see _getTokenImgSrcAsync's own comment on this exact bug class,
+  // already fixed there but never here). _getTokenImgSrcAsync() is the
+  // correct, collision-safe, per-collection lookup chain -- reusing it
+  // directly here instead of duplicating (and re-breaking) collection
+  // awareness in this function too.
   try{
-    const row = await fetchRow(id);
-    const rowSvg = _svgTextFromAny(row?.image || row?.image_data || row?.svg || row?.data || '');
-    if(rowSvg){ _rememberRawSvgForDownload(id, rowSvg); return rowSvg; }
+    const liveSrc = typeof _getTokenImgSrcAsync === 'function' ? await _getTokenImgSrcAsync(id) : null;
+    const liveSvg = _svgTextFromAny(liveSrc);
+    if(liveSvg){ _rememberRawSvgForDownload(id, liveSvg); return liveSvg; }
   }catch(_){ }
 
+  // 3 & 4 below (the static manifest/chunk file system and the legacy
+  // single image map) are both, by construction, OCAS-only data -- there
+  // is no equivalent static file for any other collection, since their
+  // images live in the live DB instead (already covered by step 2 above).
+  // Gating both behind LIVE_SLUG so they can never silently hand back a
+  // same-numbered OCAS token's art for a different collection.
+  if(typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG === 'on-chain-all-stars'){
   // 3) Reload image data directly from token image manifest/chunks.
   try{
     const mr = await fetch(IMAGES_MANIFEST_URL, { cache:'no-store' });
@@ -423,6 +442,7 @@ async function _getRawSvgForDownload(id){
       if(svg){ _rememberRawSvgForDownload(id, svg); return svg; }
     }
   }catch(_){ }
+  } // end OCAS-only block
 
   return null;
 }
@@ -436,13 +456,20 @@ async function _getTokenDownloadSource(id){
   const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
   if(mapVal){ const mv = String(mapVal).trim(); if(mv) return mv; }
 
+  // Same fix as _getRawSvgForDownload's identical bug: fetchRow(id) calls
+  // ensureChunk(), which always fetches OCAS's own static chunk files
+  // regardless of collection, and imgForId() below isn't even a real
+  // function anywhere in this codebase -- calling it unguarded would throw
+  // outright for any non-OCAS collection reaching this far (IMAGES_MAP is
+  // always empty for them, so this fallback gets hit often, not rarely).
+  // _getTokenImgSrcAsync() is the correct, collision-safe, per-collection
+  // lookup chain.
   try{
-    const row = await fetchRow(id);
-    const src = row.image || row.image_data || row.svg || row.data || imgForId(id);
-    if(src){ const sv = String(src).trim(); if(sv) return sv; }
+    const liveSrc = typeof _getTokenImgSrcAsync === 'function' ? await _getTokenImgSrcAsync(id) : null;
+    if(liveSrc){ const sv = String(liveSrc).trim(); if(sv) return sv; }
   }catch(_){ }
 
-  return imgForId(id);
+  return null;
 }
 
 function _getCurrentModalImageSourceForDownload(id){
@@ -615,10 +642,18 @@ async function downloadTokenPng(id, withBg = true){
       // PNG token: load fresh with crossOrigin='anonymous' set before src.
       // Must use cache:'reload' so Chrome doesn't serve the cached non-CORS version.
       if(!canvas){
+        // Same fix as _getRawSvgForDownload/_getTokenDownloadSource's
+        // identical bug -- imgForId() isn't a real function anywhere in
+        // this codebase; calling it unguarded here would throw outright
+        // for any non-OCAS collection (IMAGES_MAP is always empty for
+        // them, so mapVal is always falsy and this always reached the
+        // broken call). _getTokenImgSrcAsync() is the correct,
+        // collision-safe, per-collection lookup chain.
         const mapVal = IMAGES_MAP && IMAGES_MAP.get(Number(id));
         const imgSrc = (mapVal && !_svgTextFromAny(mapVal))
           ? String(mapVal).trim()
-          : imgForId(id);
+          : (typeof _getTokenImgSrcAsync === 'function' ? await _getTokenImgSrcAsync(id) : null);
+        if(!imgSrc) throw new Error('No token image source available.');
         const url = imgSrc.startsWith('ipfs://') ? ipfsToHttp(imgSrc) : imgSrc;
 
         // Fetch as blob with cache-bust so browser can't serve the cached
@@ -897,11 +932,29 @@ async function downloadShareCardPng(id){
     ctx.restore();
     ctx.imageSmoothingEnabled = true;
 
+    // jv: "this site needs to work for any collection that's backfilled
+    // through the bot" -- this was hardcoded to OCAS's own brand text and
+    // two-tone color split ("ON-CHAIN" white / "ALL-STARS" green), with a
+    // fixed x-offset (674) tuned specifically for "ON-CHAIN"'s pixel width.
+    // Neither the text nor the offset meant anything for any other
+    // collection -- confirmed live, an Argonauts share card still said
+    // "ON-CHAIN ALL-STARS". Now draws the real collection name from the
+    // registry, splitting on the first space (if any) to keep the same
+    // two-tone treatment for a multi-word name, or just the one color if
+    // there isn't one (e.g. "Argonauts") -- and measures the first part's
+    // actual width instead of assuming OCAS's specific offset, so this
+    // works correctly regardless of how long or short the name is.
+    const _cardCollectionName = (typeof COLLECTIONS !== 'undefined' && typeof LIVE_SLUG !== 'undefined' && COLLECTIONS[LIVE_SLUG]?.name) || 'TraitView';
+    const _cardNameSpaceIdx = _cardCollectionName.indexOf(' ');
+    const _cardNameFirst = (_cardNameSpaceIdx === -1 ? _cardCollectionName : _cardCollectionName.slice(0, _cardNameSpaceIdx)).toUpperCase();
+    const _cardNameRest = _cardNameSpaceIdx === -1 ? '' : _cardCollectionName.slice(_cardNameSpaceIdx + 1).toUpperCase();
     ctx.fillStyle = '#f8fafc';
     ctx.font = '800 23px Space Grotesk, Segoe UI, sans-serif';
-    ctx.fillText('ON-CHAIN', 540, 92);
-    ctx.fillStyle = '#1CFFAF';
-    ctx.fillText('ALL-STARS', 674, 92);
+    ctx.fillText(_cardNameFirst, 540, 92);
+    if(_cardNameRest){
+      ctx.fillStyle = '#1CFFAF';
+      ctx.fillText(_cardNameRest, 540 + ctx.measureText(_cardNameFirst).width + 12, 92);
+    }
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = '800 60px Space Grotesk, Segoe UI, sans-serif';

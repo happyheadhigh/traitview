@@ -275,6 +275,10 @@ async function computeFilteredState(){ const buckets={}, idByCount={}, avail={};
 function updateTraitFloor(){
   const bar = document.getElementById('traitFloorBar');
   if(!bar) return;
+  // jv: "mobile doesn't need the floor traits stat. Keep that desktop
+  // only." Same viewport threshold already used throughout this codebase
+  // for every other desktop/mobile split (e.g. VS.init()'s own check).
+  if(window.innerWidth <= 900){ bar.style.display = 'none'; return; }
   // Only show when traits are active AND listings are loaded
   const hasTraits = activeTraits && activeTraits.size > 0;
   const hasListings = window.LISTINGS && Object.keys(window.LISTINGS).length > 0;
@@ -3414,6 +3418,30 @@ function updateActivePills(){
     container.appendChild(pill);
   }
 
+  // Trait count pill -- jv confirmed live: this container (the pills shown
+  // directly above the grid/listings, separate from the sidebar drawer's
+  // own #activeChips which already got this fix) never considered
+  // currentTraitCount at all, so a count-only filter showed no removable
+  // pill here despite actively narrowing the listings underneath it.
+  if(typeof currentTraitCount !== 'undefined' && currentTraitCount !== null){
+    const pill = document.createElement('span');
+    pill.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;background:rgba(45,212,191,.15);border:1px solid rgba(45,212,191,.3);color:#2dd4bf;font-size:12px;font-weight:600';
+    const xBtn = document.createElement('span');
+    xBtn.textContent = '×';
+    xBtn.style.cssText = 'font-size:15px;line-height:1;opacity:.7;cursor:pointer';
+    xBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      currentTraitCount = null;
+      document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.remove('active'));
+      if(typeof window.syncSalesFilterUI === 'function') window.syncSalesFilterUI();
+      if(typeof updateChartAndList === 'function') updateChartAndList();
+      updateActivePills();
+    });
+    pill.appendChild(document.createTextNode('Traits: ' + currentTraitCount + ' '));
+    pill.appendChild(xBtn);
+    container.appendChild(pill);
+  }
+
   // Active trait pills
   if(typeof activeTraits !== 'undefined'){
     for(const [name, vals] of activeTraits){
@@ -4708,10 +4736,17 @@ function fillStudioBackground(ctx, W, H, pal, mode){
 function drawStudioCollection(ctx, x, y){
   ctx.font = '800 24px Space Grotesk, Segoe UI, sans-serif';
   ctx.textAlign = 'left';
+  // Same fix as downloads.js's identical hardcoded-OCAS branding text.
+  const _cardCollectionName = (typeof COLLECTIONS !== 'undefined' && typeof LIVE_SLUG !== 'undefined' && COLLECTIONS[LIVE_SLUG]?.name) || 'TraitView';
+  const _cardNameSpaceIdx = _cardCollectionName.indexOf(' ');
+  const _cardNameFirst = (_cardNameSpaceIdx === -1 ? _cardCollectionName : _cardCollectionName.slice(0, _cardNameSpaceIdx)).toUpperCase();
+  const _cardNameRest = _cardNameSpaceIdx === -1 ? '' : _cardCollectionName.slice(_cardNameSpaceIdx + 1).toUpperCase();
   ctx.fillStyle = '#f8fafc';
-  ctx.fillText('ON-CHAIN', x, y);
-  ctx.fillStyle = '#1CFFAF';
-  ctx.fillText('ALL-STARS', x + 140, y);
+  ctx.fillText(_cardNameFirst, x, y);
+  if(_cardNameRest){
+    ctx.fillStyle = '#1CFFAF';
+    ctx.fillText(_cardNameRest, x + ctx.measureText(_cardNameFirst).width + 12, y);
+  }
 }
 function studioTraitProfile(count, layout){
   if(layout === 'story'){
