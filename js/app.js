@@ -2378,6 +2378,13 @@ async function init(){
         // CHUNK_CACHE" symptom jv's diagnostic confirmed directly.
         return Promise.all(indices().map(idx => ensureChunk(idx))).then(() => null);
       });
+    // Exposed globally so _getTokenImgSrcAsync() (called much later, e.g.
+    // from a chart hover, long after init() has returned) can await
+    // whatever's left of this exact fetch rather than having no way to
+    // wait for it at all -- awaiting an already-settled promise is safe
+    // and simply resolves immediately, so this works whether the hover
+    // happens before or long after this fetch actually completes.
+    window._allTraitsPromise = allTraitsPromise;
 
     await allTraitsPromise;
 
@@ -6679,6 +6686,47 @@ function _getTokenImgSrc(id){
   return src;
 }
 
+// jv: "for the hover tool tip showing token images on the graphs... I was
+// in desktop when I noticed they weren't being displayed." The Floor
+// Trend and Price vs Rank charts can reference a token whose chunk hasn't
+// actually finished pre-warming into CHUNK_CACHE yet -- that pre-warming
+// happens via a single /db/all-traits fetch in init() that all of
+// CHUNK_CACHE depends on, but there's no guarantee a user won't switch to
+// one of these chart tabs and hover a dot before that fetch resolves,
+// especially right after a page load or collection switch (the exact
+// window this was actually seen in). The synchronous _getTokenImgSrc()
+// above has no way to wait for data that simply isn't there yet -- it
+// just returns null, and the tooltip renders with no image at all.
+//
+// IMPORTANT: ensureChunk() fetches chunkUrlByIndex()'s path, which is
+// always one of OCAS's own local static /data/chunks/ files -- it is NOT
+// collection-aware at all. Calling it for a non-OCAS collection would
+// silently fetch OCAS's own unrelated chunk data for that index, exactly
+// the cross-collection collision bug class already hit and fixed several
+// times elsewhere in this app -- caught this myself before it shipped.
+// So the two collection cases need genuinely different waits: OCAS's
+// CHUNK_CACHE is legitimately backed by these same static per-chunk
+// files, so ensureChunk() is a correct, safe, collection-specific retry
+// for it. Every other collection's CHUNK_CACHE is instead populated
+// entirely from the one single, bulk /db/all-traits fetch in init() --
+// there's no equivalent per-chunk endpoint to retry against at all, so
+// the only real thing to wait for is that same fetch, exposed globally as
+// window._allTraitsPromise specifically so this can await it.
+async function _getTokenImgSrcAsync(id){
+  const immediate = _getTokenImgSrc(id);
+  if(immediate) return immediate;
+  try{
+    if(LIVE_SLUG === 'on-chain-all-stars'){
+      await ensureChunk(chunkIndexFor(id));
+    } else if(window._allTraitsPromise){
+      await window._allTraitsPromise;
+    } else {
+      return null;
+    }
+  }catch{ return null; }
+  return _getTokenImgSrc(id);
+}
+
 // ── Live image refresh system (TTL-based) ─────────────────────────────────────
 // Fetches fresh token images from OpenSea and caches with 6hr TTL in sessionStorage.
 // Updates IMAGES_MAP so hover, modal, and grid all get the fresh image.
@@ -6992,30 +7040,67 @@ function renderScatter(){
   Plotly.newPlot(host, [trace, trend], layout, {responsive:true, displayModeBar:false});
 
   // Custom frosted-glass hover tooltip
-  host.on('plotly_hover', data => {
-    const pt  = data.points[0];
-    const cd  = pt.customdata;
-    if(!cd || !cd.id) return; // trend line has no customdata
-    const ev  = data.event;
-    const img = _getTokenImgSrc(cd.id);
+  let _scatterHoverId = null;
+  function _scatterTooltipHtml(cd, img, isTap){
     const imgHtml = img
       ? `<img src="${img}" style="width:64px;height:64px;object-fit:contain;border-radius:6px;image-rendering:pixelated;display:block;margin-bottom:8px">`
       : '';
     const label = cd.under
       ? '<span style="color:#2dd4bf;font-size:10px;font-weight:700">● UNDERVALUED</span>'
       : '<span style="color:rgba(140,160,200,.8);font-size:10px">● At trend</span>';
-    const html = `${imgHtml}
+    return `${imgHtml}
       <div style="font-weight:700;font-size:13px;margin-bottom:2px">#${cd.id}</div>
       <div style="font-size:11px;margin-bottom:4px">${rankDiamondHtml(cd.rank, "font-weight:700;")}</div>
       <div style="font-size:14px;font-weight:700;color:#2dd4bf;margin-bottom:4px">Ξ ${cd.price.toFixed(4)} ETH</div>
       ${label}
-      <div style="color:#7a8fa8;font-size:10px;margin-top:6px">Click to open token</div>`;
-    _showChartTooltip('_scatterTT', ev.clientX, ev.clientY, html);
+      <div style="color:#7a8fa8;font-size:10px;margin-top:6px">${isTap ? 'Tap again to open token' : 'Click to open token'}</div>`;
+  }
+  host.on('plotly_hover', data => {
+    const pt  = data.points[0];
+    const cd  = pt.customdata;
+    if(!cd || !cd.id) return; // trend line has no customdata
+    const ev  = data.event;
+    _scatterHoverId = cd.id;
+    _showChartTooltip('_scatterTT', ev.clientX, ev.clientY, _scatterTooltipHtml(cd, _getTokenImgSrc(cd.id)));
+    // jv: "I was in desktop when I noticed they weren't being displayed."
+    // The synchronous lookup above can miss a token whose chunk hasn't
+    // finished pre-warming into CHUNK_CACHE yet (a single background fetch
+    // in init() that the whole cache depends on, with no guarantee it's
+    // finished by the time a user hovers a chart dot, especially shortly
+    // after load or a collection switch). Re-fetches via
+    // _getTokenImgSrcAsync() and re-shows the tooltip with the now-loaded
+    // image -- but only if still hovering this SAME point by the time it
+    // resolves, so a stale image never pops back up after the user's
+    // already moved to a different dot.
+    _getTokenImgSrcAsync(cd.id).then(img => {
+      if(img && _scatterHoverId === cd.id){
+        _showChartTooltip('_scatterTT', ev.clientX, ev.clientY, _scatterTooltipHtml(cd, img));
+      }
+    });
   });
-  host.on('plotly_unhover', () => _hideChartTooltip('_scatterTT'));
+  host.on('plotly_unhover', () => { _scatterHoverId = null; _hideChartTooltip('_scatterTT'); });
+  // Same tap-to-preview pattern as renderFloorTrend() below: first tap
+  // shows the same image-including tooltip hover already shows on
+  // desktop, a second tap on that SAME point opens the modal. Desktop is
+  // unaffected -- hover already shows the preview there, so a click there
+  // still opens directly.
+  let _scatterLastTapId = null;
   host.on('plotly_click', data => {
     const cd = data.points[0].customdata;
-    if(cd?.id && typeof openModal === 'function') openModal(cd.id);
+    if(!cd?.id || typeof openModal !== 'function') return;
+    if(_scatterLastTapId === cd.id){
+      _scatterLastTapId = null;
+      openModal(cd.id);
+    } else {
+      _scatterLastTapId = cd.id;
+      const clientX = data.event.clientX, clientY = data.event.clientY;
+      _showChartTooltip('_scatterTT', clientX, clientY, _scatterTooltipHtml(cd, _getTokenImgSrc(cd.id), true));
+      _getTokenImgSrcAsync(cd.id).then(img => {
+        if(img && _scatterLastTapId === cd.id){
+          _showChartTooltip('_scatterTT', clientX, clientY, _scatterTooltipHtml(cd, img, true));
+        }
+      });
+    }
   });
 }
 
@@ -7272,35 +7357,82 @@ function renderFloorTrend(){
   });
 
   // Custom frosted hover + click
+  let _floorHoverId = null;
+  function _floorSaleTooltipHtml(id, sale, img, isTap){
+    const imgH = img ? `<img src="${img}" style="width:60px;height:60px;object-fit:contain;border-radius:6px;image-rendering:pixelated;display:block;margin-bottom:8px">` : '';
+    const rank = `<div style="font-size:11px;margin-bottom:3px">${displayRankHtml(id, 'font-weight:700;')}</div>`;
+    const seller = sale.seller ? `<div style="font-size:10px;color:#7a8fa8;margin-top:4px">From: ${sale.seller.slice(0,6)}…${sale.seller.slice(-4)}</div>` : '';
+    const buyer  = sale.buyer  ? `<div style="font-size:10px;color:#7a8fa8">To: ${sale.buyer.slice(0,6)}…${sale.buyer.slice(-4)}</div>` : '';
+    const ts     = sale.ts ? `<div style="font-size:10px;color:#7a8fa8;margin-top:2px">${new Date(sale.ts*1000).toLocaleString()}</div>` : '';
+    return `${imgH}
+        <div style="font-weight:700;font-size:13px;margin-bottom:2px">#${id}</div>
+        ${rank}
+        <div style="font-size:14px;font-weight:700;color:${sale.isWeth?'#d8b4fe':'#2dd4bf'};margin-bottom:4px">Ξ ${sale.eth ? sale.eth.toFixed(4) : '?'} ${sale.currency||'ETH'}</div>
+        ${seller}${buyer}${ts}
+        <div style="color:#7a8fa8;font-size:10px;margin-top:6px">${isTap ? 'Tap again to open token' : 'Click to open token'}</div>`;
+  }
   host.on('plotly_hover', data=>{
     const pt  = data.points[0];
     const ev  = data.event;
     if(pt.data.name === 'Sales' && pt.customdata){
       const id   = pt.customdata;
       const sale = allSalesDots.find(s=>s.id===id) || {};
-      const img  = _getTokenImgSrc(id);
-      const imgH = img ? `<img src="${img}" style="width:60px;height:60px;object-fit:contain;border-radius:6px;image-rendering:pixelated;display:block;margin-bottom:8px">` : '';
-      const rank = `<div style="font-size:11px;margin-bottom:3px">${displayRankHtml(id, 'font-weight:700;')}</div>`;
-      const seller = sale.seller ? `<div style="font-size:10px;color:#7a8fa8;margin-top:4px">From: ${sale.seller.slice(0,6)}…${sale.seller.slice(-4)}</div>` : '';
-      const buyer  = sale.buyer  ? `<div style="font-size:10px;color:#7a8fa8">To: ${sale.buyer.slice(0,6)}…${sale.buyer.slice(-4)}</div>` : '';
-      const ts     = sale.ts ? `<div style="font-size:10px;color:#7a8fa8;margin-top:2px">${new Date(sale.ts*1000).toLocaleString()}</div>` : '';
-      const html = `${imgH}
-        <div style="font-weight:700;font-size:13px;margin-bottom:2px">#${id}</div>
-        ${rank}
-        <div style="font-size:14px;font-weight:700;color:${sale.isWeth?'#d8b4fe':'#2dd4bf'};margin-bottom:4px">Ξ ${sale.eth ? sale.eth.toFixed(4) : '?'} ${sale.currency||'ETH'}</div>
-        ${seller}${buyer}${ts}
-        <div style="color:#7a8fa8;font-size:10px;margin-top:6px">Click to open token</div>`;
-      _showChartTooltip('_floorTT', ev.clientX, ev.clientY, html);
+      _floorHoverId = id;
+      _showChartTooltip('_floorTT', ev.clientX, ev.clientY, _floorSaleTooltipHtml(id, sale, _getTokenImgSrc(id)));
+      // jv: "I was in desktop when I noticed they weren't being
+      // displayed." Same class of gap as the scatter chart's own hover
+      // handler above -- the synchronous lookup can miss a token whose
+      // chunk hasn't finished pre-warming into CHUNK_CACHE yet. Re-fetches
+      // and re-shows the tooltip once loaded, only if still hovering this
+      // same point.
+      _getTokenImgSrcAsync(id).then(img => {
+        if(img && _floorHoverId === id){
+          _showChartTooltip('_floorTT', ev.clientX, ev.clientY, _floorSaleTooltipHtml(id, sale, img));
+        }
+      });
     } else if(pt.data.name === 'Daily Floor'){
+      _floorHoverId = null;
       const html = `<div style="font-weight:600;margin-bottom:3px">${pt.x}</div>
         <div style="color:#2dd4bf;font-weight:700;font-size:14px">Floor: ${(+pt.y).toFixed(4)} ETH</div>`;
       _showChartTooltip('_floorTT', ev.clientX, ev.clientY, html);
     }
   });
-  host.on('plotly_unhover', ()=> _hideChartTooltip('_floorTT'));
+  host.on('plotly_unhover', ()=> { _floorHoverId = null; _hideChartTooltip('_floorTT'); });
+  // jv: "let's make sure that the dots on those graphs display the token
+  // images as well" -- the rich tooltip above (with the token's own
+  // image) was already built, but only ever wired to plotly_hover, a
+  // mouse-only event that never fires on a touch device at all. Confirmed
+  // this is exactly why it never showed up for jv, who works primarily on
+  // mobile -- plain plotly_click went straight to openModal(), skipping
+  // the image preview entirely (the modal itself does show the image, but
+  // only after a full navigation away from the chart, not as a quick
+  // preview on it). Same tap-to-preview, tap-again-to-open pattern as
+  // renderScatter() below: first tap on a dot shows this same tooltip
+  // (image included); a second tap on that SAME dot (while its preview is
+  // still showing) opens the full modal. Desktop is unaffected -- hover
+  // already shows the preview there, so a click there still opens directly.
+  let _floorLastTapId = null;
   host.on('plotly_click', data=>{
     const pt = data.points[0];
-    if(pt.data.name==='Sales' && pt.customdata && typeof openModal==='function') openModal(pt.customdata);
+    if(pt.data.name!=='Sales' || !pt.customdata || typeof openModal!=='function') return;
+    const id = pt.customdata;
+    if(_floorLastTapId === id){
+      _floorLastTapId = null;
+      openModal(id);
+    } else {
+      _floorLastTapId = id;
+      const sale = allSalesDots.find(s=>s.id===id) || {};
+      const clientX = data.event.clientX, clientY = data.event.clientY;
+      // data.event carries clientX/clientY for both mouse and touch
+      // input (Plotly normalizes this) -- positions the preview right
+      // where the user actually tapped, same as the hover tooltip does.
+      _showChartTooltip('_floorTT', clientX, clientY, _floorSaleTooltipHtml(id, sale, _getTokenImgSrc(id), true));
+      _getTokenImgSrcAsync(id).then(img => {
+        if(img && _floorLastTapId === id){
+          _showChartTooltip('_floorTT', clientX, clientY, _floorSaleTooltipHtml(id, sale, img, true));
+        }
+      });
+    }
   });
 }
 
