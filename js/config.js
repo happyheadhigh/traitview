@@ -45,6 +45,18 @@ const COLLECTIONS = {
     apiBase: 'https://tv-bot-api-production.up.railway.app',
     apiKey: 'TraitViewBot2k26',
     hasBurnMechanic: false,
+    // jv confirmed live: Bones/Palette/Print are the three always-present
+    // base attributes every Argonaut has regardless of what's worn (a
+    // "bare" Argonaut has only these three). Fate ("Burned") and Relic
+    // ("Gold") are a second, separate case -- both cap at exactly one
+    // possible value across the whole 9,999, unlike a real worn trait
+    // (Cloak/Crown/Sight/Artifact each have several) -- because ACK
+    // layered them onto burned tokens' metadata after the fact, for the
+    // animated-burn art. None of these five should count toward "traits
+    // worn"; excluding all five is what makes TraitView's trait-count
+    // histogram match the official site's own numbers (0-4 worn) exactly,
+    // rather than needing a +3 (or +5) offset to compare the two.
+    nonWornTraitCategories: ['Bones', 'Palette', 'Print', 'Fate', 'Relic'],
     openseaUrl: 'https://opensea.io/collection/argonauts',
     // Confirmed via /db/collections/backfill-links: OpenSea's own collection
     // page for Argonauts genuinely has no website/external_url set at all --
