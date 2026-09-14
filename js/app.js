@@ -645,7 +645,29 @@ async function renderTokenGridFromState(){
 /* chart helpers moved to js/chart.js */
 
 /* traits UI */
-function renderActiveChips(){ const host=$('#activeChips'); host.innerHTML=''; const entries=[...activeTraits.entries()].flatMap(([g,s])=>[...s].map(v=>({group:g,value:String(v)}))); if(entries.length===0){ host.innerHTML='<span class="section" style="opacity:.8">No traits selected</span>'; return;} for(const {group,value} of entries){ const chip=el('div','chip',`<b>${group}</b>: ${value} &nbsp;×`); chip.title='Remove this filter'; chip.onclick=async()=>{ const s=activeTraits.get(group); if(!s) return; s.delete(value); if(s.size===0) activeTraits.delete(group); await updateChartAndList(); }; host.appendChild(chip);} }
+function renderActiveChips(){
+  const host=$('#activeChips'); host.innerHTML='';
+  const entries=[...activeTraits.entries()].flatMap(([g,s])=>[...s].map(v=>({group:g,value:String(v)})));
+  // jv confirmed live: this only ever considered activeTraits (individual
+  // trait/value picks) -- selecting a Trait Count with no specific trait
+  // values chosen showed "No traits selected" here even while a real
+  // filter was actively narrowing the grid/sales/everything else, and had
+  // no removable pill of its own the way every other filter does.
+  const hasCount = typeof currentTraitCount !== 'undefined' && currentTraitCount !== null;
+  if(entries.length===0 && !hasCount){ host.innerHTML='<span class="section" style="opacity:.8">No traits selected</span>'; return;}
+  if(hasCount){
+    const chip=el('div','chip',`<b>Traits</b>: ${currentTraitCount} &nbsp;×`);
+    chip.title='Remove this filter';
+    chip.onclick=async()=>{
+      currentTraitCount=null;
+      document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.remove('active'));
+      if(typeof window.syncSalesFilterUI==='function') window.syncSalesFilterUI();
+      await updateChartAndList();
+    };
+    host.appendChild(chip);
+  }
+  for(const {group,value} of entries){ const chip=el('div','chip',`<b>${group}</b>: ${value} &nbsp;×`); chip.title='Remove this filter'; chip.onclick=async()=>{ const s=activeTraits.get(group); if(!s) return; s.delete(value); if(s.size===0) activeTraits.delete(group); await updateChartAndList(); }; host.appendChild(chip);}
+}
 function renderTraitChips(b){
   const host=$('#traitChips'); host.innerHTML='';
   // jv: "there doesn't need to be all these tokens [trait-count pills]...
@@ -5932,6 +5954,19 @@ async function loadManifest(){
     if(note) note.style.display = hasAnyFilter ? '' : 'none';
     const clearBtn = document.getElementById('salesClearFilterBtn');
     if(clearBtn) clearBtn.style.display = hasAnyFilter ? '' : 'none';
+    // jv confirmed live: opening the Sales tab (or switching to it) with a
+    // trait count already active elsewhere (e.g. set from the Traits tab)
+    // showed the dropdown correctly pre-selected to that value, but the
+    // actual matching sales never loaded until manually re-selecting a
+    // DIFFERENT value from the dropdown -- because setting sel.value
+    // programmatically (the line right above) never fires a change event,
+    // and _runSalesSearch() only ever runs from that event handler. Only
+    // trigger it here when we don't already have a matching result set
+    // loaded (_fullHistorySales is only non-null once a real search has
+    // actually completed for the current filter), so this doesn't cause a
+    // redundant re-fetch on every ordinary state refresh this function
+    // already runs on.
+    if(hasAnyFilter && _fullHistorySales === null && typeof _runSalesSearch === 'function') _runSalesSearch();
     // jv wanted the search box driven by live, free-text substring search
     // against this collection's full sales history (via /db/sales-search),
     // not by activeTraits -- it no longer reads or writes that shared
