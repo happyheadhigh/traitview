@@ -421,6 +421,19 @@ function toggleRankSystem(){
   const next = getRankSystem() === 'os' ? 'tv' : 'os';
   setRankSystem(next);
   _updateRankLabels(next);
+  // jv confirmed live: toggling did nothing visible. Root cause: VS's
+  // per-card node cache is keyed only by `${mode}:${id}` (see VS._paint),
+  // so every visible card was just being served back from cache exactly as
+  // it looked under the OLD rank system -- same bug class as the
+  // cross-collection cache poisoning already fixed for collection switches
+  // (resetCollectionState() already clears this same cache for that
+  // reason). The rank badge is baked into the cached DOM node itself, so
+  // the fix is to blow away the cache here too, forcing every visible card
+  // to be rebuilt fresh under the new system.
+  if(typeof VS !== 'undefined' && VS._nodeCache){
+    VS._nodeCache.clear();
+    VS.visStart = -1; VS.visEnd = -1;
+  }
   if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
   else if(window.LAST_IDS && window.LAST_IDS.length) renderTokenGrid(window.LAST_IDS);
 }
@@ -4128,10 +4141,27 @@ const VS = {
     tg.className = ['vs-active', ...keepClasses].join(' ');
     this.cols = this._computeCols(tg);
 
+    // jv confirmed live: scrolling down on desktop would "rocket" straight
+    // to the bottom of the grid instead of scrolling normally. Root-caused
+    // with a scrollTop instrumentation harness: the browser's default CSS
+    // scroll anchoring was compensating for _paint()'s own DOM replacements
+    // (replaceChildren() on _vsRows, plus _vsTop/_vsBot height changes) by
+    // silently adjusting scrollTop to "preserve" the visual position of
+    // whatever it picked as the anchor node -- but VS already manages
+    // scroll position itself via the _vsTop/_vsBot spacer math, so the
+    // browser's own correction fights it and compounds: each _paint() call
+    // shifts content, the anchor correction nudges scrollTop further, which
+    // triggers another _paint() via the scroll listener, which shifts
+    // content again. A handful of scroll ticks was enough for it to snowball
+    // all the way to the end of the list. overflow-anchor:none turns this
+    // browser behavior off for this container specifically, which a direct
+    // (non-wheel) scrollTop-increment test confirmed fixes it completely --
+    // verified on both this desktop branch and the mobile one below, since
+    // both share the exact same _paint()/replaceChildren() pattern.
     if(window.innerWidth <= 900){
-      tg.style.cssText = 'display:block!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important;box-sizing:border-box!important;width:100%!important;height:calc(100dvh - 106px)!important;padding:0!important;';
+      tg.style.cssText = 'display:block!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important;box-sizing:border-box!important;width:100%!important;height:calc(100dvh - 106px)!important;padding:0!important;overflow-anchor:none!important;';
     }else{
-      tg.style.cssText = 'display:block!important;overflow-y:auto!important;overflow-x:hidden!important;box-sizing:border-box!important;width:100%!important;max-height:520px!important;padding-right:4px!important;overscroll-behavior:none!important;scroll-behavior:auto!important;';
+      tg.style.cssText = 'display:block!important;overflow-y:auto!important;overflow-x:hidden!important;box-sizing:border-box!important;width:100%!important;max-height:520px!important;padding-right:4px!important;overscroll-behavior:none!important;scroll-behavior:auto!important;overflow-anchor:none!important;';
     }
     tg.innerHTML = '';
 

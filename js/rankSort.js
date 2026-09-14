@@ -2,10 +2,37 @@
    Loaded before app.js.
    Keep this as a classic script, not an ES module. */
 
-const RANK_PREF_KEY = '_rankSystem'; // 'os' (default) or 'tv'
+const RANK_PREF_KEY = '_rankSystem'; // legacy global key -- no longer written to, only read as a one-time migration fallback below
 
-function getRankSystem(){ return localStorage.getItem(RANK_PREF_KEY) || 'os'; }
-function setRankSystem(v){ localStorage.setItem(RANK_PREF_KEY, v); }
+// jv: "for every other collection other than OCAS I want TV ranking to be
+// displayed by default. Right now OS is the default." OS rank only really
+// means something for OCAS -- OpenSea's rarity rank is the one collectors
+// there already know and compare against. Every other collection (Argonauts
+// today, anything onboarded after it) has no such established audience for
+// OS rank, so TV's own computed rank is the more useful default there.
+// Preference is now stored per-collection (keyed by slug) rather than one
+// global switch, so picking OS for OCAS doesn't also silently flip the
+// default for Argonauts, and vice versa.
+function _rankPrefKeyFor(slug){ return `_rankSystem:${slug || ''}`; }
+function _defaultRankSystemFor(slug){
+  const ocasSlug = (typeof DEFAULT_COLLECTION_SLUG !== 'undefined') ? DEFAULT_COLLECTION_SLUG : 'on-chain-all-stars';
+  return slug === ocasSlug ? 'os' : 'tv';
+}
+function getRankSystem(){
+  const slug = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : null;
+  const stored = localStorage.getItem(_rankPrefKeyFor(slug));
+  if(stored) return stored;
+  // One-time migration: an old global preference only ever meant something
+  // for OCAS (the only collection that existed when it was written), so it
+  // only carries forward as this collection's stored preference for OCAS.
+  const legacy = localStorage.getItem(RANK_PREF_KEY);
+  if(legacy && slug === (typeof DEFAULT_COLLECTION_SLUG !== 'undefined' ? DEFAULT_COLLECTION_SLUG : 'on-chain-all-stars')) return legacy;
+  return _defaultRankSystemFor(slug);
+}
+function setRankSystem(v){
+  const slug = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : null;
+  localStorage.setItem(_rankPrefKeyFor(slug), v);
+}
 function getActiveRankMap(){ return getRankSystem() === 'tv' ? RARITY_OBS_RANK : OS_RANK_MAP; }
 function getActiveRank(id){ const m = getActiveRankMap(); return m.get(+id) || m.get(String(id)) || null; }
 
