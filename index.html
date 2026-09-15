@@ -33,66 +33,83 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609168">
+  <link rel="stylesheet" href="./css/styles.css?v=202609169">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
 <div id="landingPage" style="display:none">
-  <div id="landingMain" style="max-width:960px;margin:0 auto;padding:32px 20px 60px">
-    <header style="text-align:center;padding:20px 0 36px;position:relative">
-      <button type="button" id="landingFaqBtn" style="position:absolute;top:20px;right:0;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer">FAQ</button>
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px">
-        <img src="./images/traitview-logo.png" alt="" style="width:40px;height:40px;border-radius:10px" onerror="this.style.display='none'">
-        <span style="font-size:28px;font-weight:800;letter-spacing:.2px">Trait <span style="color:#2dd4bf">View</span></span>
+
+  <!-- ===== HERO ===== -->
+  <section id="landingHero" style="position:relative;overflow:hidden;text-align:center;padding:52px 20px 40px">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%, rgba(45,212,191,.14), transparent 70%);pointer-events:none"></div>
+    <div style="position:relative;max-width:640px;margin:0 auto">
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
+        <img src="./images/traitview-logo.png" alt="" style="width:38px;height:38px;border-radius:10px" onerror="this.style.display='none'">
+        <span style="font-size:26px;font-weight:800;letter-spacing:.2px">Trait <span style="color:#2dd4bf">View</span></span>
       </div>
-      <p style="max-width:640px;margin:0 auto;color:var(--sub);font-size:15px;line-height:1.55">
-        A live trait explorer, rarity ranker, and marketplace tracker for NFT collections —
-        built and kept in sync by the TraitView Discord bot, so what you see here always
-        reflects real on-chain data and live listings, not a stale snapshot.
+      <h1 style="font-size:30px;font-weight:800;margin:0 0 10px;line-height:1.2">Your collection.<br>From every angle.</h1>
+      <p style="color:var(--sub);font-size:14px;line-height:1.55;margin:0 0 26px;max-width:480px;margin-left:auto;margin-right:auto">
+        Explore traits, rarity, floors, listings and holders on the web — then take TraitView into Discord for sales, alerts, sweeps, portfolios and more.
       </p>
-    </header>
-
-    <section style="margin-bottom:44px">
-      <h2 style="font-size:18px;margin:0 0 16px">Collections</h2>
-      <div id="landingCollectionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
-        <div style="grid-column:1/-1;color:var(--sub);font-size:13px;padding:20px 0;text-align:center">Loading collections…</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="#" id="landingExploreBtn" style="background:#2dd4bf;color:#04201c;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px;text-decoration:none">Explore Collections</a>
+        <a href="#" target="_blank" rel="noopener" class="landing-bot-invite" style="background:var(--panel);border:1px solid var(--border);color:var(--text);font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px;text-decoration:none">Add TraitView Bot</a>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section style="margin-bottom:44px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px">
-      <h2 style="font-size:18px;margin:0 0 14px">How it works</h2>
-      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0 0 12px">
-        TraitView pairs with a Discord bot that backfills a collection's on-chain traits,
-        tracks live OpenSea listings and sales, and posts real-time sale/listing alerts to
-        your server. Every alert links straight back here to the exact token, so your
-        community can jump from a Discord ping to full trait and rarity data in one tap.
-      </p>
-      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0 0 12px">
-        Wallet verification in the bot (linking a Discord account to a wallet) is the same
-        connection TraitView uses here on the site — connect that same wallet on TraitView to
-        see your own holdings, and how they stack up against the rest of the community's.
-      </p>
-      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0">
-        Have a collection you'd like added? Run <code style="background:var(--soft);padding:1px 6px;border-radius:4px">/setup</code>
-        and <code style="background:var(--soft);padding:1px 6px;border-radius:4px">/config</code> directly in the bot — no need
-        to reach out anywhere first, that's all it takes to get backfilled and onboarded here, live listings and all.
-      </p>
-    </section>
+  <!-- ===== COLLECTION HUB ===== -->
+  <section id="landingCollectionsSection" style="max-width:1040px;margin:0 auto;padding:8px 20px 48px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <h2 style="font-size:18px;margin:0;flex-shrink:0">Collections</h2>
+      <input id="landingSearch" type="text" placeholder="Search collections…" style="flex:1;min-width:140px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 12px;border-radius:8px">
+      <button type="button" id="landingCustomizeBtn" class="landing-customize-btn" style="background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;flex-shrink:0">Customize</button>
+    </div>
+    <div id="landingCustomizeBar" style="display:none;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--sub)">
+      <span>⠿ Drag cards to reorder</span>
+      <button type="button" id="landingHiddenBtn" style="background:var(--soft);border:none;color:var(--text);font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;cursor:pointer">Hidden (0)</button>
+      <button type="button" id="landingResetBtn" style="background:none;border:none;color:var(--sub);font-size:12px;text-decoration:underline;cursor:pointer;padding:0">Reset layout</button>
+    </div>
+    <div id="landingCollectionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+      <div style="grid-column:1/-1;color:var(--sub);font-size:13px;padding:20px 0;text-align:center">Loading collections…</div>
+    </div>
+  </section>
 
-    <footer style="text-align:center;color:var(--sub);font-size:13px;line-height:1.7;padding-top:20px;border-top:1px solid var(--border)">
-      <p style="max-width:600px;margin:0 auto 10px">
-        TraitView was built for the <b style="color:var(--text)">On-Chain All Stars</b> community,
-        and has grown from there into a fun side project I hope other collections and their
-        communities can use and get some real value out of.
-      </p>
-      <a href="#" id="landingTwitterLink" target="_blank" rel="noopener" style="color:#2dd4bf;text-decoration:none;font-weight:600">Follow the creator on Twitter →</a>
-    </footer>
+  <!-- ===== BOT SHOWCASE ===== -->
+  <section style="max-width:760px;margin:0 auto;padding:8px 20px 48px;text-align:center">
+    <h2 style="font-size:20px;margin:0 0 6px">TraitView lives in Discord, too.</h2>
+    <p style="color:var(--sub);font-size:14px;margin:0 0 24px">Everything your collection needs. Right where your community already is.</p>
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:340px;margin:0 auto 20px">
+      <div id="landingBotDemo" style="min-height:44px;transition:opacity .2s ease"></div>
+    </div>
+    <div id="landingBotPills" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:24px"></div>
+    <a href="#" target="_blank" rel="noopener" class="landing-bot-invite" style="display:inline-block;background:#2dd4bf;color:#04201c;font-weight:700;font-size:14px;padding:11px 24px;border-radius:10px;text-decoration:none">Add TraitView to Discord</a>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer style="max-width:640px;margin:0 auto;text-align:center;color:var(--sub);font-size:13px;line-height:1.7;padding:20px 20px 80px;border-top:1px solid var(--border)">
+    <p style="margin:20px auto 10px">
+      TraitView was built for the <b style="color:var(--text)">On-Chain All Stars</b> community,
+      and has grown from there into a fun side project I hope other collections and their
+      communities can use and get some real value out of.
+    </p>
+    <a href="#" id="landingTwitterLink" target="_blank" rel="noopener" style="color:#2dd4bf;text-decoration:none;font-weight:600">Follow the creator on Twitter →</a>
+  </footer>
+
+  <!-- ===== FLOATING HELP CONTROLS ===== -->
+  <div id="landingFloatingControls" style="position:fixed;bottom:20px;right:20px;z-index:50;display:flex;gap:10px">
+    <button type="button" id="landingHelpBtn" title="Help & FAQ" style="width:44px;height:44px;border-radius:50%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3)">?</button>
+    <a href="#" id="landingFloatingBotBtn" target="_blank" rel="noopener" title="Add TraitView Bot" style="width:44px;height:44px;border-radius:50%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:18px;display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.3)">🤖</a>
   </div>
 
-  <div id="landingFaqPage" style="display:none;max-width:720px;margin:0 auto;padding:32px 20px 60px">
-    <button type="button" id="landingFaqBackBtn" style="background:none;border:none;color:var(--sub);font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:20px;display:flex;align-items:center;gap:6px">← Back</button>
-    <h2 style="font-size:22px;margin:0 0 20px">FAQ</h2>
-    <div id="landingFaq" style="display:flex;flex-direction:column;gap:10px"></div>
+  <!-- ===== FAQ MODAL ===== -->
+  <div id="landingFaqModal" style="display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;padding:20px">
+    <div class="landing-modal-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.6)"></div>
+    <div style="position:relative;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:24px">
+      <button type="button" id="landingFaqCloseBtn" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer;line-height:1">×</button>
+      <h2 style="font-size:18px;margin:0 0 18px">FAQ</h2>
+      <div id="landingFaq" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
   </div>
 </div>
 <div class="wrap" id="mainApp">
@@ -874,30 +891,31 @@
 
 
 
-<script src="./js/config.js?v=202609168" defer></script>
-<script src="./js/landing.js?v=202609168" defer></script>
-<script src="./js/dataConfig.js?v=202609168" defer></script>
-<script src="./js/formatUtils.js?v=202609168" defer></script>
-<script src="./js/imageMap.js?v=202609168" defer></script>
-<script src="./js/state.js?v=202609168" defer></script>
-<script src="./js/appState.js?v=202609168" defer></script>
-<script src="./js/favorites.js?v=202609168" defer></script>
-<script src="./js/wallet.js?v=202609168" defer></script>
-<script src="./js/api.js?v=202609168" defer></script>
-<script src="./js/rankSort.js?v=202609168" defer></script>
-<script src="./js/rankDisplay.js?v=202609168" defer></script>
-<script src="./js/walletConnect.js?v=202609168" defer></script>
-<script src="./js/walletAnalytics.js?v=202609168" defer></script>
-<script src="./js/mispriced.js?v=202609168" defer></script>
-<script src="./js/traitUtils.js?v=202609168" defer></script>
-<script src="./js/listingMeta.js?v=202609168" defer></script>
-<script src="./js/listCards.js?v=202609168" defer></script>
-<script src="./js/chart.js?v=202609168" defer></script>
-<script src="./js/tooltip.js?v=202609168" defer></script>
-<script src="./js/comboInsights.js?v=202609168" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609168" defer></script>
-<script src="./js/downloadLoader.js?v=202609168" defer></script>
-<script src="./js/app.js?v=202609168" defer></script>
+<script src="./js/config.js?v=202609169" defer></script>
+<script src="./js/landingPrefs.js?v=202609169" defer></script>
+<script src="./js/landing.js?v=202609169" defer></script>
+<script src="./js/dataConfig.js?v=202609169" defer></script>
+<script src="./js/formatUtils.js?v=202609169" defer></script>
+<script src="./js/imageMap.js?v=202609169" defer></script>
+<script src="./js/state.js?v=202609169" defer></script>
+<script src="./js/appState.js?v=202609169" defer></script>
+<script src="./js/favorites.js?v=202609169" defer></script>
+<script src="./js/wallet.js?v=202609169" defer></script>
+<script src="./js/api.js?v=202609169" defer></script>
+<script src="./js/rankSort.js?v=202609169" defer></script>
+<script src="./js/rankDisplay.js?v=202609169" defer></script>
+<script src="./js/walletConnect.js?v=202609169" defer></script>
+<script src="./js/walletAnalytics.js?v=202609169" defer></script>
+<script src="./js/mispriced.js?v=202609169" defer></script>
+<script src="./js/traitUtils.js?v=202609169" defer></script>
+<script src="./js/listingMeta.js?v=202609169" defer></script>
+<script src="./js/listCards.js?v=202609169" defer></script>
+<script src="./js/chart.js?v=202609169" defer></script>
+<script src="./js/tooltip.js?v=202609169" defer></script>
+<script src="./js/comboInsights.js?v=202609169" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609169" defer></script>
+<script src="./js/downloadLoader.js?v=202609169" defer></script>
+<script src="./js/app.js?v=202609169" defer></script>
 </body>
 </html>
 
