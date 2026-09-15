@@ -52,10 +52,19 @@ if(window.__TV_LANDING__){
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let customizeMode = false;
+  // Bumped at the start of every renderCollectionsGrid() call. wireSearch()
+  // re-renders on every keystroke, replacing host.innerHTML entirely each
+  // time -- without this guard, an older render's in-flight card-info/
+  // floor fetch could resolve after a newer render already replaced the
+  // grid, and blindly upgrading a card by slug could either double-apply
+  // or, worse, silently miss an upgrade if timing lines up wrong. Each
+  // render pass checks this against the generation it started with and
+  // bails if a newer one has since begun.
+  let renderGeneration = 0;
   let currentOrder = [];   // slugs, in display order
   let hiddenSet = new Set();
   let collectionInfoCache = {}; // slug -> {name, image_url, banner_image_url} | null
-  let floorCache = {};          // slug -> number | null
+  let floorCache = {};          // slug -> {floor, symbol} | null
 
   // ---------- Hero ----------
   function wireHero(){
@@ -172,18 +181,45 @@ if(window.__TV_LANDING__){
     if(slug in floorCache) return floorCache[slug];
     try{
       const r = await fetch(`${LIVE_ENDPOINT}/os/stats?slug=${encodeURIComponent(slug)}`, { cache:'no-store' });
-      if(!r.ok){ floorCache[slug] = null; return null; }
+      if(!r.ok){
+        // jv: nekoadz showed no floor badge at all on the landing page,
+        // despite the same /os/stats endpoint successfully returning a
+        // floor when queried from the main app's own detail page for the
+        // same slug. fetchCollectionInfo() already logs its own failures;
+        // this one never did, which is exactly why nothing relevant showed
+        // in the console when this was being diagnosed live.
+        console.warn(`[landing] /os/stats?slug=${slug} returned ${r.status}`);
+        floorCache[slug] = null;
+        return null;
+      }
       const j = await r.json();
-      const floor = j?.total?.floor_price ?? j?.stats?.floor_price ?? null;
-      floorCache[slug] = (typeof floor === 'number' && floor > 0) ? floor : null;
+      const t = j?.total || j?.stats || j || {};
+      const floor = t.floor_price ?? j?.floor_price ?? null;
+      // jv: collection cards need to be multi-chain aware -- a non-ETH
+      // collection's floor (e.g. Nekoadz on Robinhood Chain, denominated
+      // in USDG) must never be silently mislabeled as ETH. Reading the
+      // real symbol here so floorBadgeHtml() below can show it correctly,
+      // same fix already applied to the main app's own floor display
+      // (fetchFloor() in app.js).
+      const symbol = t.floor_price_symbol ?? j?.floor_price_symbol ?? 'ETH';
+      if((floor == null || !(floor > 0))){
+        console.warn(`[landing] /os/stats?slug=${slug} returned ok but no usable floor_price -- raw response:`, JSON.stringify(j));
+      }
+      floorCache[slug] = (typeof floor === 'number' && floor > 0) ? { floor, symbol } : null;
       return floorCache[slug];
-    }catch(_){ floorCache[slug] = null; return null; }
+    }catch(e){
+      console.warn(`[landing] /os/stats?slug=${slug} fetch failed:`, e.message);
+      floorCache[slug] = null;
+      return null;
+    }
   }
 
-  function floorBadgeHtml(floor){
-    if(floor == null) return '';
+  function floorBadgeHtml(floorInfo){
+    if(!floorInfo) return '';
+    const { floor, symbol } = floorInfo;
     const display = floor >= 1 ? floor.toFixed(2) : floor.toFixed(4);
-    return `<span class="landing-floor-badge">Ξ ${display} <span style="opacity:.7;font-weight:500">floor</span></span>`;
+    const prefix = ['ETH','WETH'].includes(symbol) ? 'Ξ ' : '';
+    return `<span class="landing-floor-badge">${prefix}${display} ${symbol} <span style="opacity:.7;font-weight:500">floor</span></span>`;
   }
 
   function collectionCardHtml(slug, entry, info, floor){
@@ -234,6 +270,7 @@ if(window.__TV_LANDING__){
   async function renderCollectionsGrid(){
     const host = document.getElementById('landingCollectionsGrid');
     if(!host) return;
+    const myGeneration = ++renderGeneration;
     const visible = getVisibleOrder();
     if(!visible.length){
       host.innerHTML = `<div style="grid-column:1/-1;color:var(--sub);font-size:13px;text-align:center;padding:20px 0">${currentOrder.length ? 'No collections match your search.' : 'No collections found.'}</div>`;
@@ -247,9 +284,11 @@ if(window.__TV_LANDING__){
     // is visible at all.
     await Promise.all(visible.map(async slug => {
       const [info, floor] = await Promise.all([fetchCollectionInfo(slug), fetchFloor(slug)]);
+      if(myGeneration !== renderGeneration) return; // a newer render has since replaced this grid
       const card = host.querySelector(`.landing-card[data-slug="${CSS.escape(slug)}"]`);
       if(card) card.outerHTML = collectionCardHtml(slug, COLLECTIONS[slug] || { name: slug }, info, floor);
     }));
+    if(myGeneration !== renderGeneration) return;
     wireCardMenus();
     if(customizeMode) wireDragAndDrop();
   }

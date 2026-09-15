@@ -6234,7 +6234,22 @@ async function loadManifest(){
 
       const val = parseFloat(fp);
       const formatted = val >= 1 ? val.toFixed(3) : val.toFixed(4);
-      el.textContent = `Ξ ${formatted} ${sym}`;
+      // jv confirmed live on nekoadz (Robinhood Chain): floor showing
+      // "12 ETH" when it should read "12 USDG". Two things going on here:
+      // 1) this line itself hardcoded the "Ξ" glyph regardless of the
+      //    actual symbol -- same bug class already fixed for sale
+      //    currency display (getSaleCurrency() callers in the sales tab).
+      //    Fixed the same way: only show it for an actual ETH/WETH symbol.
+      // 2) `sym` resolved to the 'ETH' fallback at all, meaning OpenSea's
+      //    /collections/{slug}/stats response didn't actually include a
+      //    usable floor_price_symbol for this collection -- logging the
+      //    raw stats object once so the real response shape is visible
+      //    without guessing further.
+      if(sym === 'ETH' && !window.__loggedFloorStatsShape){
+        window.__loggedFloorStatsShape = true;
+        console.log(`[fetchFloor] [${LIVE_SLUG}] floor_price_symbol missing/ETH -- raw stats response:`, JSON.stringify(j));
+      }
+      el.textContent = `${['ETH','WETH'].includes(sym) ? 'Ξ ' : ''}${formatted} ${sym}`;
       el.className = '';
       syncBottomStatusBar();
 
