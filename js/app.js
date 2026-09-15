@@ -66,7 +66,7 @@ function hydrateListOwners(container){
     if(_OWNER_CACHE.has(id)){ _applyOwnerEl(el, _OWNER_CACHE.get(id)); return; }
     if(_OWNER_PENDING.has(id)) return;
     _OWNER_PENDING.add(id);
-    fetch(`${LIVE_ENDPOINT}/os/owner?contract=${LIVE_CONTRACT}&tokenId=${id}`)
+    fetch(`${LIVE_ENDPOINT}/os/owner?contract=${LIVE_CONTRACT}&tokenId=${id}&chain=${LIVE_CHAIN}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const addr = data?.owner || data?.address || null;
@@ -1099,7 +1099,7 @@ async function openModal(id, opts={}){
     }
     try{
       const WORKER = window.LIVE_ENDPOINT || 'https://nft-live-listings.jvweb3.workers.dev';
-      const r = await fetch(`${LIVE_ENDPOINT}/os/owner?contract=${LIVE_CONTRACT}&tokenId=${id}`);
+      const r = await fetch(`${LIVE_ENDPOINT}/os/owner?contract=${LIVE_CONTRACT}&tokenId=${id}&chain=${LIVE_CHAIN}`);
       if(!r.ok) return;
       const j = await r.json();
       if(!j.owner) return;
@@ -1736,7 +1736,7 @@ async function fetchLiveForIds(ids){
   try{
     status.textContent = 'Fetching listings…';
     // Preserve existing listings — only overlay new ones
-    const url = `${LIVE_ENDPOINT}/os/collection-listings?slug=${encodeURIComponent(LIVE_SLUG)}&contract=${encodeURIComponent(LIVE_CONTRACT)}&chain=ethereum`;
+    const url = `${LIVE_ENDPOINT}/os/collection-listings?slug=${encodeURIComponent(LIVE_SLUG)}&contract=${encodeURIComponent(LIVE_CONTRACT)}&chain=${LIVE_CHAIN}`;
     const r = await fetch(url, { cache: 'no-store' });
     LIVE_OK = r.ok;
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -2089,7 +2089,7 @@ async function init(){
 
           // Fallback: OpenSea via Cloudflare Worker
           if(!loaded){
-            const url = `${LIVE_ENDPOINT}/os/collection-listings?slug=${encodeURIComponent(LIVE_SLUG)}&contract=${encodeURIComponent(LIVE_CONTRACT)}&chain=ethereum`;
+            const url = `${LIVE_ENDPOINT}/os/collection-listings?slug=${encodeURIComponent(LIVE_SLUG)}&contract=${encodeURIComponent(LIVE_CONTRACT)}&chain=${LIVE_CHAIN}`;
             const r = await fetch(url);
             if(!r.ok) throw new Error('HTTP '+r.status);
             const j = await r.json();
@@ -2726,7 +2726,7 @@ function switchTopTab(name){
             }
           } catch(dbErr){
             console.warn('DB listings failed for mispriced, falling back:', dbErr.message);
-            const url = LIVE_ENDPOINT+'/os/collection-listings?slug='+encodeURIComponent(LIVE_SLUG)+'&contract='+encodeURIComponent(LIVE_CONTRACT)+'&chain=ethereum';
+            const url = LIVE_ENDPOINT+'/os/collection-listings?slug='+encodeURIComponent(LIVE_SLUG)+'&contract='+encodeURIComponent(LIVE_CONTRACT)+'&chain='+encodeURIComponent(LIVE_CHAIN);
             const r = await fetch(url, {cache:'no-store'});
             if(!r.ok) throw new Error('HTTP '+r.status);
             const j = await r.json();
@@ -3149,7 +3149,7 @@ async function mobileWalletLookup(){
   if(holderTags){ holderTags.innerHTML = ''; holderTags.style.display = 'none'; }
 
   try{
-    const r = await fetch(`${LIVE_ENDPOINT}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(LIVE_CONTRACT)}`);
+    const r = await fetch(`${LIVE_ENDPOINT}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(LIVE_CONTRACT)}&chain=${encodeURIComponent(LIVE_CHAIN)}`);
     const j = r.ok ? await r.json() : null;
     let ids = (j?.tokenIds || []).filter(id => id >= 1 && id <= 10000);
     ids = [...new Set(ids)];
@@ -3282,7 +3282,7 @@ async function desktopWalletLookup(){
   if(holderTags){ holderTags.innerHTML = ''; holderTags.style.display = 'none'; }
 
   try{
-    const r = await fetch(`${LIVE_ENDPOINT}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(LIVE_CONTRACT)}`);
+    const r = await fetch(`${LIVE_ENDPOINT}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(LIVE_CONTRACT)}&chain=${encodeURIComponent(LIVE_CHAIN)}`);
     const j = r.ok ? await r.json() : null;
     let ids = (j?.tokenIds || []).filter(id => id >= 1 && id <= 10000);
     ids = [...new Set(ids)];
@@ -4586,7 +4586,7 @@ const VS = {
     }
     if(this._ownerPending.has(id)) return;
     this._ownerPending.add(id);
-    fetch(`${LIVE_ENDPOINT}/os/owner?contract=${LIVE_CONTRACT}&tokenId=${id}`)
+    fetch(`${LIVE_ENDPOINT}/os/owner?contract=${LIVE_CONTRACT}&tokenId=${id}&chain=${LIVE_CHAIN}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const addr = data?.owner || data?.address || null;
@@ -5310,7 +5310,7 @@ function setLiveRefresh(on){
         const u = new URL(window.LIVE_ENDPOINT + '/os/collection-listings', location.origin);
         u.searchParams.set('slug', LIVE_SLUG);
         u.searchParams.set('contract', LIVE_CONTRACT);
-        u.searchParams.set('chain', 'ethereum');
+        u.searchParams.set('chain', LIVE_CHAIN);
         const resp = await fetch(u.toString());
         if(!resp.ok) return;
         const j = await resp.json();
@@ -6147,7 +6147,7 @@ async function loadManifest(){
       // reading the live global here means every tick (and any future
       // manual refresh) automatically reflects whichever collection is
       // actually active right now.
-      const r = await fetch(`${WORKER}/nft/holders?contract=${LIVE_CONTRACT}`, { cache: 'force-cache' });
+      const r = await fetch(`${WORKER}/nft/holders?contract=${LIVE_CONTRACT}&chain=${LIVE_CHAIN}`, { cache: 'force-cache' });
       if(!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
       if(j?.ok){
@@ -6632,7 +6632,7 @@ async function loadSimilarListedTokens(id){
     try{
       // Use Alchemy via worker to get ALL tokens (no 200 cap)
       // Falls back to OpenSea if Alchemy not configured
-      const alchemyUrl = `${WORKER}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(CONTRACT)}`;
+      const alchemyUrl = `${WORKER}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(CONTRACT)}&chain=${encodeURIComponent(LIVE_CHAIN)}`;
       const alchemyR = await fetch(alchemyUrl, { cache: 'no-store' });
       const alchemyJ = alchemyR.ok ? await alchemyR.json() : null;
 
@@ -6643,7 +6643,7 @@ async function loadSimilarListedTokens(id){
         // Fallback: paginate OpenSea (up to 3 pages = 600 tokens)
         let allNfts = [], cursor = null;
         for(let page = 0; page < 3; page++){
-          const qs = new URLSearchParams({ address: addr, slug: OS_SLUG, contract: CONTRACT });
+          const qs = new URLSearchParams({ address: addr, slug: OS_SLUG, contract: CONTRACT, chain: LIVE_CHAIN });
           if(cursor) qs.set('cursor', cursor);
           const r = await fetch(`${WORKER}/os/wallet?${qs}`, { cache: 'no-store' });
           if(!r.ok) break;
@@ -6910,7 +6910,7 @@ async function _fetchFreshImg(id){
     const CONTRACT = LIVE_CONTRACT; // confirmed live: was hardcoded to OCAS's own contract -- same bug class as the other IIFEs fixed above, this one would have fetched OCAS's own token image regardless of the active collection.
     // Route through Worker — avoids CORS, uses server-side API key, no rate limit risk
     // nocache=1 bypasses the Worker's 6hr cache so we always get the latest image
-    const wr = await fetch(`${LIVE_ENDPOINT}/os/nft?contract=${CONTRACT}&tokenId=${id}&nocache=1`);
+    const wr = await fetch(`${LIVE_ENDPOINT}/os/nft?contract=${CONTRACT}&tokenId=${id}&chain=${LIVE_CHAIN}&nocache=1`);
     if(!wr.ok) return;
     const wj = await wr.json();
     const liveUrl = wj?.display_image_url || wj?.image_url;
@@ -7595,7 +7595,7 @@ async function loadHolders(force){
 
   try{
     // Fetch true on-chain holders via Alchemy (through our Cloudflare Worker)
-    const r = await fetch(`${LIVE_ENDPOINT}/nft/holders?contract=${LIVE_CONTRACT}`);
+    const r = await fetch(`${LIVE_ENDPOINT}/nft/holders?contract=${LIVE_CONTRACT}&chain=${LIVE_CHAIN}`);
     const j = await r.json();
 
     if(!j.ok) throw new Error(j.error || 'Holder fetch failed');

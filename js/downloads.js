@@ -313,7 +313,8 @@ async function _drawSvgBackgroundAndEmbeddedArt(svgText, alpha, baseUrl, size = 
 async function _fetchLiveImageUrlForDownload(id){
   try{
     const CONTRACT = (typeof LIVE_CONTRACT !== 'undefined' && LIVE_CONTRACT) ? LIVE_CONTRACT : '0x078be86f3104a32313a47815792230a3808642cc';
-    const wr = await fetch(`${LIVE_ENDPOINT}/os/nft?contract=${CONTRACT}&tokenId=${id}&nocache=1`, { cache:'no-store' });
+    const CHAIN = (typeof LIVE_CHAIN !== 'undefined' && LIVE_CHAIN) ? LIVE_CHAIN : 'ethereum';
+    const wr = await fetch(`${LIVE_ENDPOINT}/os/nft?contract=${CONTRACT}&tokenId=${id}&chain=${CHAIN}&nocache=1`, { cache:'no-store' });
     if(!wr.ok) return null;
     const wj = await wr.json();
     window._TV_LAST_DOWNLOAD_NFT = wj;

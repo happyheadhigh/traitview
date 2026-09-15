@@ -31,6 +31,7 @@ const COLLECTIONS = {
     slug: 'on-chain-all-stars',
     name: 'On-Chain All Stars',
     contract: '0x078be86f3104a32313a47815792230a3808642cc',
+    chain: 'ethereum',
     apiBase: 'https://ocas-production-api-production.up.railway.app',
     apiKey: 'APIbot2k26MAINprodOCAS',
     hasBurnMechanic: true,
@@ -42,6 +43,7 @@ const COLLECTIONS = {
     slug: 'argonauts',
     name: 'Argonauts',
     contract: '0x387c41b0b2f1128de44db1bcf8baad085f26392c',
+    chain: 'ethereum',
     apiBase: 'https://tv-bot-api-production.up.railway.app',
     apiKey: 'TraitViewBot2k26',
     hasBurnMechanic: false,
@@ -129,6 +131,14 @@ async function loadDynamicCollections(){
         slug,
         name: row.name || slug,
         contract: row.contract,
+        // jv confirmed live on nekoadz (Robinhood Chain): the Worker calls
+        // this feeds now support a real ?chain= param, but nothing here
+        // ever tracked which chain a collection is actually on -- every
+        // dynamically-discovered collection silently defaulted to
+        // ethereum everywhere downstream. row.chain comes straight from
+        // the collections table (chain TEXT NOT NULL DEFAULT 'ethereum'),
+        // so this is real per-collection data, not a guess.
+        chain: row.chain || 'ethereum',
         apiBase: TV_BOT_API_BASE,
         apiKey: TV_BOT_API_KEY,
         // Burn mechanic is a real, distinct token lifecycle feature specific
@@ -161,6 +171,13 @@ let LIVE_SLUG = null;
 let LIVE_CONTRACT = null;
 let RAILWAY_API = null;
 let RAILWAY_KEY = null;
+// jv confirmed live on nekoadz (Robinhood Chain): every Worker call this
+// site makes either omitted chain entirely or hardcoded "ethereum" --
+// nothing tracked which chain the active collection is actually on at
+// all. Added to the exact same single-source-of-truth set as the other
+// four so every existing call site's pattern (read LIVE_SLUG/LIVE_CONTRACT
+// directly) extends the same way for chain, no new indirection needed.
+let LIVE_CHAIN = 'ethereum';
 
 /* FAVORITES_KEY intentionally stays collection-scoped (appended per-slug at
    use, not defined once here) so favoriting a token in one collection never
@@ -185,6 +202,7 @@ function activateCollection(slug){
   const entry = COLLECTIONS[slug] || COLLECTIONS[DEFAULT_COLLECTION_SLUG];
   LIVE_SLUG = entry.slug;
   LIVE_CONTRACT = entry.contract;
+  LIVE_CHAIN = entry.chain || 'ethereum';
   RAILWAY_API = entry.apiBase;
   RAILWAY_KEY = entry.apiKey;
   updateMenuLinks(entry);

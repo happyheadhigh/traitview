@@ -73,15 +73,16 @@ async function fetchWalletTokenIdsForAddress(addr, useCache=true){
   const worker = typeof LIVE_ENDPOINT !== 'undefined' ? LIVE_ENDPOINT : 'https://nft-live-listings.jvweb3.workers.dev';
   const contract = typeof LIVE_CONTRACT !== 'undefined' ? LIVE_CONTRACT : '0x078be86f3104a32313a47815792230a3808642cc';
   const slug = typeof LIVE_SLUG !== 'undefined' ? LIVE_SLUG : 'on-chain-all-stars';
+  const chain = typeof LIVE_CHAIN !== 'undefined' ? LIVE_CHAIN : 'ethereum';
   let tokenIds = [];
-  const alchemyUrl = `${worker}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(contract)}`;
+  const alchemyUrl = `${worker}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(contract)}&chain=${encodeURIComponent(chain)}`;
   const r = await fetch(alchemyUrl, { cache:'no-store' });
   const j = r.ok ? await r.json() : null;
   if(j?.ok && Array.isArray(j.tokenIds)) tokenIds = j.tokenIds;
   if(!tokenIds.length){
     let allNfts = [], cursor = null;
     for(let page = 0; page < 3; page++){
-      const qs = new URLSearchParams({ address:addr, slug, contract });
+      const qs = new URLSearchParams({ address:addr, slug, contract, chain });
       if(cursor) qs.set('cursor', cursor);
       const rr = await fetch(`${worker}/os/wallet?${qs}`, { cache:'no-store' });
       if(!rr.ok) break;
