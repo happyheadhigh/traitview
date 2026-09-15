@@ -361,7 +361,21 @@ function gridThumbHtml(id,row){
   // survivor's current appearance wouldn't show until refreshLiveTokenData's
   // periodic pass (30s after load, then every 5min) caught up and overwrote
   // IMAGES_MAP — a real, if temporary, staleness window on every fresh load.
-  const src=row.image || mapVal || imgForId(id);
+  //
+  // jv confirmed live: desktop grid showed no images at all, for any
+  // collection, mobile unaffected. Root cause -- this fell back to
+  // imgForId(id), a function that isn't real anywhere in this codebase
+  // (same latent bug flagged and fixed in several other spots already this
+  // session, e.g. buildMispricedPanel, _getRawSvgForDownload). Calling it
+  // unguarded throws a ReferenceError, breaking every single card whose
+  // row.image and mapVal were both empty -- the overwhelming majority of
+  // tokens, since row.image is only ever set for burn survivors and mapVal
+  // (IMAGES_MAP) is only ever populated for OCAS in the first place. Never
+  // caught before now because mobile uses a completely separate rendering
+  // path (VS, the virtual scroller) that already calls the correct,
+  // collision-safe _getTokenImgSrc() -- this desktop-only function was
+  // simply never touched during any of that work.
+  const src=row.image || mapVal || (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
   if(!src) return '<div class="thumb"></div>';
   const s=String(src).trim();
 
@@ -1120,7 +1134,7 @@ async function openModal(id, opts={}){
   const imgBox = $('#mImg');
   const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
   // See gridThumbHtml's comment above — row.image (live) beats the static map.
-  const src    = row.image || mapVal || imgForId(id);
+  const src    = row.image || mapVal || (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
   if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgBox.innerHTML=`<div class="svg-wrap" style="width:100%;height:100%">${s}</div>`; else if(/^data:image\//i.test(s)) imgBox.innerHTML=`<img src="${s}" alt="#${id}">`; else imgBox.innerHTML=`<img src="${ipfsToHttp(s)}" alt="#${id}">`;} else imgBox.innerHTML='<div style="color:var(--muted)">No image</div>';
   // Fetch live image for this token (picks up background changes)
   // Uses shared TTL cache — hover and grid also benefit
@@ -3193,7 +3207,7 @@ function _renderMobileWalletGrid(ids, grid){
   for(const id of ids){
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
-    const imgSrc = VS._imgSrc ? VS._imgSrc(id) : imgForId(id);
+    const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
     card.innerHTML =
@@ -3342,7 +3356,7 @@ function _renderDesktopWalletGrid(ids, grid){
   for(const id of ids){
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
-    const imgSrc = VS._imgSrc ? VS._imgSrc(id) : imgForId(id);
+    const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
     card.innerHTML =
@@ -6822,7 +6836,13 @@ function _getTokenImgSrc(id){
   // collection.
   if(LIVE_SLUG !== 'on-chain-all-stars') return null;
   const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
-  const src = mapVal || imgForId(id);
+  // jv confirmed live: imgForId() isn't a real function anywhere in this
+  // codebase (same latent bug fixed at every other call site this
+  // session) -- calling it unguarded here specifically risked breaking
+  // this function's own OCAS fallback, the very function used everywhere
+  // else as THE fix. Nothing meaningful to fall back to if mapVal itself
+  // is empty, so this just returns null cleanly instead of throwing.
+  const src = mapVal || null;
   if(!src) return null;
   const s = String(src).trim();
   if(s.startsWith('<svg')){
