@@ -62,13 +62,48 @@ if(window.__TV_LANDING__){
     if(el) el.href = CREATOR_TWITTER_URL;
   }
 
+  // jv: "I don't want the faq displayed automatically like that either.
+  // Create a 'faq' button that when clicked takes you to the faq page."
+  // #landingFaqPage is rendered but hidden by default (index.html);
+  // clicking the FAQ button swaps it in for #landingMain, the back
+  // button swaps back -- no page reload, both already exist in the DOM.
+  function wireFaqNav(){
+    const faqBtn = document.getElementById('landingFaqBtn');
+    const backBtn = document.getElementById('landingFaqBackBtn');
+    const main = document.getElementById('landingMain');
+    const faqPage = document.getElementById('landingFaqPage');
+    if(faqBtn) faqBtn.addEventListener('click', () => {
+      if(main) main.style.display = 'none';
+      if(faqPage) faqPage.style.display = 'block';
+      window.scrollTo(0, 0);
+    });
+    if(backBtn) backBtn.addEventListener('click', () => {
+      if(faqPage) faqPage.style.display = 'none';
+      if(main) main.style.display = 'block';
+      window.scrollTo(0, 0);
+    });
+  }
+
   async function fetchCollectionInfo(slug){
     try{
       const r = await fetch(`${LIVE_ENDPOINT}/os/collection-info?slug=${encodeURIComponent(slug)}`, { cache:'no-store' });
-      if(!r.ok) return null;
+      if(!r.ok){
+        // jv confirmed live: collection cards showing no banner/avatar at
+        // all. Most likely explanation -- /os/collection-info is a NEW
+        // Worker endpoint that may not have actually been deployed yet
+        // (a separate paste-in from the earlier chain-awareness fix).
+        // Logging the actual failure so that's confirmable from the
+        // console instead of guessing.
+        console.warn(`[landing] /os/collection-info?slug=${slug} returned ${r.status} -- is the Worker's latest version actually deployed?`);
+        return null;
+      }
       const j = await r.json();
+      if(!j?.ok) console.warn(`[landing] /os/collection-info?slug=${slug} responded but ok:false --`, j?.error);
       return j?.ok ? j : null;
-    }catch(_){ return null; }
+    }catch(e){
+      console.warn(`[landing] /os/collection-info?slug=${slug} fetch failed:`, e.message);
+      return null;
+    }
   }
 
   function collectionCardHtml(slug, entry, info){
@@ -119,5 +154,6 @@ if(window.__TV_LANDING__){
 
   renderFaq();
   setTwitterLink();
+  wireFaqNav();
   renderCollectionsGrid();
 }

@@ -33,15 +33,16 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609167">
+  <link rel="stylesheet" href="./css/styles.css?v=202609168">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
 <div id="landingPage" style="display:none">
-  <div style="max-width:960px;margin:0 auto;padding:32px 20px 60px">
-    <header style="text-align:center;padding:20px 0 36px">
+  <div id="landingMain" style="max-width:960px;margin:0 auto;padding:32px 20px 60px">
+    <header style="text-align:center;padding:20px 0 36px;position:relative">
+      <button type="button" id="landingFaqBtn" style="position:absolute;top:20px;right:0;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer">FAQ</button>
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px">
-        <img src="assets/tv-logo.png" alt="" style="width:40px;height:40px;border-radius:10px" onerror="this.style.display='none'">
+        <img src="./images/traitview-logo.png" alt="" style="width:40px;height:40px;border-radius:10px" onerror="this.style.display='none'">
         <span style="font-size:28px;font-weight:800;letter-spacing:.2px">Trait <span style="color:#2dd4bf">View</span></span>
       </div>
       <p style="max-width:640px;margin:0 auto;color:var(--sub);font-size:15px;line-height:1.55">
@@ -66,15 +67,16 @@
         your server. Every alert links straight back here to the exact token, so your
         community can jump from a Discord ping to full trait and rarity data in one tap.
       </p>
-      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0">
-        Have a collection you'd like added? Reach out in the OCAS Discord and it can be
-        backfilled and onboarded here, live listings and all.
+      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0 0 12px">
+        Wallet verification in the bot (linking a Discord account to a wallet) is the same
+        connection TraitView uses here on the site — connect that same wallet on TraitView to
+        see your own holdings, and how they stack up against the rest of the community's.
       </p>
-    </section>
-
-    <section style="margin-bottom:44px">
-      <h2 style="font-size:18px;margin:0 0 16px">FAQ</h2>
-      <div id="landingFaq" style="display:flex;flex-direction:column;gap:10px"></div>
+      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0">
+        Have a collection you'd like added? Run <code style="background:var(--soft);padding:1px 6px;border-radius:4px">/setup</code>
+        and <code style="background:var(--soft);padding:1px 6px;border-radius:4px">/config</code> directly in the bot — no need
+        to reach out anywhere first, that's all it takes to get backfilled and onboarded here, live listings and all.
+      </p>
     </section>
 
     <footer style="text-align:center;color:var(--sub);font-size:13px;line-height:1.7;padding-top:20px;border-top:1px solid var(--border)">
@@ -86,8 +88,15 @@
       <a href="#" id="landingTwitterLink" target="_blank" rel="noopener" style="color:#2dd4bf;text-decoration:none;font-weight:600">Follow the creator on Twitter →</a>
     </footer>
   </div>
+
+  <div id="landingFaqPage" style="display:none;max-width:720px;margin:0 auto;padding:32px 20px 60px">
+    <button type="button" id="landingFaqBackBtn" style="background:none;border:none;color:var(--sub);font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:20px;display:flex;align-items:center;gap:6px">← Back</button>
+    <h2 style="font-size:22px;margin:0 0 20px">FAQ</h2>
+    <div id="landingFaq" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
 </div>
 <div class="wrap" id="mainApp">
+
   <div class="topbar">
     <div id="mobileHeaderIdentity">
       <a id="collectionAvatarLink" href="https://traitview.com" rel="noreferrer" aria-label="TraitView home">
@@ -865,30 +874,30 @@
 
 
 
-<script src="./js/config.js?v=202609167" defer></script>
-<script src="./js/landing.js?v=202609167" defer></script>
-<script src="./js/dataConfig.js?v=202609167" defer></script>
-<script src="./js/formatUtils.js?v=202609167" defer></script>
-<script src="./js/imageMap.js?v=202609167" defer></script>
-<script src="./js/state.js?v=202609167" defer></script>
-<script src="./js/appState.js?v=202609167" defer></script>
-<script src="./js/favorites.js?v=202609167" defer></script>
-<script src="./js/wallet.js?v=202609167" defer></script>
-<script src="./js/api.js?v=202609167" defer></script>
-<script src="./js/rankSort.js?v=202609167" defer></script>
-<script src="./js/rankDisplay.js?v=202609167" defer></script>
-<script src="./js/walletConnect.js?v=202609167" defer></script>
-<script src="./js/walletAnalytics.js?v=202609167" defer></script>
-<script src="./js/mispriced.js?v=202609167" defer></script>
-<script src="./js/traitUtils.js?v=202609167" defer></script>
-<script src="./js/listingMeta.js?v=202609167" defer></script>
-<script src="./js/listCards.js?v=202609167" defer></script>
-<script src="./js/chart.js?v=202609167" defer></script>
-<script src="./js/tooltip.js?v=202609167" defer></script>
-<script src="./js/comboInsights.js?v=202609167" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609167" defer></script>
-<script src="./js/downloadLoader.js?v=202609167" defer></script>
-<script src="./js/app.js?v=202609167" defer></script>
+<script src="./js/config.js?v=202609168" defer></script>
+<script src="./js/landing.js?v=202609168" defer></script>
+<script src="./js/dataConfig.js?v=202609168" defer></script>
+<script src="./js/formatUtils.js?v=202609168" defer></script>
+<script src="./js/imageMap.js?v=202609168" defer></script>
+<script src="./js/state.js?v=202609168" defer></script>
+<script src="./js/appState.js?v=202609168" defer></script>
+<script src="./js/favorites.js?v=202609168" defer></script>
+<script src="./js/wallet.js?v=202609168" defer></script>
+<script src="./js/api.js?v=202609168" defer></script>
+<script src="./js/rankSort.js?v=202609168" defer></script>
+<script src="./js/rankDisplay.js?v=202609168" defer></script>
+<script src="./js/walletConnect.js?v=202609168" defer></script>
+<script src="./js/walletAnalytics.js?v=202609168" defer></script>
+<script src="./js/mispriced.js?v=202609168" defer></script>
+<script src="./js/traitUtils.js?v=202609168" defer></script>
+<script src="./js/listingMeta.js?v=202609168" defer></script>
+<script src="./js/listCards.js?v=202609168" defer></script>
+<script src="./js/chart.js?v=202609168" defer></script>
+<script src="./js/tooltip.js?v=202609168" defer></script>
+<script src="./js/comboInsights.js?v=202609168" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609168" defer></script>
+<script src="./js/downloadLoader.js?v=202609168" defer></script>
+<script src="./js/app.js?v=202609168" defer></script>
 </body>
 </html>
 
