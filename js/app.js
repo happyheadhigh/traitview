@@ -5197,7 +5197,12 @@ window.addEventListener('resize', ()=>{
 });
 
 // init() handles ?jump= URL param internally after full data loads
-init();
+// jv: bare-root visits show a landing page instead (see the inline script
+// at the top of <head>) -- skip the full data fetch entirely while it's
+// showing, since the grid/traits UI it loads isn't even visible. Once the
+// user picks a collection from the landing page, that navigates to
+// ?collection=slug (a real page load), which naturally clears this flag.
+if(!window.__TV_LANDING__) init();
 
 // ---- extracted script block ----
 

@@ -4,6 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <base href="./">
+  <!-- jv: bare traitview.com (no ?collection=, no ?jump=/?token=, no /token/:slug/:id
+       path) should show a landing page instead of jumping straight into OCAS.
+       Runs synchronously here, before any CSS paints or the body even exists,
+       specifically to avoid a flash of the app UI before JS elsewhere gets a
+       chance to hide it -- a style tag injected this early applies before the
+       browser's first paint. Deliberately mirrors collectionSlugFromUrl()'s own
+       ?collection= / /token/:slug/:id detection (config.js) rather than
+       duplicating slightly different logic that could disagree with it. */
+  <script>
+    (function(){
+      var params = new URLSearchParams(location.search);
+      var hasCollection = params.has('collection') || /^\/token\/[^\/]+\/\d+/.test(location.pathname);
+      var hasJump = params.has('jump') || params.has('token');
+      if(!hasCollection && !hasJump){
+        document.write('<style>#mainApp{display:none!important}#landingPage{display:block!important}</style>');
+        window.__TV_LANDING__ = true;
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://cdn.plot.ly">
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,11 +33,61 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609165">
+  <link rel="stylesheet" href="./css/styles.css?v=202609166">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
-<div class="wrap">
+<div id="landingPage" style="display:none">
+  <div style="max-width:960px;margin:0 auto;padding:32px 20px 60px">
+    <header style="text-align:center;padding:20px 0 36px">
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px">
+        <img src="assets/tv-logo.png" alt="" style="width:40px;height:40px;border-radius:10px" onerror="this.style.display='none'">
+        <span style="font-size:28px;font-weight:800;letter-spacing:.2px">Trait <span style="color:#2dd4bf">View</span></span>
+      </div>
+      <p style="max-width:640px;margin:0 auto;color:var(--sub);font-size:15px;line-height:1.55">
+        A live trait explorer, rarity ranker, and marketplace tracker for NFT collections —
+        built and kept in sync by the TraitView Discord bot, so what you see here always
+        reflects real on-chain data and live listings, not a stale snapshot.
+      </p>
+    </header>
+
+    <section style="margin-bottom:44px">
+      <h2 style="font-size:18px;margin:0 0 16px">Collections</h2>
+      <div id="landingCollectionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
+        <div style="grid-column:1/-1;color:var(--sub);font-size:13px;padding:20px 0;text-align:center">Loading collections…</div>
+      </div>
+    </section>
+
+    <section style="margin-bottom:44px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px">
+      <h2 style="font-size:18px;margin:0 0 14px">How it works</h2>
+      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0 0 12px">
+        TraitView pairs with a Discord bot that backfills a collection's on-chain traits,
+        tracks live OpenSea listings and sales, and posts real-time sale/listing alerts to
+        your server. Every alert links straight back here to the exact token, so your
+        community can jump from a Discord ping to full trait and rarity data in one tap.
+      </p>
+      <p style="color:var(--sub);font-size:14px;line-height:1.6;margin:0">
+        Have a collection you'd like added? Reach out in the OCAS Discord and it can be
+        backfilled and onboarded here, live listings and all.
+      </p>
+    </section>
+
+    <section style="margin-bottom:44px">
+      <h2 style="font-size:18px;margin:0 0 16px">FAQ</h2>
+      <div id="landingFaq" style="display:flex;flex-direction:column;gap:10px"></div>
+    </section>
+
+    <footer style="text-align:center;color:var(--sub);font-size:13px;line-height:1.7;padding-top:20px;border-top:1px solid var(--border)">
+      <p style="max-width:600px;margin:0 auto 10px">
+        TraitView was built for the <b style="color:var(--text)">On-Chain All Stars</b> community,
+        and has grown from there into a fun side project I hope other collections and their
+        communities can use and get some real value out of.
+      </p>
+      <a href="#" id="landingTwitterLink" target="_blank" rel="noopener" style="color:#2dd4bf;text-decoration:none;font-weight:600">Follow the creator on Twitter →</a>
+    </footer>
+  </div>
+</div>
+<div class="wrap" id="mainApp">
   <div class="topbar">
     <div id="mobileHeaderIdentity">
       <a id="collectionAvatarLink" href="https://traitview.com" rel="noreferrer" aria-label="TraitView home">
@@ -796,29 +865,30 @@
 
 
 
-<script src="./js/config.js?v=202609165" defer></script>
-<script src="./js/dataConfig.js?v=202609165" defer></script>
-<script src="./js/formatUtils.js?v=202609165" defer></script>
-<script src="./js/imageMap.js?v=202609165" defer></script>
-<script src="./js/state.js?v=202609165" defer></script>
-<script src="./js/appState.js?v=202609165" defer></script>
-<script src="./js/favorites.js?v=202609165" defer></script>
-<script src="./js/wallet.js?v=202609165" defer></script>
-<script src="./js/api.js?v=202609165" defer></script>
-<script src="./js/rankSort.js?v=202609165" defer></script>
-<script src="./js/rankDisplay.js?v=202609165" defer></script>
-<script src="./js/walletConnect.js?v=202609165" defer></script>
-<script src="./js/walletAnalytics.js?v=202609165" defer></script>
-<script src="./js/mispriced.js?v=202609165" defer></script>
-<script src="./js/traitUtils.js?v=202609165" defer></script>
-<script src="./js/listingMeta.js?v=202609165" defer></script>
-<script src="./js/listCards.js?v=202609165" defer></script>
-<script src="./js/chart.js?v=202609165" defer></script>
-<script src="./js/tooltip.js?v=202609165" defer></script>
-<script src="./js/comboInsights.js?v=202609165" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609165" defer></script>
-<script src="./js/downloadLoader.js?v=202609165" defer></script>
-<script src="./js/app.js?v=202609165" defer></script>
+<script src="./js/config.js?v=202609166" defer></script>
+<script src="./js/landing.js?v=202609166" defer></script>
+<script src="./js/dataConfig.js?v=202609166" defer></script>
+<script src="./js/formatUtils.js?v=202609166" defer></script>
+<script src="./js/imageMap.js?v=202609166" defer></script>
+<script src="./js/state.js?v=202609166" defer></script>
+<script src="./js/appState.js?v=202609166" defer></script>
+<script src="./js/favorites.js?v=202609166" defer></script>
+<script src="./js/wallet.js?v=202609166" defer></script>
+<script src="./js/api.js?v=202609166" defer></script>
+<script src="./js/rankSort.js?v=202609166" defer></script>
+<script src="./js/rankDisplay.js?v=202609166" defer></script>
+<script src="./js/walletConnect.js?v=202609166" defer></script>
+<script src="./js/walletAnalytics.js?v=202609166" defer></script>
+<script src="./js/mispriced.js?v=202609166" defer></script>
+<script src="./js/traitUtils.js?v=202609166" defer></script>
+<script src="./js/listingMeta.js?v=202609166" defer></script>
+<script src="./js/listCards.js?v=202609166" defer></script>
+<script src="./js/chart.js?v=202609166" defer></script>
+<script src="./js/tooltip.js?v=202609166" defer></script>
+<script src="./js/comboInsights.js?v=202609166" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609166" defer></script>
+<script src="./js/downloadLoader.js?v=202609166" defer></script>
+<script src="./js/app.js?v=202609166" defer></script>
 </body>
 </html>
 
