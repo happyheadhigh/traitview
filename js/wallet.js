@@ -42,7 +42,13 @@ function applyConnectedOwnedFilter(ids){
   return ids.filter(id => CONNECTED_WALLET.tokenSet.has(+id));
 }
 function connectedWalletCacheKey(addr){
-  return `traitview_wallet_tokens:${String(addr || '').toLowerCase()}`;
+  // jv confirmed live: this had zero collection-awareness at all -- same
+  // collision-bug class already fixed multiple times elsewhere in this app
+  // (the sessionStorage image cache, VS._nodeCache, etc.). A wallet's owned
+  // token IDs for one collection were being served back as if they were
+  // valid for a completely different collection after switching, with no
+  // way to tell the two apart.
+  return `traitview_wallet_tokens:${typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG ? LIVE_SLUG : 'unknown'}:${String(addr || '').toLowerCase()}`;
 }
 function walletChainLabel(chainId){
   const n = typeof chainId === 'string' ? parseInt(chainId, 16) : Number(chainId || 0);

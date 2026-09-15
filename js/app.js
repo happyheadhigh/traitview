@@ -1380,7 +1380,7 @@ async function computeHolderTags(addr, ids){
   }
   if(blindEyes >= 2) holderTagAdd(tags, { label:'Blind Eyes Whale', cls:'combo', detail:`Owns ${blindEyes} Blind Eyes`, ids:blindIds, score:82 + blindEyes });
   if(diamondTraits >= 3) holderTagAdd(tags, { label:'Diamond Baron', cls:'drip', detail:`Owns ${diamondTraits} Diamond traits`, ids:diamondIds, score:84 + diamondTraits });
-  if(topRanks >= 2) holderTagAdd(tags, { label:'Grail Keeper', cls:'grail', detail:`Holds ${topRanks} top-ranked OCAS`, ids:topRankIds, score:86 + topRanks });
+  if(topRanks >= 2) holderTagAdd(tags, { label:'Grail Keeper', cls:'grail', detail:`Holds ${topRanks} top-ranked ${(typeof COLLECTIONS !== 'undefined' && typeof LIVE_SLUG !== 'undefined' && COLLECTIONS[LIVE_SLUG]?.name) || 'tokens'}`, ids:topRankIds, score:86 + topRanks });
   if(traitNames.size >= Math.max(18, cleanIds.length * 5)) holderTagAdd(tags, { label:'Trait Hoarder', cls:'trait', detail:`${traitNames.size} unique trait values`, ids:cleanIds, score:74 + traitNames.size / 10 });
   if(comboish >= Math.max(2, Math.ceil(cleanIds.length * 0.18))) holderTagAdd(tags, { label:'Combo Collector', cls:'combo', detail:`${comboish} rare/combo-heavy tokens`, ids:comboIds, score:78 + comboish });
   if(cleanIds.length >= 8 && rareTraitHits >= cleanIds.length * 2) holderTagAdd(tags, { label:'One-of-One Hunter', cls:'combo', detail:`${rareTraitHits} rare trait hits`, ids:rareIds, score:76 + rareTraitHits / 3 });

@@ -467,7 +467,9 @@ function _applyCollectionSwitch(slug){
   // -- the header refresh doesn't depend on the grid finishing its own
   // (potentially slower) load.
   if(typeof window.refreshHeaderStats === 'function') window.refreshHeaderStats();
-  return Promise.resolve(init());
+  return Promise.resolve(init()).then(() => {
+    if(typeof refreshConnectedWalletForCollectionSwitch === 'function') return refreshConnectedWalletForCollectionSwitch();
+  });
 }
 
 /* Confirmed live: jv reported stats bar and grid showing two DIFFERENT

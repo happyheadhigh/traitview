@@ -164,6 +164,39 @@ async function setConnectedWallet(addr, chainId, tokenIds, opts={}){
   if(VS?._nodeCache) VS._nodeCache.clear();
   if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
 }
+
+// jv confirmed live: connecting a wallet, then switching collections,
+// left "Connected Holder" showing the FIRST collection's owned-token
+// count, badges, and rank stats completely unchanged -- OCAS's "Type
+// Human 3" badge still showing on Argonauts, a trait category Argonauts
+// doesn't even have. CONNECTED_WALLET's address is deliberately kept
+// across a switch (see resetCollectionState()'s own comment -- wallet
+// connection is a user-level fact, not collection-scoped), but its
+// tokenIds/tokenSet/stats sub-fields are entirely collection-specific and
+// were never refreshed when the address itself didn't change. Called
+// from _applyCollectionSwitch() after init() so LIVE_CONTRACT/LIVE_CHAIN/
+// TOKEN_COUNT already reflect the new collection before this fetches.
+async function refreshConnectedWalletForCollectionSwitch(){
+  if(!CONNECTED_WALLET?.address) return;
+  try{
+    const ids = await fetchWalletTokenIdsForAddress(CONNECTED_WALLET.address, false);
+    CONNECTED_WALLET.tokenIds = ids;
+    CONNECTED_WALLET.tokenSet = new Set(ids);
+    window._walletTokenIds = ids;
+    window._mobileWalletIds = ids;
+    const stats = await buildConnectedWalletStats(CONNECTED_WALLET.address, ids);
+    CONNECTED_WALLET.stats = stats;
+    renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
+    renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
+    if(typeof requestWalletAnalyticsLoad === 'function'){
+      requestWalletAnalyticsLoad(CONNECTED_WALLET.address, { allowHiddenFetch:true }).catch(()=>{});
+    }
+    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+  }catch(e){
+    console.warn('[ConnectedWallet] refresh on collection switch failed:', e.message);
+  }
+}
+
 async function connectTraitViewWallet(){
   const provider = getTraitViewProvider();
   if(!provider){
