@@ -8,9 +8,7 @@
 
 if(window.__TV_LANDING__){
 
-  // jv: link to Twitter as the creator. Placeholder handle -- swap in the
-  // real one.
-  const CREATOR_TWITTER_URL = 'https://twitter.com/YOUR_HANDLE_HERE';
+  const CREATOR_TWITTER_URL = 'https://x.com/happyheadhigh?s=11&t=hxAwdrwmqftDdnfTLGICcQ';
 
   const FAQ_ITEMS = [
     {
@@ -308,6 +306,18 @@ if(window.__TV_LANDING__){
         card.setPointerCapture(e.pointerId);
         card.style.zIndex = '10';
         card.style.transition = 'none';
+        // jv confirmed live: dragging worked visually but never actually
+        // reordered anything. Root cause -- the dragged card is
+        // transformed to visually follow the pointer, so
+        // document.elementFromPoint() (used below to detect which
+        // sibling the pointer is currently over) was hitting the dragged
+        // card ITSELF every time, since it's now visually sitting right
+        // at the pointer's position -- overCard !== dragEl silently
+        // failed on every single move, so the swap logic never ran.
+        // pointer-events:none makes the dragged card transparent to hit-
+        // testing while it's held, so elementFromPoint correctly "sees
+        // through" it to whatever's actually underneath.
+        card.style.pointerEvents = 'none';
         card.style.transform = 'scale(1.03)';
         card.style.boxShadow = '0 12px 28px rgba(0,0,0,.4)';
 
@@ -340,6 +350,7 @@ if(window.__TV_LANDING__){
           dragEl.style.transform = '';
           dragEl.style.boxShadow = '';
           dragEl.style.zIndex = '';
+          dragEl.style.pointerEvents = '';
           const newOrder = [...host.children].map(c => c.dataset.slug);
           // Preserve hidden/search-filtered slugs that aren't currently
           // rendered -- only the visible subset was reordered.
