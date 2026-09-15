@@ -4046,7 +4046,7 @@ function _applyMinimalTheme(mode){
 function cycleMinimalTheme(evt){
   if(evt){ evt.preventDefault(); evt.stopPropagation(); }
   const order = ['off','light','dark'];
-  const current = (localStorage.getItem('minimalTheme') || 'off').toLowerCase();
+  const current = (localStorage.getItem('minimalTheme') || 'dark').toLowerCase();
   const idx = order.indexOf(current);
   const next = order[((idx >= 0 ? idx : 0) + 1) % order.length];
   _applyMinimalTheme(next);
@@ -4055,8 +4055,17 @@ function cycleMinimalTheme(evt){
 // theme choice actually persists across a reload, same as the neon theme
 // already does via applyThemeMobile() -- without this, minimal mode would
 // silently reset to "off" every time the page refreshed.
+//
+// jv: "make the minimal dark theme the default... if a user had
+// previously selected a theme, if they choose a theme it remembers and
+// always loads with it." The persistence already worked correctly (an
+// explicit prior choice, including explicitly choosing 'off' to go back
+// to a neon theme, is always respected here since localStorage.getItem
+// only returns null when nothing was ever set) -- the only thing
+// missing was what a first-time visitor with nothing saved yet should
+// see. Changed the fallback from 'off' to 'dark' for exactly that case.
 function restoreMinimalThemeOnLoad(){
-  const saved = (localStorage.getItem('minimalTheme') || 'off').toLowerCase();
+  const saved = (localStorage.getItem('minimalTheme') || 'dark').toLowerCase();
   if(saved !== 'off') _applyMinimalTheme(saved);
   else {
     // Still update the label even when off, so it doesn't show blank/wrong
@@ -5695,14 +5704,25 @@ async function loadManifest(){
     // Use address as primary signal — most reliable in Seaport
     const addr = (event.payment?.address || event.payment?.token_address || '').toLowerCase();
     if(addr === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2') return 'WETH';
-    if(addr && addr !== '0x0000000000000000000000000000000000000000') return 'WETH';
-    // Fallback to symbol
+    // jv confirmed live on nekoadz: a sale in the chain's real currency
+    // (e.g. USDG on Robinhood Chain) displayed as "8 ETH" -- this
+    // function assumed ANY non-zero, non-WETH payment address must still
+    // be WETH, and the symbol fallback below it only ever checked for the
+    // literal string 'WETH', silently discarding any other real symbol
+    // (like "USDG") the backend had already correctly stored and passed
+    // through. Now returns the real symbol whenever one is actually
+    // present, only falling back to the ETH/WETH guess when there's
+    // truly nothing else to go on.
     const sym = (event.payment?.symbol || '').toUpperCase();
-    if(sym === 'WETH') return 'WETH';
+    if(sym) return sym;
+    if(addr && addr !== '0x0000000000000000000000000000000000000000') return 'WETH';
     return 'ETH';
   }
   function getSaleCurrencyColor(event){
-    return getSaleCurrency(event) === 'WETH' ? '#d8b4fe' : '#2dd4bf';
+    const cur = getSaleCurrency(event);
+    if(cur === 'WETH') return '#d8b4fe';
+    if(cur === 'ETH') return '#2dd4bf';
+    return '#facc15'; // any other real currency (e.g. USDG) gets its own distinct color
   }
 
   function formatSaleEth(event){
@@ -5907,7 +5927,7 @@ async function loadManifest(){
         <div class="sale-body">
           <div class="sale-head">
             <span class="sale-id">#${id} ${id ? `<span style="font-size:10.5px;font-weight:500">${displayRankHtml(+id)}</span>` : ''}</span>
-            ${eth ? `<span class="sale-price" style="color:${getSaleCurrencyColor(sale)}">Ξ ${eth} <span style="font-size:10px;opacity:.8">${getSaleCurrency(sale)}</span></span>` : ''}
+            ${eth ? `<span class="sale-price" style="color:${getSaleCurrencyColor(sale)}">${['ETH','WETH'].includes(getSaleCurrency(sale)) ? 'Ξ ' : ''}${eth} <span style="font-size:10px;opacity:.8">${getSaleCurrency(sale)}</span></span>` : ''}
           </div>
           ${vsFloor}
           ${traitsSection}
@@ -7533,7 +7553,7 @@ function renderFloorTrend(){
     return `${imgH}
         <div style="font-weight:700;font-size:13px;margin-bottom:2px">#${id}</div>
         ${rank}
-        <div style="font-size:14px;font-weight:700;color:${sale.isWeth?'#d8b4fe':'#2dd4bf'};margin-bottom:4px">Ξ ${sale.eth ? sale.eth.toFixed(4) : '?'} ${sale.currency||'ETH'}</div>
+        <div style="font-size:14px;font-weight:700;color:${sale.isWeth?'#d8b4fe':'#2dd4bf'};margin-bottom:4px">${(!sale.currency || sale.currency === 'ETH' || sale.currency === 'WETH') ? 'Ξ ' : ''}${sale.eth ? sale.eth.toFixed(4) : '?'} ${sale.currency||'ETH'}</div>
         ${seller}${buyer}${ts}
         <div style="color:#7a8fa8;font-size:10px;margin-top:6px">${isTap ? 'Tap again to open token' : 'Click to open token'}</div>`;
   }

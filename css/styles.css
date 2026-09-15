@@ -53,7 +53,14 @@ html[data-theme="minimal-dark"]{
   --bg:#050505; --panel:#0a0a0a; --soft:#0a0a0a; --card:#0d0d0d; --text:#e4e4e4; --sub:#7a7a7a; --muted:#111111; --chip:#0d0d0d; --chip-b:#0d0d0d; --accent:#9a9a9a; --border:#0d0d0d; --chip-bg:#0d0d0d; --chip-fg:#e4e4e4;
 }
 html[data-theme="minimal-light"]{
-  --bg:#fafafa; --panel:#f4f4f5; --soft:#f0f0f1; --card:#ffffff; --text:#18181b; --sub:#6b6b70; --muted:#e4e4e7; --chip:#f0f0f1; --chip-b:#e0e0e3; --accent:#52525b; --border:#e0e0e3; --chip-bg:#f0f0f1; --chip-fg:#18181b;
+  /* jv: "the light theme is too white. It's very hard to look at. If we
+     can dim the white background some how that would be great." Dimmed
+     the whole palette (was --bg:#fafafa, --card:#ffffff -- effectively
+     pure white) to a softer light gray, keeping the same relative
+     contrast between layers (card still reads slightly lighter than the
+     page background, chips still read slightly darker) so nothing looks
+     flat, just less glaring overall. */
+  --bg:#e7e7ea; --panel:#dedee2; --soft:#d9d9dd; --card:#f0f0f2; --text:#18181b; --sub:#6b6b70; --muted:#d2d2d6; --chip:#d9d9dd; --chip-b:#c8c8cd; --accent:#52525b; --border:#c8c8cd; --chip-bg:#d9d9dd; --chip-fg:#18181b;
 }
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;max-width:100%;overflow-x:hidden}
