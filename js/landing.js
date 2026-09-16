@@ -8,6 +8,19 @@
 
 if(window.__TV_LANDING__){
 
+  // Safety net for the inline <head> script's CSS-only hide (index.html --
+  // body > * plus specificity-boosted overrides for #mobileBottomBar and
+  // #floatFilterBtn, the two confirmed elements with their own
+  // #id{display:...!important} rule elsewhere in css/styles.css that would
+  // otherwise still show through). Catches any other such escapee this
+  // missed, or one added later, without needing to know its selector in
+  // advance -- an inline style with !important priority beats any
+  // stylesheet rule regardless of that rule's own specificity.
+  document.querySelectorAll('body > *').forEach(el => {
+    if(el.id === 'landingPage') return;
+    el.style.setProperty('display', 'none', 'important');
+  });
+
   const CREATOR_TWITTER_URL = 'https://x.com/happyheadhigh?s=11&t=hxAwdrwmqftDdnfTLGICcQ';
 
   const FAQ_ITEMS = [
