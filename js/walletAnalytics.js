@@ -140,14 +140,28 @@ async function loadWalletAnalytics(address, opts={}){
     return cached;
   }
   try{
-    const enc = encodeURIComponent(addr);
+    // jv: "figure that out" -- re: Wallet Analytics (P&L, cost basis, top
+    // tokens) only ever reflecting the one connected wallet, not every
+    // Discord-linked one. Only combine when this call is actually for the
+    // connected wallet itself (not some other, arbitrary address someone
+    // manually looked up via the standalone wallet-search box, which
+    // should stay scoped to exactly what was typed) -- these 5 endpoints
+    // now accept a comma-separated address list and aggregate server-side
+    // (see api.js), so this only needs to build that list, not merge
+    // results itself.
+    const isConnectedWallet = CONNECTED_WALLET?.address && addr.toLowerCase() === String(CONNECTED_WALLET.address).toLowerCase();
+    const others = isConnectedWallet
+      ? (TV_DISCORD_LINK?.linkedWallets || []).filter(w => String(w).toLowerCase() !== addr.toLowerCase())
+      : [];
+    const addrParam = others.length ? [addr, ...others].join(',') : addr;
+    const enc = encodeURIComponent(addrParam);
     const [summary, traits, history, transfers] = await Promise.all([
       dbFetch(`/db/wallet/${enc}/summary`),
       dbFetch(`/db/wallet/${enc}/traits`).catch(e => ({ ok:false, error:e.message })),
       dbFetch(`/db/wallet/${enc}/history`).catch(e => ({ ok:false, error:e.message })),
       dbFetch(`/db/wallet/${enc}/transfers`, { limit: 500 }).catch(e => ({ ok:false, error:e.message }))
     ]);
-    const data = { address:addr, summary, traits, history, transfers, loadedAt:Date.now() };
+    const data = { address:addr, queryAddr: addrParam, summary, traits, history, transfers, loadedAt:Date.now() };
     boundedMapSet(WALLET_ANALYTICS_CACHE, key, data, 50);
     renderWalletAnalytics(data);
     return data;
@@ -1254,7 +1268,7 @@ function renderWalletAnalytics(data){
   restoreWalletGridDensity();
   setTimeout(flushWalletActivityPlot, 80);
   loadWalletRarityImprovement(data);
-  loadWalletBurnStats(data?.address);
+  loadWalletBurnStats(data?.queryAddr || data?.address);
   // Owned Tokens cards render from IMAGES_MAP (the static, pre-generated
   // per-token manifest baked at build time), same as walletTopTokenCard's
   // `VS._imgSrc`/`imgForId` fallback. That manifest reflects each token's
