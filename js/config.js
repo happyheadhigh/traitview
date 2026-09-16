@@ -188,7 +188,15 @@ let LIVE_CHAIN = 'ethereum';
    favoriteKeyFor() in favorites.js. */
 const FAVORITES_VIEW_KEY = 'traitview_favorites_only';
 const CONNECTED_WALLET_KEY = 'traitview_connected_wallet_v1';
-const CONNECTED_WALLET_CACHE_TTL = 10 * 60 * 1000;
+// jv: TraitView's Connected Holder section and wallet tab need to be aware
+// when a token actually moves in that wallet. The underlying fetch
+// (fetchWalletTokenIdsForAddress -> the Worker's /nft/wallet) is already a
+// live, uncached Alchemy call with no server-side staleness of its own --
+// this browser-side cache was the only real remaining delay. Shortened
+// from 10 minutes to 30 seconds: still avoids a redundant live call on
+// every rapid re-render, but no longer sits on stale holdings for most of
+// a visit the way a 10-minute window could.
+const CONNECTED_WALLET_CACHE_TTL = 30 * 1000;
 
 /* Sets LIVE_SLUG/LIVE_CONTRACT/RAILWAY_API/RAILWAY_KEY for the given
    collection slug, falling back to DEFAULT_COLLECTION_SLUG for an unknown
