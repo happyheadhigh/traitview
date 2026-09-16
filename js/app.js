@@ -5679,6 +5679,12 @@ async function loadManifest(){
   // /db/sales-search endpoint) whenever one is.
   let _fullHistorySales = null;
   let _salesSearchDebounce = null;
+  // jv: "add a sales filter... highest and lowest sale" -- applied as a
+  // sort over whatever's already showing (toShow in renderSales below),
+  // AFTER the existing trait/trait-count filtering, so it works in
+  // combination with those rather than replacing them. 'newest' (the
+  // existing default order, unsorted) needs no special handling.
+  let salesSortMode = 'newest';
 
   // Debounced so a fast typist doesn't fire a request per keystroke --
   // only the settled text actually triggers a fetch, matching how a
@@ -5904,6 +5910,19 @@ async function loadManifest(){
     let toShow = usingFullHistory ? _fullHistorySales : ALL_SALES;
     if(!usingFullHistory && hasTraitFilter) toShow = ALL_SALES.filter(saleMatchesTraitFilter);
 
+    // jv: "add a sales filter... highest and lowest sale." Sorts whatever
+    // survived the trait/trait-count filtering above, so it combines with
+    // those rather than overriding them. formatSaleEth already correctly
+    // resolves the real decimals per sale (not a hardcoded assumption) --
+    // reused here rather than a second, parallel price-parsing path.
+    if(salesSortMode === 'price-desc' || salesSortMode === 'price-asc'){
+      toShow = [...toShow].sort((a, b) => {
+        const av = parseFloat(formatSaleEth(a)) || 0;
+        const bv = parseFloat(formatSaleEth(b)) || 0;
+        return salesSortMode === 'price-desc' ? bv - av : av - bv;
+      });
+    }
+
     // filter note
     const note = document.getElementById('salesFilterNote');
     if(note) note.style.display = (hasTraitFilter || usingFullHistory) ? 'block' : 'none';
@@ -6042,6 +6061,11 @@ async function loadManifest(){
   // saleMatchesTraitFilter above) -- setting them from here keeps
   // everything in sync: switching to the Traits tab shows the identical
   // filter already applied, not a separate, Sales-only filter state.
+  window.setSalesSortMode = function(value){
+    salesSortMode = value;
+    renderSales();
+  };
+
   window.setSalesTraitCountFilter = function(value){
     currentTraitCount = value === '' ? null : Number(value);
     document.querySelectorAll('#traitChips .chip').forEach(n => n.classList.toggle('active', Number(n.dataset.count) === currentTraitCount));

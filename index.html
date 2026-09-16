@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609176">
+  <link rel="stylesheet" href="./css/styles.css?v=202609177">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -334,6 +334,12 @@
         <!-- Recent Sales tab -->
         <div class="top-tab-panel active" id="ttab-sales">
           <div id="salesFilterRow" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <label for="salesSortMode" style="font-size:11px;color:var(--sub);font-weight:600">Sort</label>
+            <select id="salesSortMode" class="btn ghost" style="font-size:12px;padding:5px 10px" onchange="setSalesSortMode(this.value)">
+              <option value="newest">Newest</option>
+              <option value="price-desc">Highest Sale</option>
+              <option value="price-asc">Lowest Sale</option>
+            </select>
             <label for="salesTraitCountFilter" style="font-size:11px;color:var(--sub);font-weight:600">Trait Count</label>
             <select id="salesTraitCountFilter" class="btn ghost" style="font-size:12px;padding:5px 10px" onchange="setSalesTraitCountFilter(this.value)">
               <option value="">Any</option>
@@ -957,32 +963,32 @@
 
 
 
-<script src="./js/config.js?v=202609176" defer></script>
-<script src="./js/landingPrefs.js?v=202609176" defer></script>
-<script src="./js/landing.js?v=202609176" defer></script>
-<script src="./js/dataConfig.js?v=202609176" defer></script>
-<script src="./js/formatUtils.js?v=202609176" defer></script>
-<script src="./js/imageMap.js?v=202609176" defer></script>
-<script src="./js/state.js?v=202609176" defer></script>
-<script src="./js/appState.js?v=202609176" defer></script>
-<script src="./js/favorites.js?v=202609176" defer></script>
-<script src="./js/wallet.js?v=202609176" defer></script>
-<script src="./js/api.js?v=202609176" defer></script>
-<script src="./js/rankSort.js?v=202609176" defer></script>
-<script src="./js/rankDisplay.js?v=202609176" defer></script>
-<script src="./js/walletConnect.js?v=202609176" defer></script>
-<script src="./js/walletAnalytics.js?v=202609176" defer></script>
-<script src="./js/mispriced.js?v=202609176" defer></script>
-<script src="./js/traitUtils.js?v=202609176" defer></script>
-<script src="./js/listingMeta.js?v=202609176" defer></script>
-<script src="./js/listCards.js?v=202609176" defer></script>
-<script src="./js/chart.js?v=202609176" defer></script>
-<script src="./js/tooltip.js?v=202609176" defer></script>
-<script src="./js/comboInsights.js?v=202609176" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609176" defer></script>
-<script src="./js/downloadLoader.js?v=202609176" defer></script>
-<script src="./js/gridDownload.js?v=202609176" defer></script>
-<script src="./js/app.js?v=202609176" defer></script>
+<script src="./js/config.js?v=202609177" defer></script>
+<script src="./js/landingPrefs.js?v=202609177" defer></script>
+<script src="./js/landing.js?v=202609177" defer></script>
+<script src="./js/dataConfig.js?v=202609177" defer></script>
+<script src="./js/formatUtils.js?v=202609177" defer></script>
+<script src="./js/imageMap.js?v=202609177" defer></script>
+<script src="./js/state.js?v=202609177" defer></script>
+<script src="./js/appState.js?v=202609177" defer></script>
+<script src="./js/favorites.js?v=202609177" defer></script>
+<script src="./js/wallet.js?v=202609177" defer></script>
+<script src="./js/api.js?v=202609177" defer></script>
+<script src="./js/rankSort.js?v=202609177" defer></script>
+<script src="./js/rankDisplay.js?v=202609177" defer></script>
+<script src="./js/walletConnect.js?v=202609177" defer></script>
+<script src="./js/walletAnalytics.js?v=202609177" defer></script>
+<script src="./js/mispriced.js?v=202609177" defer></script>
+<script src="./js/traitUtils.js?v=202609177" defer></script>
+<script src="./js/listingMeta.js?v=202609177" defer></script>
+<script src="./js/listCards.js?v=202609177" defer></script>
+<script src="./js/chart.js?v=202609177" defer></script>
+<script src="./js/tooltip.js?v=202609177" defer></script>
+<script src="./js/comboInsights.js?v=202609177" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609177" defer></script>
+<script src="./js/downloadLoader.js?v=202609177" defer></script>
+<script src="./js/gridDownload.js?v=202609177" defer></script>
+<script src="./js/app.js?v=202609177" defer></script>
 </body>
 </html>
 
