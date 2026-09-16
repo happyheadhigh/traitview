@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609177">
+  <link rel="stylesheet" href="./css/styles.css?v=202609178">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -670,6 +670,21 @@
       <button class="btn" onclick="gridDownloadClearAll()" style="flex:1;font-size:12px;padding:7px">Clear</button>
     </div>
 
+    <!-- jv confirmed live: "Tap tokens below to select them" had no
+         tokens actually inside this modal to tap -- the intent had been
+         to let the wallet drawer's own grid show through behind this
+         modal, but the modal's full-viewport darkened overlay
+         (gridDownloadOverlay below) intercepts any tap on that area and
+         closes the modal instead. Self-contained token grid inside the
+         modal itself instead, populated in openGridDownloadModal() by
+         reusing the exact same render functions (_renderMobileWalletGrid /
+         _renderDesktopWalletGrid) the wallet drawer already uses -- their
+         click handlers already check window._gridSelectMode and call
+         toggleGridDownloadSelection() correctly, so this needed no new
+         selection logic, just an actual place for those cards to render
+         that the user can reach. -->
+    <div id="gridDownloadTokenGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:220px;overflow-y:auto;margin-bottom:14px;padding:2px"></div>
+
     <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Grid size</label>
     <select id="gridDownloadSize" class="input" style="width:100%;margin-bottom:12px;font-size:13px;padding:8px">
       <option value="2">2 × 2</option>
@@ -963,32 +978,32 @@
 
 
 
-<script src="./js/config.js?v=202609177" defer></script>
-<script src="./js/landingPrefs.js?v=202609177" defer></script>
-<script src="./js/landing.js?v=202609177" defer></script>
-<script src="./js/dataConfig.js?v=202609177" defer></script>
-<script src="./js/formatUtils.js?v=202609177" defer></script>
-<script src="./js/imageMap.js?v=202609177" defer></script>
-<script src="./js/state.js?v=202609177" defer></script>
-<script src="./js/appState.js?v=202609177" defer></script>
-<script src="./js/favorites.js?v=202609177" defer></script>
-<script src="./js/wallet.js?v=202609177" defer></script>
-<script src="./js/api.js?v=202609177" defer></script>
-<script src="./js/rankSort.js?v=202609177" defer></script>
-<script src="./js/rankDisplay.js?v=202609177" defer></script>
-<script src="./js/walletConnect.js?v=202609177" defer></script>
-<script src="./js/walletAnalytics.js?v=202609177" defer></script>
-<script src="./js/mispriced.js?v=202609177" defer></script>
-<script src="./js/traitUtils.js?v=202609177" defer></script>
-<script src="./js/listingMeta.js?v=202609177" defer></script>
-<script src="./js/listCards.js?v=202609177" defer></script>
-<script src="./js/chart.js?v=202609177" defer></script>
-<script src="./js/tooltip.js?v=202609177" defer></script>
-<script src="./js/comboInsights.js?v=202609177" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609177" defer></script>
-<script src="./js/downloadLoader.js?v=202609177" defer></script>
-<script src="./js/gridDownload.js?v=202609177" defer></script>
-<script src="./js/app.js?v=202609177" defer></script>
+<script src="./js/config.js?v=202609178" defer></script>
+<script src="./js/landingPrefs.js?v=202609178" defer></script>
+<script src="./js/landing.js?v=202609178" defer></script>
+<script src="./js/dataConfig.js?v=202609178" defer></script>
+<script src="./js/formatUtils.js?v=202609178" defer></script>
+<script src="./js/imageMap.js?v=202609178" defer></script>
+<script src="./js/state.js?v=202609178" defer></script>
+<script src="./js/appState.js?v=202609178" defer></script>
+<script src="./js/favorites.js?v=202609178" defer></script>
+<script src="./js/wallet.js?v=202609178" defer></script>
+<script src="./js/api.js?v=202609178" defer></script>
+<script src="./js/rankSort.js?v=202609178" defer></script>
+<script src="./js/rankDisplay.js?v=202609178" defer></script>
+<script src="./js/walletConnect.js?v=202609178" defer></script>
+<script src="./js/walletAnalytics.js?v=202609178" defer></script>
+<script src="./js/mispriced.js?v=202609178" defer></script>
+<script src="./js/traitUtils.js?v=202609178" defer></script>
+<script src="./js/listingMeta.js?v=202609178" defer></script>
+<script src="./js/listCards.js?v=202609178" defer></script>
+<script src="./js/chart.js?v=202609178" defer></script>
+<script src="./js/tooltip.js?v=202609178" defer></script>
+<script src="./js/comboInsights.js?v=202609178" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609178" defer></script>
+<script src="./js/downloadLoader.js?v=202609178" defer></script>
+<script src="./js/gridDownload.js?v=202609178" defer></script>
+<script src="./js/app.js?v=202609178" defer></script>
 </body>
 </html>
 

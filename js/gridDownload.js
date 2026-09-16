@@ -230,6 +230,20 @@ function openGridDownloadModal(view){
   if(overlay) overlay.style.display = 'flex';
   gridDownloadOnFormatChange();
   _updateGridDownloadCount();
+
+  // jv confirmed live: modal had no tokens to actually tap. Populate the
+  // in-modal grid now, reusing whichever wallet-view render function
+  // already built the cards for this wallet -- same ids the drawer
+  // itself is showing, just rendered a second time into a container the
+  // user can actually reach through this modal.
+  const tokenGrid = document.getElementById('gridDownloadTokenGrid');
+  if(tokenGrid){
+    const ids = view === 'mobile'
+      ? (window._mobileWalletIds || [])
+      : (window._desktopWalletIdsFiltered || window._desktopWalletIds || []);
+    if(view === 'mobile' && typeof _renderMobileWalletGrid === 'function') _renderMobileWalletGrid(ids, tokenGrid);
+    else if(typeof _renderDesktopWalletGrid === 'function') _renderDesktopWalletGrid(ids, tokenGrid);
+  }
 }
 
 // jv confirmed live: expected the Download Grid button in "Connected
