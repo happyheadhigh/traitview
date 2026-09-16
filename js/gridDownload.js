@@ -232,6 +232,50 @@ function openGridDownloadModal(view){
   _updateGridDownloadCount();
 }
 
+// jv confirmed live: expected the Download Grid button in "Connected
+// Holder" (the stats-only panel for a connected wallet), not "Wallet
+// View" (the separate manual-lookup drawer, which is the only one that
+// actually has a token grid to select from). Rather than build a second,
+// separate selection UI for Connected Holder, this reuses the existing
+// Wallet View drawer -- opens it pre-filled with the connected wallet's
+// own address (mirroring openWalletView()'s own mobile/desktop routing,
+// window.innerWidth <= 1100), waits for that grid to actually finish
+// loading (both lookup functions are normally fire-and-forget here --
+// awaiting them directly rather than guessing at a delay), then opens
+// the download modal on top of it.
+async function openGridDownloadFromConnectedHolder(){
+  if(!CONNECTED_WALLET?.address){
+    alert('Connect a wallet first.');
+    return;
+  }
+  const addr = CONNECTED_WALLET.address;
+  const isMobile = window.innerWidth <= 1100;
+
+  if(isMobile){
+    const drawer = document.getElementById('mobileWalletDrawer');
+    const overlay = document.getElementById('mobileWalletOverlay');
+    if(!drawer || !overlay) return;
+    if(typeof closeMobileHolderDrawer === 'function') closeMobileHolderDrawer();
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const inp = document.getElementById('mobileWalletInput');
+    if(inp) inp.value = addr;
+    const status = document.getElementById('mobileWalletStatus');
+    if(status) status.textContent = 'Loading…';
+    if(typeof mobileWalletLookup === 'function') await mobileWalletLookup();
+    openGridDownloadModal('mobile');
+  }else{
+    if(typeof toggleWalletDrawer === 'function') toggleWalletDrawer(true);
+    const input = document.getElementById('desktopWalletInput');
+    if(input) input.value = addr;
+    const status = document.getElementById('desktopWalletStatus');
+    if(status) status.textContent = 'Loading…';
+    if(typeof desktopWalletLookup === 'function') await desktopWalletLookup();
+    openGridDownloadModal('desktop');
+  }
+}
+
 function closeGridDownloadModal(){
   window._gridSelectMode = false;
   const overlay = document.getElementById('gridDownloadOverlay');

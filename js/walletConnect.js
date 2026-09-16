@@ -60,6 +60,7 @@ function renderConnectedHolderPanel(host, stats){
       <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
       <div class="connected-holder-actions">
         <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
+        <button type="button" class="mispriced-mode-btn" onclick="if(typeof openGridDownloadFromConnectedHolder==='function') openGridDownloadFromConnectedHolder()">📥 Download Grid</button>
         <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
       </div>
     </div>`;
