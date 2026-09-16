@@ -265,6 +265,18 @@ async function openGridDownloadFromConnectedHolder(){
   const addr = CONNECTED_WALLET.address;
   const isMobile = window.innerWidth <= 1100;
 
+  // jv: same combined-holdings gap as Connected Holder's own stats --
+  // mobileWalletLookup/desktopWalletLookup below do their own fresh,
+  // single-address lookup (that's their whole job for a manual wallet-
+  // view search), which would silently overwrite the combined ids
+  // setConnectedWallet already resolved onto CONNECTED_WALLET.tokenIds.
+  // Only override with that combined set when there's genuinely more
+  // than one linked wallet -- otherwise the fresh lookup just below is
+  // the more current data (CONNECTED_WALLET.tokenIds was resolved at
+  // connect time) and should win as normal.
+  const others = (TV_DISCORD_LINK?.linkedWallets || []).filter(w => String(w).toLowerCase() !== String(addr).toLowerCase());
+  const useCombined = others.length > 0 && (CONNECTED_WALLET.tokenIds || []).length;
+
   if(isMobile){
     const drawer = document.getElementById('mobileWalletDrawer');
     const overlay = document.getElementById('mobileWalletOverlay');
@@ -278,6 +290,11 @@ async function openGridDownloadFromConnectedHolder(){
     const status = document.getElementById('mobileWalletStatus');
     if(status) status.textContent = 'Loading…';
     if(typeof mobileWalletLookup === 'function') await mobileWalletLookup();
+    if(useCombined){
+      window._mobileWalletIds = CONNECTED_WALLET.tokenIds;
+      const grid = document.getElementById('mobileWalletGrid');
+      if(grid && typeof _renderMobileWalletGrid === 'function') _renderMobileWalletGrid(CONNECTED_WALLET.tokenIds, grid);
+    }
     openGridDownloadModal('mobile');
   }else{
     if(typeof toggleWalletDrawer === 'function') toggleWalletDrawer(true);
@@ -286,6 +303,12 @@ async function openGridDownloadFromConnectedHolder(){
     const status = document.getElementById('desktopWalletStatus');
     if(status) status.textContent = 'Loading…';
     if(typeof desktopWalletLookup === 'function') await desktopWalletLookup();
+    if(useCombined){
+      window._desktopWalletIds = CONNECTED_WALLET.tokenIds;
+      window._desktopWalletIdsFiltered = CONNECTED_WALLET.tokenIds;
+      const grid = document.getElementById('desktopWalletGrid');
+      if(grid && typeof _renderDesktopWalletGrid === 'function') _renderDesktopWalletGrid(CONNECTED_WALLET.tokenIds, grid);
+    }
     openGridDownloadModal('desktop');
   }
 }
