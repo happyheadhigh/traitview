@@ -4256,6 +4256,27 @@ html[data-theme^="minimal-"] #tokenGrid.compact .token[data-id]::after{
 #landingHelpBtn, #landingFloatingBotBtn{
   transition: transform .15s ease, border-color .15s ease;
 }
+/* jv confirmed live: the FAQ/Discord floating buttons scrolled with the
+   page instead of staying pinned to the viewport corner. The inline
+   position:fixed on #landingFloatingControls looked correct in isolation
+   and no JS anywhere touches this element's style, so rather than leave
+   an unresolved mystery, moved the rule here with !important (in case
+   some other, not-yet-found rule was winning) and added the standard
+   iOS Safari fix for this exact class of bug -- forcing this element onto
+   its own GPU compositing layer via a (visually inert) 3D transform hint,
+   which resolves fixed-position elements that intermittently scroll with
+   the page on WebKit when nested inside a large or dynamically-sized
+   parent (#landingPage here, whose height changes as collection cards
+   load in asynchronously).
+   z-index kept at 50, not 9999 -- must stay below #landingFaqModal's own
+   z-index:100, or the "?" button would float visibly on top of the FAQ
+   modal it opens once that's showing. */
+#landingFloatingControls{
+  position:fixed!important;bottom:calc(20px + env(safe-area-inset-bottom,0px))!important;right:20px!important;
+  z-index:50!important;
+  -webkit-transform:translateZ(0);transform:translateZ(0);
+  -webkit-backface-visibility:hidden;backface-visibility:hidden;
+}
 #landingExploreBtn:hover, .landing-bot-invite:hover{
   filter: brightness(1.08);
 }

@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609181">
+  <link rel="stylesheet" href="./css/styles.css?v=202609184">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -115,9 +115,20 @@
   </footer>
 
   <!-- ===== FLOATING HELP CONTROLS ===== -->
-  <div id="landingFloatingControls" style="position:fixed;bottom:20px;right:20px;z-index:50;display:flex;gap:10px">
+  <!-- jv confirmed live: these scroll with the page -- the comment above
+       wireFloatingControls() already called them "floating controls near
+       the bottom-right", but this container never actually got
+       position:fixed, so they were always just normal, in-flow elements
+       sitting after the footer. Also switched the bot-invite button to
+       Discord's own blurple background (#5865F2) rather than the generic
+       var(--panel) -- the icon's own fill is a light, near-white color
+       (correct per Discord's official light-on-blurple asset, same file
+       used everywhere else on this page), which only reads clearly
+       against a blurple or dark background, not necessarily var(--panel)
+       in every theme. -->
+  <div id="landingFloatingControls" style="position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));right:20px;z-index:50;display:flex;gap:10px">
     <button type="button" id="landingHelpBtn" title="Help & FAQ" style="width:44px;height:44px;border-radius:50%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3)">?</button>
-    <a href="#" id="landingFloatingBotBtn" target="_blank" rel="noopener" title="Add TraitView Bot" style="width:44px;height:44px;border-radius:50%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:18px;display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.3)">🤖</a>
+    <a href="#" id="landingFloatingBotBtn" target="_blank" rel="noopener" title="Add TraitView Bot" style="width:44px;height:44px;border-radius:50%;background:#5865F2;border:1px solid rgba(255,255,255,.12);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 4px 16px rgba(88,101,242,.4)"><img src="./assets/discord-symbol-light-blurple.svg" alt="" aria-hidden="true" width="20" height="20"></a>
   </div>
 
   <!-- ===== FAQ MODAL ===== -->
@@ -619,7 +630,7 @@
       <button class="mispriced-mode-btn" data-dwsort="listed" onclick="desktopWalletSort('listed')">Listed</button>
       <button class="mispriced-mode-btn" data-dwsort="price-asc" onclick="desktopWalletSort('price-asc')">Price ↑</button>
       <button class="mispriced-mode-btn" data-dwsort="id" onclick="desktopWalletSort('id')">Token ID</button>
-      <button class="mispriced-mode-btn" onclick="openGridDownloadModal('desktop')" style="margin-left:auto">📥 Download Grid</button>
+      <button class="mispriced-mode-btn" onclick="openGridDownloadFromWalletView('desktop')" style="margin-left:auto">📥 Download Grid</button>
     </div>
     <div id="desktopWalletStatus" style="font-size:11px;color:var(--sub);margin-bottom:8px"></div>
     <div id="desktopWalletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
@@ -646,7 +657,7 @@
       <button class="mispriced-mode-btn" data-mwsort="listed" onclick="mobileWalletSort('listed')">Listed</button>
       <button class="mispriced-mode-btn" data-mwsort="price-asc" onclick="mobileWalletSort('price-asc')">Price ↑</button>
       <button class="mispriced-mode-btn" data-mwsort="id" onclick="mobileWalletSort('id')">Token ID</button>
-      <button class="mispriced-mode-btn" onclick="openGridDownloadModal('mobile')" style="margin-left:auto">📥 Download Grid</button>
+      <button class="mispriced-mode-btn" onclick="openGridDownloadFromWalletView('mobile')" style="margin-left:auto">📥 Download Grid</button>
     </div>
     <div id="mobileWalletStatus" style="font-size:12px;color:var(--sub);margin-bottom:8px"></div>
     <div id="mobileWalletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
@@ -655,8 +666,8 @@
 </div>
 
 <!-- ===== Grid Download modal ===== -->
-<div id="gridDownloadOverlay" onclick="if(event.target===this) closeGridDownloadModal()" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px">
-  <div style="background:var(--bg);border:1px solid var(--border);border-radius:16px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;padding:20px">
+<div id="gridDownloadOverlay" onclick="if(event.target===this) closeGridDownloadModal()" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:16px;max-width:420px;width:100%;max-height:85vh;max-height:85dvh;overflow-y:auto;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <h3 style="font-size:16px;margin:0">Download Grid</h3>
       <button onclick="closeGridDownloadModal()" style="background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer;line-height:1;padding:0">×</button>
@@ -978,32 +989,32 @@
 
 
 
-<script src="./js/config.js?v=202609181" defer></script>
-<script src="./js/landingPrefs.js?v=202609181" defer></script>
-<script src="./js/landing.js?v=202609181" defer></script>
-<script src="./js/dataConfig.js?v=202609181" defer></script>
-<script src="./js/formatUtils.js?v=202609181" defer></script>
-<script src="./js/imageMap.js?v=202609181" defer></script>
-<script src="./js/state.js?v=202609181" defer></script>
-<script src="./js/appState.js?v=202609181" defer></script>
-<script src="./js/favorites.js?v=202609181" defer></script>
-<script src="./js/wallet.js?v=202609181" defer></script>
-<script src="./js/api.js?v=202609181" defer></script>
-<script src="./js/rankSort.js?v=202609181" defer></script>
-<script src="./js/rankDisplay.js?v=202609181" defer></script>
-<script src="./js/walletConnect.js?v=202609181" defer></script>
-<script src="./js/walletAnalytics.js?v=202609181" defer></script>
-<script src="./js/mispriced.js?v=202609181" defer></script>
-<script src="./js/traitUtils.js?v=202609181" defer></script>
-<script src="./js/listingMeta.js?v=202609181" defer></script>
-<script src="./js/listCards.js?v=202609181" defer></script>
-<script src="./js/chart.js?v=202609181" defer></script>
-<script src="./js/tooltip.js?v=202609181" defer></script>
-<script src="./js/comboInsights.js?v=202609181" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609181" defer></script>
-<script src="./js/downloadLoader.js?v=202609181" defer></script>
-<script src="./js/gridDownload.js?v=202609181" defer></script>
-<script src="./js/app.js?v=202609181" defer></script>
+<script src="./js/config.js?v=202609184" defer></script>
+<script src="./js/landingPrefs.js?v=202609184" defer></script>
+<script src="./js/landing.js?v=202609184" defer></script>
+<script src="./js/dataConfig.js?v=202609184" defer></script>
+<script src="./js/formatUtils.js?v=202609184" defer></script>
+<script src="./js/imageMap.js?v=202609184" defer></script>
+<script src="./js/state.js?v=202609184" defer></script>
+<script src="./js/appState.js?v=202609184" defer></script>
+<script src="./js/favorites.js?v=202609184" defer></script>
+<script src="./js/wallet.js?v=202609184" defer></script>
+<script src="./js/api.js?v=202609184" defer></script>
+<script src="./js/rankSort.js?v=202609184" defer></script>
+<script src="./js/rankDisplay.js?v=202609184" defer></script>
+<script src="./js/walletConnect.js?v=202609184" defer></script>
+<script src="./js/walletAnalytics.js?v=202609184" defer></script>
+<script src="./js/mispriced.js?v=202609184" defer></script>
+<script src="./js/traitUtils.js?v=202609184" defer></script>
+<script src="./js/listingMeta.js?v=202609184" defer></script>
+<script src="./js/listCards.js?v=202609184" defer></script>
+<script src="./js/chart.js?v=202609184" defer></script>
+<script src="./js/tooltip.js?v=202609184" defer></script>
+<script src="./js/comboInsights.js?v=202609184" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609184" defer></script>
+<script src="./js/downloadLoader.js?v=202609184" defer></script>
+<script src="./js/gridDownload.js?v=202609184" defer></script>
+<script src="./js/app.js?v=202609184" defer></script>
 </body>
 </html>
 

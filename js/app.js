@@ -3210,7 +3210,17 @@ function _renderMobileWalletGrid(ids, grid){
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.dataset.tokenId = id;
-    card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
+    // jv confirmed live: tokens in the Download Grid modal (3 columns,
+    // narrower cells) were stacking/overlapping -- classic CSS grid item
+    // default of min-width:auto (not 0), which lets a card's own content
+    // (here, the image) refuse to shrink below some intrinsic size and
+    // overflow its allocated grid track into neighboring cells. Same card
+    // markup also renders into the original 2-column wallet-view grid,
+    // where wider columns apparently gave enough slack that this never
+    // surfaced there. min-width/min-height:0 lets the card actually
+    // shrink to fit its track regardless of content size; explicit
+    // width:100% keeps it filling that track either way.
+    card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1;min-width:0;min-height:0;width:100%';
     card.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
@@ -3363,7 +3373,7 @@ function _renderDesktopWalletGrid(ids, grid){
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.dataset.tokenId = id;
-    card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
+    card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1;min-width:0;min-height:0;width:100%';
     card.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +

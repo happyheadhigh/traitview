@@ -222,6 +222,24 @@ function _triggerBlobDownload(blob, filename){
 // selection instead of opening the token modal / closing the wallet
 // drawer. window._gridDownloadSelected holds the actual selected IDs.
 
+// jv confirmed live: tapping "Download Grid" from inside the wallet-view
+// drawer itself meant having to manually close the drawer before the
+// modal became reachable -- opening the modal on top isn't enough on its
+// own (z-index alone should put it there, but the drawer is a full-height,
+// near-full-width panel that stays interactive underneath). Closing the
+// drawer first, then opening the modal, guarantees it's never in the way
+// regardless of the exact stacking cause -- same approach already taken
+// for the Connected Holder entry point, which now never visibly opens the
+// drawer in the first place.
+function openGridDownloadFromWalletView(view){
+  if(view === 'mobile'){
+    if(typeof closeMobileWalletDrawer === 'function') closeMobileWalletDrawer();
+  }else{
+    if(typeof toggleWalletDrawer === 'function') toggleWalletDrawer(false);
+  }
+  openGridDownloadModal(view);
+}
+
 function openGridDownloadModal(view){
   window._gridSelectMode = true;
   window._gridDownloadView = view; // 'desktop' | 'mobile'
@@ -230,20 +248,30 @@ function openGridDownloadModal(view){
   if(overlay) overlay.style.display = 'flex';
   gridDownloadOnFormatChange();
   _updateGridDownloadCount();
+  _populateGridDownloadTokenGrid(view);
+}
 
-  // jv confirmed live: modal had no tokens to actually tap. Populate the
-  // in-modal grid now, reusing whichever wallet-view render function
-  // already built the cards for this wallet -- same ids the drawer
-  // itself is showing, just rendered a second time into a container the
-  // user can actually reach through this modal.
+// jv confirmed live: modal had no tokens to actually tap. Populate the
+// in-modal grid, reusing whichever wallet-view render function already
+// built the cards for this wallet -- same ids the drawer itself is
+// showing, just rendered a second time into a container the user can
+// actually reach through this modal. Split out from openGridDownloadModal
+// so openGridDownloadFromConnectedHolder below can open the modal
+// immediately (with a loading placeholder, since ids aren't ready yet)
+// and re-call just this part once the lookup actually finishes, rather
+// than the whole modal only ever opening after the wait was already over.
+function _populateGridDownloadTokenGrid(view){
   const tokenGrid = document.getElementById('gridDownloadTokenGrid');
-  if(tokenGrid){
-    const ids = view === 'mobile'
-      ? (window._mobileWalletIds || [])
-      : (window._desktopWalletIdsFiltered || window._desktopWalletIds || []);
-    if(view === 'mobile' && typeof _renderMobileWalletGrid === 'function') _renderMobileWalletGrid(ids, tokenGrid);
-    else if(typeof _renderDesktopWalletGrid === 'function') _renderDesktopWalletGrid(ids, tokenGrid);
+  if(!tokenGrid) return;
+  const ids = view === 'mobile'
+    ? (window._mobileWalletIds || [])
+    : (window._desktopWalletIdsFiltered || window._desktopWalletIds || []);
+  if(!ids.length){
+    tokenGrid.innerHTML = '<div style="grid-column:1/-1;color:var(--sub);font-size:12px;padding:10px 0;text-align:center">Loading tokens…</div>';
+    return;
   }
+  if(view === 'mobile' && typeof _renderMobileWalletGrid === 'function') _renderMobileWalletGrid(ids, tokenGrid);
+  else if(typeof _renderDesktopWalletGrid === 'function') _renderDesktopWalletGrid(ids, tokenGrid);
 }
 
 // jv confirmed live: expected the Download Grid button in "Connected
@@ -252,11 +280,19 @@ function openGridDownloadModal(view){
 // actually has a token grid to select from). Rather than build a second,
 // separate selection UI for Connected Holder, this reuses the existing
 // Wallet View drawer -- opens it pre-filled with the connected wallet's
-// own address (mirroring openWalletView()'s own mobile/desktop routing,
-// window.innerWidth <= 1100), waits for that grid to actually finish
-// loading (both lookup functions are normally fire-and-forget here --
-// awaiting them directly rather than guessing at a delay), then opens
-// the download modal on top of it.
+// own address.
+//
+// jv confirmed live (again): this used to await the wallet lookup BEFORE
+// opening the modal, so the user watched the drawer itself open and
+// populate first, then the modal appeared on top afterward -- not the
+// instant modal the button implies. Now opens the modal immediately (it
+// shows its own "Loading tokens…" placeholder via
+// _populateGridDownloadTokenGrid, since ids aren't ready yet), runs the
+// drawer lookup in the background (still needed -- it's where the actual
+// data-fetching logic lives, and gridDownloadOverlay's z-index now
+// correctly keeps it hidden behind the modal instead of the drawer
+// visually winning, a separate z-index bug fixed alongside this), then
+// re-populates just the modal's token grid once that finishes.
 async function openGridDownloadFromConnectedHolder(){
   if(!CONNECTED_WALLET?.address){
     alert('Connect a wallet first.');
@@ -264,27 +300,30 @@ async function openGridDownloadFromConnectedHolder(){
   }
   const addr = CONNECTED_WALLET.address;
   const isMobile = window.innerWidth <= 1100;
+  const view = isMobile ? 'mobile' : 'desktop';
 
-  // jv: same combined-holdings gap as Connected Holder's own stats --
-  // mobileWalletLookup/desktopWalletLookup below do their own fresh,
-  // single-address lookup (that's their whole job for a manual wallet-
-  // view search), which would silently overwrite the combined ids
-  // setConnectedWallet already resolved onto CONNECTED_WALLET.tokenIds.
-  // Only override with that combined set when there's genuinely more
-  // than one linked wallet -- otherwise the fresh lookup just below is
-  // the more current data (CONNECTED_WALLET.tokenIds was resolved at
-  // connect time) and should win as normal.
   const others = (TV_DISCORD_LINK?.linkedWallets || []).filter(w => String(w).toLowerCase() !== String(addr).toLowerCase());
   const useCombined = others.length > 0 && (CONNECTED_WALLET.tokenIds || []).length;
 
+  // Open the modal right away, before anything has loaded.
+  openGridDownloadModal(view);
+
+  // jv confirmed live (a third time): even with the modal opening
+  // immediately and on top (z-index), visibly sliding the wallet drawer
+  // open behind it -- full-width on a narrow phone screen, its own
+  // near-opaque background -- reads as "the wallet view" appearing, not
+  // the download grid. The drawer's DOM elements are only needed here to
+  // drive mobileWalletLookup()/desktopWalletLookup() (confirmed neither
+  // function depends on the drawer's own open/visible state, just reads
+  // its input field and writes to its status/grid elements) -- so this
+  // stops adding the .open class at all for this specific flow. The
+  // lookup still runs, still populates those elements, the modal's own
+  // token grid still gets built from the result; the user just never
+  // sees the drawer itself slide into view for what is, from their
+  // perspective, a single action with a single visible result.
   if(isMobile){
     const drawer = document.getElementById('mobileWalletDrawer');
-    const overlay = document.getElementById('mobileWalletOverlay');
-    if(!drawer || !overlay) return;
-    if(typeof closeMobileHolderDrawer === 'function') closeMobileHolderDrawer();
-    drawer.classList.add('open');
-    overlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
+    if(!drawer) return;
     const inp = document.getElementById('mobileWalletInput');
     if(inp) inp.value = addr;
     const status = document.getElementById('mobileWalletStatus');
@@ -295,9 +334,7 @@ async function openGridDownloadFromConnectedHolder(){
       const grid = document.getElementById('mobileWalletGrid');
       if(grid && typeof _renderMobileWalletGrid === 'function') _renderMobileWalletGrid(CONNECTED_WALLET.tokenIds, grid);
     }
-    openGridDownloadModal('mobile');
   }else{
-    if(typeof toggleWalletDrawer === 'function') toggleWalletDrawer(true);
     const input = document.getElementById('desktopWalletInput');
     if(input) input.value = addr;
     const status = document.getElementById('desktopWalletStatus');
@@ -309,8 +346,12 @@ async function openGridDownloadFromConnectedHolder(){
       const grid = document.getElementById('desktopWalletGrid');
       if(grid && typeof _renderDesktopWalletGrid === 'function') _renderDesktopWalletGrid(CONNECTED_WALLET.tokenIds, grid);
     }
-    openGridDownloadModal('desktop');
   }
+
+  // Modal is already open (and may have shown its loading placeholder) --
+  // now that the lookup has actually finished, fill it in with the real
+  // tokens.
+  _populateGridDownloadTokenGrid(view);
 }
 
 function closeGridDownloadModal(){
