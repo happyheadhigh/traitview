@@ -4283,3 +4283,26 @@ html[data-theme^="minimal-"] #tokenGrid.compact .token[data-id]::after{
   #landingHero h1{ font-size:24px!important; }
   .landing-card{ height:150px!important; }
 }
+
+/* ===== Grid download selection mode (js/gridDownload.js) ===== */
+.grid-dl-selected{
+  outline: 3px solid #2dd4bf !important;
+  outline-offset: -3px;
+}
+.grid-dl-selected::after{
+  content: "✓";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #2dd4bf;
+  color: #04201c;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}

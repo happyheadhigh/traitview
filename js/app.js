@@ -3209,13 +3209,17 @@ function _renderMobileWalletGrid(ids, grid){
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
+    card.dataset.tokenId = id;
     card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
     card.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">Ξ${priceStr}</div>` : '');
-    card.addEventListener('click', () => { closeMobileWalletDrawer(); openModal(id); });
+    card.addEventListener('click', () => {
+      if(window._gridSelectMode){ toggleGridDownloadSelection(id, card); return; }
+      closeMobileWalletDrawer(); openModal(id);
+    });
     frag.appendChild(card);
   }
   grid.appendChild(frag);
@@ -3358,13 +3362,17 @@ function _renderDesktopWalletGrid(ids, grid){
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
+    card.dataset.tokenId = id;
     card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);aspect-ratio:1/1';
     card.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
       (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">Ξ${priceStr}</div>` : '');
-    card.addEventListener('click', () => { openModal(id); });
+    card.addEventListener('click', () => {
+      if(window._gridSelectMode){ toggleGridDownloadSelection(id, card); return; }
+      openModal(id);
+    });
     frag.appendChild(card);
   }
   grid.appendChild(frag);
