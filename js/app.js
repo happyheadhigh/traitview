@@ -4333,6 +4333,39 @@ const VS = {
     this._paint();
 
     requestAnimationFrame(()=> requestAnimationFrame(()=>{
+      // jv confirmed live: standard/compact grid modes only ever loaded
+      // the tokens visible in the very first paint -- nothing new loaded
+      // on scroll, while list and grid5 both worked correctly. The one
+      // real difference: grid5's column count is a hardcoded constant
+      // (_computeCols returns 5 unconditionally), while standard/compact
+      // both depend on tg.clientWidth at the exact moment init() ran.
+      // Unlike rowH directly below (which already had this same kind of
+      // self-correction), this.cols was never re-validated afterward --
+      // if clientWidth was 0/stale at that instant (plausible right after
+      // a collection switch, before the container's own layout settles),
+      // the virtualization math below (i0 = firstRow * this.cols) would
+      // stay wrong for the rest of the session, silently starving every
+      // row past the first of any tokens at all. Re-measuring the actual
+      // rendered column count directly from the DOM (the true source of
+      // truth) rather than re-deriving it from clientWidth a second time,
+      // since a second clientWidth read could suffer the exact same
+      // timing problem as the first.
+      if(this.mode !== 'list'){
+        const rowsEl = tg._vsRows;
+        if(rowsEl && rowsEl.children.length > 1){
+          const firstTop = rowsEl.children[0].offsetTop;
+          let measuredCols = 1;
+          for(let i = 1; i < rowsEl.children.length; i++){
+            if(rowsEl.children[i].offsetTop !== firstTop){ measuredCols = i; break; }
+            measuredCols = i + 1;
+          }
+          if(measuredCols > 0 && measuredCols !== this.cols){
+            this.cols = measuredCols;
+            this.visStart = -1; this.visEnd = -1;
+            this._paint();
+          }
+        }
+      }
       const first = tg._vsRows.firstElementChild;
       if(first){
         const gapPx = window.innerWidth <= 900 ? 6 : 8;
@@ -4340,7 +4373,7 @@ const VS = {
         if(h > 10 && Math.abs(h + gapPx - this.rowH) > 10){
           this.rowH = h + gapPx;
           this.visStart = -1; this.visEnd = -1;
-    this.bufferRows = window.innerWidth <= 900 ? 6 : 3;
+          this.bufferRows = window.innerWidth <= 900 ? 6 : 3;
           this._paint();
         }
       }
