@@ -46,11 +46,18 @@ function renderConnectedHolderPanel(host, stats){
   if(!host || !stats) return;
   const rank = stats.bestRank ? rankDiamondHtml(stats.bestRank, 'font-size:13px;font-weight:900;', stats.bestRankSys) : '—';
   const type = stats.dominantType ? `${stats.dominantType[0]} (${stats.dominantType[1]})` : '—';
+  // jv: "Should it show both wallets?" -- combined stats alone would be
+  // confusing without something indicating why the count is higher than
+  // this one address holds by itself.
+  const otherCount = (TV_DISCORD_LINK?.linkedWallets || []).filter(w => String(w).toLowerCase() !== String(CONNECTED_WALLET.address).toLowerCase()).length;
+  const addrLabel = otherCount
+    ? `${shortAddr(CONNECTED_WALLET.address)} <span style="opacity:.7;font-weight:600">+${otherCount} more linked</span>`
+    : shortAddr(CONNECTED_WALLET.address);
   host.innerHTML = `
     <div class="connected-holder-inner">
       <div class="connected-holder-top">
         <div class="connected-holder-title">Connected holder</div>
-        <div class="connected-holder-addr">${shortAddr(CONNECTED_WALLET.address)}</div>
+        <div class="connected-holder-addr">${addrLabel}</div>
       </div>
       <div class="connected-holder-stats">
         <div class="connected-holder-stat"><span>Owned</span><b>${stats.total}</b></div>
@@ -149,13 +156,45 @@ async function setConnectedWallet(addr, chainId, tokenIds, opts={}){
   window._mobileWalletIds = ids;
   try{ localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({ address:addr, chainId })); }catch(_){}
   updateWalletConnectButtons();
-  if(typeof tvCheckLinkStatus === 'function') tvCheckLinkStatus(addr).catch(()=>{});
   if(typeof syncFavoritesWithWallet === 'function') syncFavoritesWithWallet(addr).catch(()=>{});
   const desktopInput = document.getElementById('walletInput');
   const mobileInput = document.getElementById('mobileWalletInput');
   if(desktopInput) desktopInput.value = addr;
   if(mobileInput) mobileInput.value = addr;
-  const stats = await buildConnectedWalletStats(addr, ids);
+
+  // jv: "reconnected my wallets to traitview after our multi wallet
+  // verification and it's only showing the wallet connected that's
+  // holding argonauts. Should it show both wallets?" Answer: yes -- this
+  // now checks link status FIRST (was previously fire-and-forget after
+  // stats were already computed, so linkedWallets could never have been
+  // used in time even if it existed) and, when this address is Discord-
+  // verified with other wallets linked to the same account, fetches and
+  // combines each of their token ids into the one CONNECTED_WALLET.tokenIds
+  // set everything downstream (stats, the token grid, analytics) already
+  // reads from -- rather than touching every one of those call sites
+  // individually to be multi-wallet-aware.
+  let combinedIds = ids;
+  if(typeof tvCheckLinkStatus === 'function'){
+    try{
+      await tvCheckLinkStatus(addr);
+      const others = (TV_DISCORD_LINK?.linkedWallets || [])
+        .filter(w => String(w).toLowerCase() !== String(addr).toLowerCase());
+      if(others.length){
+        const extraIdLists = await Promise.all(
+          others.map(w => fetchWalletTokenIdsForAddress(w, false).catch(() => []))
+        );
+        combinedIds = [...new Set([...ids, ...extraIdLists.flat()])];
+      }
+    }catch(e){ console.warn('[ConnectedWallet] linked-wallet aggregation failed:', e.message); }
+  }
+  if(combinedIds.length !== ids.length){
+    CONNECTED_WALLET.tokenIds = combinedIds;
+    CONNECTED_WALLET.tokenSet = new Set(combinedIds);
+    window._walletTokenIds = combinedIds;
+    window._mobileWalletIds = combinedIds;
+  }
+
+  const stats = await buildConnectedWalletStats(addr, combinedIds);
   CONNECTED_WALLET.stats = stats;
   renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
   renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
@@ -181,11 +220,25 @@ async function refreshConnectedWalletForCollectionSwitch(){
   if(!CONNECTED_WALLET?.address) return;
   try{
     const ids = await fetchWalletTokenIdsForAddress(CONNECTED_WALLET.address, false);
-    CONNECTED_WALLET.tokenIds = ids;
-    CONNECTED_WALLET.tokenSet = new Set(ids);
-    window._walletTokenIds = ids;
-    window._mobileWalletIds = ids;
-    const stats = await buildConnectedWalletStats(CONNECTED_WALLET.address, ids);
+    // Same combined-wallet logic as setConnectedWallet -- TV_DISCORD_LINK
+    // persists across a collection switch (it's tied to the connected
+    // address, not the collection), so this must also re-combine or a
+    // multi-wallet user would silently lose their other wallet's tokens
+    // on every switch, even though the initial connection got it right.
+    let combinedIds = ids;
+    const others = (TV_DISCORD_LINK?.linkedWallets || [])
+      .filter(w => String(w).toLowerCase() !== String(CONNECTED_WALLET.address).toLowerCase());
+    if(others.length){
+      const extraIdLists = await Promise.all(
+        others.map(w => fetchWalletTokenIdsForAddress(w, false).catch(() => []))
+      );
+      combinedIds = [...new Set([...ids, ...extraIdLists.flat()])];
+    }
+    CONNECTED_WALLET.tokenIds = combinedIds;
+    CONNECTED_WALLET.tokenSet = new Set(combinedIds);
+    window._walletTokenIds = combinedIds;
+    window._mobileWalletIds = combinedIds;
+    const stats = await buildConnectedWalletStats(CONNECTED_WALLET.address, combinedIds);
     CONNECTED_WALLET.stats = stats;
     renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
     renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
@@ -355,7 +408,13 @@ async function tvCheckLinkStatus(wallet){
     const r = await fetch(url);
     const data = await r.json();
     if(data?.linked){
-      TV_DISCORD_LINK = { discord_id: data.discord_id, wallet, guild_id: data.guild_id };
+      // jv: "Should it show both wallets?" -- linkedWallets (new field
+      // from the API) is every wallet ever linked to this same Discord
+      // account via the bot's own multi-wallet system, not just this one
+      // traitview_links row. Falls back to just this wallet if the API
+      // hasn't deployed the new field yet or returns nothing, so this
+      // never silently narrows to zero wallets.
+      TV_DISCORD_LINK = { discord_id: data.discord_id, wallet, guild_id: data.guild_id, linkedWallets: (data.linkedWallets && data.linkedWallets.length) ? data.linkedWallets : [wallet.toLowerCase()] };
     } else {
       TV_DISCORD_LINK = null;
     }
