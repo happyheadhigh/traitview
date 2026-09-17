@@ -2997,6 +2997,26 @@ function switchTopTabInSheet(name){
 // ── Mobile View Cycle ─────────────────────────────────────────────────────────
 // Cycles: standard (2×2) → compact (3×3) → list → standard
 const _mobileViews = ['standard', 'list'];
+
+// jv confirmed live: "the grid displays that actually change up are the
+// 5x5 and the list view. The other grids don't even change." Root cause:
+// VS.init() overwrites #tokenGrid's className entirely (not a toggle/merge
+// -- a full replace), and decides which CSS class to keep based on its
+// OWN this.mode string, checking specifically for the literal 'grid5' to
+// preserve view-5x5 (see keepClasses just below in VS.init itself). Every
+// UI call site below built that mode string with its own inline ternary,
+// and every one of them collapsed both 'standard' and 'grid5' down to the
+// same bare 'grid' -- so regardless of which of those two was actually
+// clicked, VS.init() only ever re-applied view-2x2, silently discarding
+// whatever applyViewMode() had just correctly toggled moments earlier.
+// One shared mapping now, matching VS.init()'s own literal checks exactly
+// (list/compact/grid5 pass through as-is, anything else -- 'standard' --
+// becomes VS's internal 'grid'), used at every call site instead of each
+// duplicating its own (buggy) version of this same logic.
+function _vsModeFor(v){
+  if(v === 'list' || v === 'compact' || v === 'grid5') return v;
+  return 'grid';
+}
 const _mobileViewLabels = { standard: '2×2', list: 'List' };
 const _mobileViewIcons = {
   standard: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
@@ -3014,7 +3034,7 @@ function mobileCycleView(){
   _updateMobileViewBtn(next);
   // Re-init virtual scroller with new mode
   if(VS.enabled && VS.ids.length){
-    VS.init(VS.ids, next === 'list' ? 'list' : 'grid');
+    VS.init(VS.ids, _vsModeFor(next));
   }
   if(window.innerWidth <= 900){
     // Only re-stamp if switching TO list (needs data rows) or FROM list (needs badges)
@@ -4555,6 +4575,26 @@ const VS = {
       try{ row = await fetchRow(id); }
       catch(e){ row = { traits:{} }; }
     }
+    // jv confirmed live: "the token images don't load in for any grid
+    // display." Root cause -- this is the only one of VS's three card
+    // builders that ever resolves its image through row.image (this
+    // fetchRow() call above), rather than this._imgSrc(id), the same
+    // synchronous, already-prewarmed CHUNK_CACHE lookup _gridCard and
+    // _listCard both already use successfully with zero network calls.
+    // On a desktop grid showing dozens of cards per screen, fetchRow(id)
+    // firing once per visible card on every single _paint() (i.e. every
+    // scroll tick, via _paint()'s own Promise.all over all visible ids)
+    // means dozens of simultaneous network requests competing every time
+    // the view repaints -- exactly the kind of load a purely synchronous,
+    // already-warmed cache lookup was never subject to. row is still kept
+    // for the trait data below (traitsMiniHtml), which genuinely has no
+    // synchronous equivalent -- only the image resolution itself is
+    // pointed at the reliable path here, by seeding it onto row before
+    // gridThumbHtml runs (which already checks row.image first).
+    if(!row.image){
+      const reliableImg = this._imgSrc(id);
+      if(reliableImg) row.image = reliableImg;
+    }
     const d = document.createElement('div');
     d.className = 'token';
     if(connectedWalletOwns(id)) d.classList.add('owned-token');
@@ -5242,7 +5282,7 @@ window.addEventListener('resize', ()=>{
     clearTimeout(window.__vsResizeTimer);
     window.__vsResizeTimer = setTimeout(()=>{
       const v = localStorage.getItem('viewMode') || 'standard';
-      VS.init(VS.ids, v === 'list' ? 'list' : (v === 'compact' ? 'compact' : 'grid'));
+      VS.init(VS.ids, _vsModeFor(v));
     }, 120);
   }
 });
@@ -5274,7 +5314,7 @@ if(!window.__TV_LANDING__) init();
     if (typeof applyViewMode === 'function') applyViewMode(v);
     syncActive();
     if(window.VS && VS.enabled && Array.isArray(VS.ids) && VS.ids.length){
-      VS.init(VS.ids, v === 'list' ? 'list' : (v === 'compact' ? 'compact' : 'grid'));
+      VS.init(VS.ids, _vsModeFor(v));
     }
     // Inject data rows when switching TO list view (no full re-render needed)
     if(v === 'list' && prev !== 'list'){

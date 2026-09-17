@@ -177,6 +177,16 @@ if(window.__TV_LANDING__){
         return null;
       }
       const j = await r.json();
+      // jv: nekoadz never shows a banner/avatar. The Worker's own endpoint
+      // returns HTTP 200 even when OpenSea itself failed internally
+      // (it wraps that as {ok:false, error:'OpenSea <status>'} rather than
+      // a non-2xx response) -- so the !r.ok branch above can never catch
+      // this specific failure mode, and until now nothing logged it either.
+      // Exact same silent-failure gap already found and fixed once for
+      // fetchFloor() below; closing the same gap here.
+      if(!j?.ok){
+        console.warn(`[landing] /os/collection-info?slug=${slug} came back ok:false -- raw response:`, JSON.stringify(j));
+      }
       collectionInfoCache[slug] = j?.ok ? j : null;
       return collectionInfoCache[slug];
     }catch(e){
@@ -295,12 +305,32 @@ if(window.__TV_LANDING__){
     // Upgrade each card in place as its banner/avatar/floor data arrives --
     // avoids the whole grid waiting on the slowest fetch before anything
     // is visible at all.
-    await Promise.all(visible.map(async slug => {
-      const [info, floor] = await Promise.all([fetchCollectionInfo(slug), fetchFloor(slug)]);
+    //
+    // jv: "OCAS doesn't always display the floor." Every collection's
+    // fetchCollectionInfo+fetchFloor pair used to fire in one single
+    // Promise.all across the whole visible list -- with even a handful of
+    // collections that's a burst of many simultaneous requests hitting
+    // OpenSea (via the Worker) at once, on every page load where the
+    // Worker's own 1-hour cache hasn't warmed yet. An intermittent OpenSea
+    // rate-limit response on any one of those would explain exactly this
+    // symptom: sometimes fine, sometimes not, no pattern tied to the
+    // collection itself. Processing in small batches with a short gap
+    // between them keeps the "cards fill in progressively" behavior
+    // while meaningfully cutting how many requests can land on OpenSea in
+    // the same instant.
+    const BATCH_SIZE = 3;
+    const BATCH_GAP_MS = 150;
+    for(let i = 0; i < visible.length; i += BATCH_SIZE){
       if(myGeneration !== renderGeneration) return; // a newer render has since replaced this grid
-      const card = host.querySelector(`.landing-card[data-slug="${CSS.escape(slug)}"]`);
-      if(card) card.outerHTML = collectionCardHtml(slug, COLLECTIONS[slug] || { name: slug }, info, floor);
-    }));
+      const batch = visible.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async slug => {
+        const [info, floor] = await Promise.all([fetchCollectionInfo(slug), fetchFloor(slug)]);
+        if(myGeneration !== renderGeneration) return;
+        const card = host.querySelector(`.landing-card[data-slug="${CSS.escape(slug)}"]`);
+        if(card) card.outerHTML = collectionCardHtml(slug, COLLECTIONS[slug] || { name: slug }, info, floor);
+      }));
+      if(i + BATCH_SIZE < visible.length) await new Promise(r => setTimeout(r, BATCH_GAP_MS));
+    }
     if(myGeneration !== renderGeneration) return;
     wireCardMenus();
     if(customizeMode) wireDragAndDrop();
