@@ -42,10 +42,28 @@ function drawOrUpdateChart(buckets){
     plot.on('plotly_click', async (ev)=>{
       if(!ev?.points?.length) return;
       const c=Number(ev.points[0].x);
-      if(!Number.isInteger(c) || c < 1) return;
+      // jv: "on mobile I can click the 0 trait bar because it's too small" --
+      // not actually a hitbox-size issue at all: `c < 1` here excluded a
+      // click on the 0 bar entirely, no matter how squarely it was tapped,
+      // since the histogram itself legitimately shows a real 0-trait-count
+      // bar (computeXYFromBuckets above only includes counts with at least
+      // one token in them, and 0 is a valid trait count some tokens
+      // actually have). Changed to `c < 0` so 0 is treated the same as any
+      // other real bar -- negative values, which should never occur, stay
+      // excluded.
+      if(!Number.isInteger(c) || c < 0) return;
       currentTraitCount=(currentTraitCount===c?null:c);
       document.querySelectorAll('#traitChips .chip').forEach(n=>n.classList.toggle('active',Number(n.dataset.count)===currentTraitCount));
       await renderTokenGridFromState();
+      // jv: "the pill for it isn't showing anymore when a trait count is
+      // selected" -- this handler updated currentTraitCount, re-rendered
+      // the grid, and recolored the bar, but never called
+      // updateActivePills() at all, the one function that actually renders
+      // the removable pill for currentTraitCount (js/app.js). Selecting a
+      // trait count via the sidebar's own dropdown must go through a
+      // different path that already calls it; this histogram's own click
+      // never did.
+      if(typeof updateActivePills === 'function') updateActivePills();
       const cols2=colorsFor(LAST_XS);
       Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]);
     });
