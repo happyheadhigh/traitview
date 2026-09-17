@@ -400,7 +400,13 @@ function gridThumbHtml(id,row){
   return `<div class="thumb"><img src="${ipfsToHttp(s)}" loading="lazy" alt="#${id}"></div>`;
 }
 function traitsMiniHtml(row){ return ''; }
-function priceBadgeHtml(id){ const ent=(window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null; if(!ent || ent.price_eth==null) return ''; const txt = formatEth(ent.price_eth); if(!txt) return ''; const inner = `<span style="color:var(--muted);font-weight:500">OpenSea </span><span style="color:#2dd4bf;font-weight:700">${txt}</span><span style="color:var(--muted);opacity:.6"> • live</span>`; return ent.url ? `<a class="chip" href="${ent.url}" target="_blank" rel="noopener" style="border-color:#354;background:#0d261c;text-decoration:none">${inner}</a>` : `<span class="chip" style="border-color:#354;background:#0d261c">${inner}</span>`; }
+// jv: "make the weth and eth wording through the page green for eth and
+// red for weth." This badge hardcoded #2dd4bf (the site's teal "green")
+// for the price text regardless of currency -- now checks the actual
+// currency (window.LISTINGS[id].opensea.currency, populated by the
+// backend fix alongside listStatsRowHtml's identical fix) and switches
+// to #f87171 (the same red used elsewhere for WETH) when it's WETH.
+function priceBadgeHtml(id){ const ent=(window.LISTINGS&&window.LISTINGS[id]&&window.LISTINGS[id].opensea)||null; if(!ent || ent.price_eth==null) return ''; const txt = formatEth(ent.price_eth); if(!txt) return ''; const isWeth = (ent.currency||'ETH').toUpperCase() === 'WETH'; const priceColor = isWeth ? '#f87171' : '#2dd4bf'; const bgColor = isWeth ? '#3a1414' : '#0d261c'; const borderColor = isWeth ? '#543' : '#354'; const inner = `<span style="color:var(--muted);font-weight:500">OpenSea </span><span style="color:${priceColor};font-weight:700">${txt}${isWeth ? ' WETH' : ''}</span><span style="color:var(--muted);opacity:.6"> • live</span>`; return ent.url ? `<a class="chip" href="${ent.url}" target="_blank" rel="noopener" style="border-color:${borderColor};background:${bgColor};text-decoration:none">${inner}</a>` : `<span class="chip" style="border-color:${borderColor};background:${bgColor}">${inner}</span>`; }
 function rankTier(rank){
   const r=parseInt(rank,10);
   if(r<=100) return 'gold';
@@ -1709,7 +1715,7 @@ function renderPriceChart(id, sales, host){
     <polyline points="${pts}" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     <text x="${PAD}" y="${ty(maxEth).toFixed(1)-4}" fill="#9ab0c8" font-size="10">Ξ${maxEth.toFixed(4)}</text>
     <text x="${PAD}" y="${ty(minEth).toFixed(1)+12}" fill="#9ab0c8" font-size="10">Ξ${minEth.toFixed(4)}</text>
-    ${points.map(p=>`<circle cx="${tx(p.ts).toFixed(1)}" cy="${ty(p.eth).toFixed(1)}" r="4" fill="${p.symbol === 'WETH' ? '#d8b4fe' : '#2dd4bf'}" stroke="var(--panel)" stroke-width="2">
+    ${points.map(p=>`<circle cx="${tx(p.ts).toFixed(1)}" cy="${ty(p.eth).toFixed(1)}" r="4" fill="${p.symbol === 'WETH' ? '#f87171' : '#2dd4bf'}" stroke="var(--panel)" stroke-width="2">
       <title>${new Date(p.ts).toLocaleDateString()} — Ξ${p.eth.toFixed(4)} ${p.symbol}</title>
     </circle>`).join('')}
   </svg>`;
@@ -1718,7 +1724,7 @@ function renderPriceChart(id, sales, host){
   html += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:120px;overflow:auto">';
   for(const p of [...points].reverse()){
     const date = new Date(p.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-    const saleColor = p.symbol === 'WETH' ? '#c4b5fd' : '#7dd3fc';
+    const saleColor = p.symbol === 'WETH' ? '#f87171' : '#7dd3fc';
     html += `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed var(--chip-b)">
       <span style="color:#e6f0ff;font-weight:700">${date}</span>
       <span style="color:${saleColor};font-weight:700">Ξ ${p.eth.toFixed(4)} ${p.symbol}</span>
@@ -2110,9 +2116,9 @@ async function init(){
             const data = await dbFetch('/db/listings');
             if(data.ok && data.listings?.length > 0){
               const listingsData = {};
-              for(const {token_id, price_eth, url} of data.listings){
+              for(const {token_id, price_eth, url, currency} of data.listings){
                 listingsData[token_id] = {
-                  opensea: { price_eth: price_eth, url, source: 'db' }
+                  opensea: { price_eth: price_eth, url, currency: currency || 'ETH', source: 'db' }
                 };
               }
               window.LISTINGS = Object.assign({}, window.LISTINGS, listingsData);
@@ -2682,8 +2688,8 @@ function switchTopTab(name){
       dbFetch('/db/listings').then(data => {
         if(data.ok && data.listings?.length > 0){
           if(!window.LISTINGS) window.LISTINGS = {};
-          for(const {token_id, price_eth, url} of data.listings){
-            window.LISTINGS[token_id] = { opensea: { price_eth, url, source: 'db' } };
+          for(const {token_id, price_eth, url, currency} of data.listings){
+            window.LISTINGS[token_id] = { opensea: { price_eth, url, currency: currency || 'ETH', source: 'db' } };
           }
           LIVE_OK = true;
           const _fb = document.getElementById('btnFetch');
@@ -2754,8 +2760,8 @@ function switchTopTab(name){
           try{
             const data = await dbFetch('/db/listings');
             if(data.ok && data.listings?.length > 0){
-              for(const {token_id, price_eth, url} of data.listings){
-                listingsData[token_id] = { opensea: { price_eth, url, source: 'db' } };
+              for(const {token_id, price_eth, url, currency} of data.listings){
+                listingsData[token_id] = { opensea: { price_eth, url, currency: currency || 'ETH', source: 'db' } };
               }
               window.LISTINGS = Object.assign({}, window.LISTINGS, listingsData);
               LIVE_OK = true;
@@ -2944,8 +2950,8 @@ function switchAnalyticsSheetTab(name){
       dbFetch('/db/listings').then(data => {
         if(data.ok && data.listings?.length > 0){
           if(!window.LISTINGS) window.LISTINGS = {};
-          for(const {token_id, price_eth, url} of data.listings){
-            window.LISTINGS[token_id] = { opensea: { price_eth, url, source: 'db' } };
+          for(const {token_id, price_eth, url, currency} of data.listings){
+            window.LISTINGS[token_id] = { opensea: { price_eth, url, currency: currency || 'ETH', source: 'db' } };
           }
           LIVE_OK = true;
           const listed = Object.keys(window.LISTINGS).map(Number).filter(id => window.LISTINGS[id]?.opensea?.price_eth != null);
@@ -3250,6 +3256,11 @@ function _renderMobileWalletGrid(ids, grid){
   for(const id of ids){
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
+    // jv: "make the weth and eth wording through the page green for eth
+    // and red for weth" -- this badge hardcoded #2dd4bf regardless of
+    // currency; window.LISTINGS now carries the real currency (backend
+    // fix alongside listStatsRowHtml/priceBadgeHtml's identical fixes).
+    const isWethPrice = (window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase() === 'WETH';
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.dataset.tokenId = id;
@@ -3268,7 +3279,7 @@ function _renderMobileWalletGrid(ids, grid){
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
-      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">Ξ${priceStr}</div>` : '');
+      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:${isWethPrice?'#f87171':'#2dd4bf'};font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</div>` : '');
     card.addEventListener('click', () => {
       if(window._gridSelectMode){ toggleGridDownloadSelection(id, card); return; }
       closeMobileWalletDrawer(); openModal(id);
@@ -3413,6 +3424,11 @@ function _renderDesktopWalletGrid(ids, grid){
   for(const id of ids){
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
+    // jv: "make the weth and eth wording through the page green for eth
+    // and red for weth" -- this badge hardcoded #2dd4bf regardless of
+    // currency; window.LISTINGS now carries the real currency (backend
+    // fix alongside listStatsRowHtml/priceBadgeHtml's identical fixes).
+    const isWethPrice = (window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase() === 'WETH';
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.dataset.tokenId = id;
@@ -3421,7 +3437,7 @@ function _renderDesktopWalletGrid(ids, grid){
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
-      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:#2dd4bf;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">Ξ${priceStr}</div>` : '');
+      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:${isWethPrice?'#f87171':'#2dd4bf'};font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</div>` : '');
     card.addEventListener('click', () => {
       if(window._gridSelectMode){ toggleGridDownloadSelection(id, card); return; }
       openModal(id);
@@ -4591,6 +4607,11 @@ const VS = {
     const rankSys = getRankSystem() === 'tv' ? 'tv' : (osRank ? 'os' : 'tv');
     const price = window.LISTINGS?.[id]?.opensea?.price_eth;
     const priceStr = price != null ? (price >= 1 ? price.toFixed(3) : price.toFixed(4)) : null;
+    // jv: "make the weth and eth wording through the page green for eth
+    // and red for weth" -- this badge hardcoded #2dd4bf regardless of
+    // currency; window.LISTINGS now carries the real currency (backend
+    // fix alongside listStatsRowHtml/priceBadgeHtml's identical fixes).
+    const isWethPrice = (window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase() === 'WETH';
     const imgSrc = this._imgSrc(id);
     const isMinimal = (document.documentElement.getAttribute('data-theme') || '').startsWith('minimal-');
     const d = document.createElement('div');
@@ -4608,7 +4629,7 @@ const VS = {
       // which is what actually serves mobile (and is also just there for
       // anyone on desktop who isn't actively hovering this exact tile).
       d.style.cssText = 'display:flex;flex-direction:column;min-width:0;width:100%;max-width:100%;cursor:pointer;box-sizing:border-box';
-      const hoverDetail = (rank || priceStr) ? `<div class="minimal-tile-hover">${rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : ''}${priceStr ? `<span>Ξ${priceStr}</span>` : ''}</div>` : '';
+      const hoverDetail = (rank || priceStr) ? `<div class="minimal-tile-hover">${rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : ''}${priceStr ? `<span style="color:${isWethPrice?'#f87171':'#2dd4bf'}">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</span>` : ''}</div>` : '';
       d.innerHTML =
         `<div class="minimal-tile-image" style="position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--muted)">` +
           (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block">` : '') +
@@ -4618,7 +4639,7 @@ const VS = {
         `<div class="minimal-tile-meta">` +
           `<span>#${id}</span>` +
           (rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : '') +
-          (priceStr ? `<span class="minimal-tile-price">Ξ${priceStr}</span>` : '') +
+          (priceStr ? `<span class="minimal-tile-price" style="color:${isWethPrice?'#f87171':'#2dd4bf'}!important">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</span>` : '') +
         `</div>`;
       if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
       d.addEventListener('click', () => openModal(id));
@@ -5894,7 +5915,14 @@ async function loadManifest(){
   }
   function getSaleCurrencyColor(event){
     const cur = getSaleCurrency(event);
-    if(cur === 'WETH') return '#d8b4fe';
+    // jv: "make the weth and eth wording through the page green for eth
+    // and red for weth" -- this used lavender for WETH, not red. Unifying
+    // with the same green/red scheme applied everywhere else this
+    // session (listStatsRowHtml, priceBadgeHtml, the wallet-view cards,
+    // the mispriced/similar-tokens tooltips) rather than leaving sales
+    // as the one remaining place with a different color for the same
+    // meaning.
+    if(cur === 'WETH') return '#f87171';
     if(cur === 'ETH') return '#2dd4bf';
     return '#facc15'; // any other real currency (e.g. USDG) gets its own distinct color
   }
@@ -6834,7 +6862,7 @@ async function loadSimilarListedTokens(id){
           <div style="position:relative;padding-bottom:100%">${imgTag}</div>
           <div style="padding:3px 4px;font-size:9px">
             <div style="font-weight:700;color:var(--text)">#${t.id}</div>
-            <div style="color:#2dd4bf;font-weight:700">Ξ ${t.price.toFixed(4)}</div>
+            <div style="color:${(window.LISTINGS?.[t.id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?'#f87171':'#2dd4bf'};font-weight:700">${(window.LISTINGS?.[t.id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?'':'Ξ '}${t.price.toFixed(4)}${(window.LISTINGS?.[t.id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?' WETH':''}</div>
             <div>${displayRankHtml(t.id, "font-size:9px;font-weight:700;")}</div>
           </div>
         </div>`;
@@ -6950,8 +6978,9 @@ async function loadSimilarListedTokens(id){
           }
         }
         const rankHtml = `<div class="wallet-rank">${displayRankHtml(t.id, "font-size:10px;font-weight:700;")}</div>`;
+        const listingIsWeth = (window.LISTINGS?.[t.id]?.opensea?.currency||'ETH').toUpperCase() === 'WETH';
         const priceHtml = (window.LISTINGS && window.LISTINGS[t.id]?.opensea?.price_eth != null)
-          ? `<div style="font-size:9px;color:#2dd4bf;font-weight:700">Ξ ${window.LISTINGS[t.id].opensea.price_eth.toFixed(4)}</div>` : '';
+          ? `<div style="font-size:9px;color:${listingIsWeth?'#f87171':'#2dd4bf'};font-weight:700">${listingIsWeth?'':'Ξ '}${window.LISTINGS[t.id].opensea.price_eth.toFixed(4)}${listingIsWeth?' WETH':''}</div>` : '';
         return `<div class="wallet-card" onclick="openModal(${t.id})">
           <div class="wallet-thumb">${imgHtml}</div>
           <div class="wallet-id">#${t.id}</div>
@@ -7281,7 +7310,7 @@ function _holderThumbEnter(id, clientX, clientY){
     imgH +
     `<div style="font-weight:700;font-size:12px;margin-bottom:2px">#${id}</div>` +
     `<div style="font-size:10px;margin-bottom:4px">${rankDiamondHtml(d.rank || '', '', d.rankSys)}</div>` +
-    (d.price != null ? `<div style="color:#2dd4bf;font-weight:700;font-size:13px">Ξ ${d.price} ETH</div>` : '') +
+    (d.price != null ? `<div style="color:${(window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?'#f87171':'#2dd4bf'};font-weight:700;font-size:13px">${(window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?'':'Ξ '}${d.price}${(window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?' WETH':' ETH'}</div>` : '') +
     `<div style="color:#7a8fa8;font-size:10px;margin-top:5px">Click to open token</div>`
   );
 }
@@ -7444,7 +7473,7 @@ function renderScatter(){
     return `${imgHtml}
       <div style="font-weight:700;font-size:13px;margin-bottom:2px">#${cd.id}</div>
       <div style="font-size:11px;margin-bottom:4px">${rankDiamondHtml(cd.rank, "font-weight:700;")}</div>
-      <div style="font-size:14px;font-weight:700;color:#2dd4bf;margin-bottom:4px">Ξ ${cd.price.toFixed(4)} ETH</div>
+      <div style="font-size:14px;font-weight:700;color:${(window.LISTINGS?.[cd.id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?'#f87171':'#2dd4bf'};margin-bottom:4px">${(window.LISTINGS?.[cd.id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?'':'Ξ '}${cd.price.toFixed(4)}${(window.LISTINGS?.[cd.id]?.opensea?.currency||'ETH').toUpperCase()==='WETH'?' WETH':' ETH'}</div>
       ${label}
       <div style="color:#7a8fa8;font-size:10px;margin-top:6px">${isTap ? 'Tap again to open token' : 'Click to open token'}</div>`;
   }
@@ -7760,7 +7789,7 @@ function renderFloorTrend(){
     return `${imgH}
         <div style="font-weight:700;font-size:13px;margin-bottom:2px">#${id}</div>
         ${rank}
-        <div style="font-size:14px;font-weight:700;color:${sale.isWeth?'#d8b4fe':'#2dd4bf'};margin-bottom:4px">${(!sale.currency || sale.currency === 'ETH' || sale.currency === 'WETH') ? 'Ξ ' : ''}${sale.eth ? sale.eth.toFixed(4) : '?'} ${sale.currency||'ETH'}</div>
+        <div style="font-size:14px;font-weight:700;color:${sale.isWeth?'#f87171':'#2dd4bf'};margin-bottom:4px">${(!sale.currency || sale.currency === 'ETH' || sale.currency === 'WETH') ? 'Ξ ' : ''}${sale.eth ? sale.eth.toFixed(4) : '?'} ${sale.currency||'ETH'}</div>
         ${seller}${buyer}${ts}
         <div style="color:#7a8fa8;font-size:10px;margin-top:6px">${isTap ? 'Tap again to open token' : 'Click to open token'}</div>`;
   }

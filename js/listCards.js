@@ -40,9 +40,23 @@
     scoreCls  = s > 30 ? 'gold' : s > 20 ? 'purple' : s > 10 ? 'green' : '';
   }
 
+  // jv: "make the weth and eth wording through the page green for eth and
+  // red for weth. right now its all same color." This cell used to apply
+  // a "green" class unconditionally to any price at all, and always
+  // showed the Ξ symbol regardless of the listing's actual currency --
+  // it never even looked at currency in the first place. window.LISTINGS
+  // now carries the real currency (backend fix: sync-listings.js,
+  // api.js, and a new column on the listings table itself), so this can
+  // actually check it.
+  const listingCurrency = (window.LISTINGS?.[id]?.opensea?.currency || 'ETH').toUpperCase();
+  const isWeth = listingCurrency === 'WETH';
+  const listedCls = !priceStr ? 'muted' : (isWeth ? 'red' : 'green');
+  const listedSymbol = isWeth ? '' : 'Ξ ';
+  const listedSuffix = isWeth ? ' WETH' : '';
+
   return `<div class="vs-datarow">` +
     `<div class="vs-cell"><div class="vs-label">Rank</div><div class="vs-val ${rankCls}">${rank ? '★'+rank.toLocaleString() : '—'}</div></div>` +
-    `<div class="vs-cell"><div class="vs-label">Listed</div><div class="vs-val ${priceStr?'green':'muted'}">${priceStr ? 'Ξ '+priceStr : '—'}</div></div>` +
+    `<div class="vs-cell"><div class="vs-label">Listed</div><div class="vs-val ${listedCls}">${priceStr ? listedSymbol+priceStr+listedSuffix : '—'}</div></div>` +
     `<div class="vs-cell"><div class="vs-label">vs Floor</div><div class="vs-val ${vsFloorCls}">${vsFloorHtml}</div></div>` +
     `<div class="vs-cell"><div class="vs-label">Last Sale</div><div class="vs-val ${lastSale==='—'?'muted':'green'}" data-last-sale-id="${id}">${lastSale}</div></div>` +
     `<div class="vs-cell"><div class="vs-label">Sold Ago</div><div class="vs-val muted" data-sold-ago-id="${id}">${saleAge}</div></div>` +
