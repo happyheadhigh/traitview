@@ -7797,6 +7797,21 @@ function populateFloorTraitFilter(){
 function renderFloorTrend(){
   const host = document.getElementById('floorTrendHost');
   if(!host) return;
+  // jv: "Floor trend tab doesn't load until I hit the refresh button."
+  // Root cause: this function's only success-path DOM update is
+  // Plotly.newPlot() near the bottom -- there's no separate innerHTML
+  // write beforehand, unlike the "No sales data yet"/"No sales in this
+  // time range" early-return cases just below. If Plotly hasn't finished
+  // loading yet (a real race on a quick tab switch right after page
+  // load), Plotly.newPlot throws a ReferenceError, uncaught, and this
+  // whole function aborts right there -- never touching the DOM at all,
+  // leaving the original static placeholder text stuck forever. Manually
+  // clicking Refresh later "fixes" it purely because enough time has
+  // passed for Plotly to have finished loading by then. Same guard other
+  // charts in this app already use for this exact race (chart.js's
+  // drawOrUpdateChart, burnsAnalytics.js's drawBurnActivityChart) --
+  // retry shortly instead of throwing.
+  if(typeof Plotly === 'undefined'){ setTimeout(renderFloorTrend, 80); return; }
 
   const events = window._floorEvents;
   if(!events.length){
