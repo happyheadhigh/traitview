@@ -188,15 +188,27 @@ async function downloadTokenGrid(ids, options, onProgress){
     return;
   }
 
+  // jv confirmed live: downloaded grid had a big blank strip below the
+  // actual content. Root cause -- rows/cols here are just the user's
+  // dropdown pick (e.g. "4 x 4" = 16 cells), passed straight through to
+  // _buildGridSvg/_buildGridRaster as the OUTPUT canvas/viewBox
+  // dimensions, with no relationship at all to how many tokens actually
+  // got selected and resolved. 8 tokens in a 4-column layout only fills
+  // 2 rows; the fixed 4-row canvas left the other 2 rows entirely blank.
+  // cols stays as the user's deliberate per-row layout choice; rows is
+  // recomputed from what's actually being drawn, so the output image is
+  // always exactly as tall as its real content and never taller.
+  const actualRows = Math.ceil(resolved.length / cols);
+
   const slugPart = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : 'traitview';
-  const filename = `${slugPart}-grid-${rows}x${cols}`;
+  const filename = `${slugPart}-grid-${actualRows}x${cols}`;
 
   if(format === 'svg'){
-    const svgText = _buildGridSvg(resolved, rows, cols, cellSize);
+    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize);
     const blob = new Blob([svgText], { type: 'image/svg+xml' });
     _triggerBlobDownload(blob, `${filename}.svg`);
   }else{
-    const blob = await _buildGridRaster(resolved, rows, cols, cellSize, format, transparentBg);
+    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg);
     if(!blob){
       alert('Something went wrong building the image. Please try again.');
       return;
