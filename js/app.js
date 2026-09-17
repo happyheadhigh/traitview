@@ -5983,7 +5983,19 @@ async function loadManifest(){
     const r   = await fetch(url, { cache: 'no-store' });
     if(!r.ok) throw new Error('Worker error: HTTP ' + r.status);
     const j = await r.json();
-    if(!j.ok) throw new Error(j.error || 'Worker returned ok:false');
+    // jv: "having sales tabs issue now across all collections... Could not
+    // load sales: OpenSea API failed: 401." The worker's own /os/events
+    // endpoint (js/chart.js's OpenSea call is separate, this hits a
+    // Cloudflare Worker with its own OPENSEA_API_KEY secret) already
+    // captures body_snippet from OpenSea's actual response when it fails,
+    // but this only ever surfaced the bare status code, discarding it. A
+    // 401 specifically on /os/events while stats/listings/traits (same
+    // worker, same key) keep working points at something scoped to this
+    // one endpoint rather than a fully dead key -- OpenSea's own error
+    // text will say plainly whether that's an invalid key, a required
+    // higher API tier for this endpoint, or something else, instead of
+    // guessing from a status code alone.
+    if(!j.ok) throw new Error((j.error || 'Worker returned ok:false') + (j.body_snippet ? ` — ${j.body_snippet}` : ''));
     return j; // { ok, events[], count, next_cursor? }
   }
 
