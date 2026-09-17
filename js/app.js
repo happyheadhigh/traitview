@@ -4587,11 +4587,18 @@ const VS = {
       d.style.borderColor = 'rgba(28,255,175,.36)';
       d.style.boxShadow = '0 0 0 1px rgba(28,255,175,.12) inset,0 0 18px rgba(28,255,175,.12)';
     }
+    // jv: "I want the token badges the same on desktop as they are on
+    // mobile. Nothing on the image." _gridCard only ever renders for one
+    // of the three dense-grid modes (standard/grid5/compact -- there's no
+    // separate "default" mode beyond these plus list), so these three
+    // overlay divs always applied here, on mobile, regardless of mode --
+    // removed to match the retrofit logic already removed above
+    // (applyViewMode's compact-price-badge, the CSS ::before/::after rank
+    // and id badges), so mobile's non-minimal theme renders the same
+    // "nothing on the image" tile desktop now does, rather than only the
+    // minimal theme matching.
     d.innerHTML =
-      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>') +
-      (rank ? `<div style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.82);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">${rankDiamondHtml(rank,'',rankSys)}</div>` : '') +
-      `<div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.82);color:var(--text,#e6edf7);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">#${id}</div>` +
-      (priceStr ? `<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.82);color:var(--accent,#2dd4bf);font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif">Ξ${priceStr}</div>` : '');
+      (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>');
     if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
     d.addEventListener('click', () => openModal(id));
     return d;

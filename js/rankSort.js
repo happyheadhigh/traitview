@@ -71,19 +71,14 @@ function applyViewMode(val){
         ? 'position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;border-radius:10px!important'
         : 'width:100%!important;height:auto!important;aspect-ratio:1/1!important;position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;border-radius:10px!important';
 
-      const id = +card.dataset.id;
-      const listing = window.LISTINGS?.[id]?.opensea;
-      if(listing && listing.price_eth != null){
-        let badge = card.querySelector('.compact-price-badge');
-        if(!badge){
-          badge = document.createElement('div');
-          badge.className = 'compact-price-badge';
-          badge.style.cssText = 'position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.80);color:#2dd4bf;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;pointer-events:none;font-family:Space Grotesk,sans-serif;line-height:1.3;z-index:10';
-          card.appendChild(badge);
-        }
-        const eth = listing.price_eth >= 1 ? listing.price_eth.toFixed(3) : listing.price_eth.toFixed(4);
-        badge.textContent = 'Ξ ' + eth;
-      }
+      // jv: "I want the token badges the same on desktop as they are on
+      // mobile. Nothing on the image." This used to build (or update) a
+      // price badge and append it directly onto the image tile for these
+      // three dense-grid modes, on both desktop and mobile equally --
+      // removing rather than adding one now, in case an older cached
+      // card node (VS._nodeCache can hold onto built cards across
+      // repaints) still has one left over from before this changed.
+      card.querySelectorAll('.compact-price-badge').forEach(b => b.remove());
     });
   } else if(val === 'list'){
     tg.querySelectorAll('.token').forEach(card => {

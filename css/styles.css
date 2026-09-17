@@ -149,11 +149,19 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid.view-2x2 .token .tmeta,#tokenGrid.view-5x5 .token .tmeta,#tokenGrid.compact .token .tmeta{display:none!important}
 #tokenGrid.view-2x2 .thumb,#tokenGrid.view-5x5 .thumb,#tokenGrid.compact .thumb{width:100%!important;height:auto!important;aspect-ratio:1/1!important;border-radius:10px!important;border:0!important;background:var(--soft);display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}
 #tokenGrid.view-2x2 .thumb img,#tokenGrid.view-2x2 .thumb .svg-wrap,#tokenGrid.view-5x5 .thumb img,#tokenGrid.view-5x5 .thumb .svg-wrap,#tokenGrid.compact .thumb img,#tokenGrid.compact .thumb .svg-wrap{width:100%!important;height:100%!important}
-#tokenGrid.view-2x2 .token[data-rank]::before,#tokenGrid.view-5x5 .token[data-rank]::before,#tokenGrid.compact .token[data-rank]::before{content:"\2726" attr(data-rank);position:absolute;top:6px;left:6px;z-index:2;background:rgba(8,12,18,.72);border:1px solid rgba(80,100,130,.45);color:var(--rank-color,#e6edf7);font-size:12px;line-height:1;padding:4px 6px;border-radius:6px;box-shadow:0 1px 0 rgba(0,0,0,.35)}
-#tokenGrid.view-2x2 .token[data-rank-tier="gold"]::before,#tokenGrid.view-5x5 .token[data-rank-tier="gold"]::before,#tokenGrid.compact .token[data-rank-tier="gold"]::before{--rank-color:#FFD700}
-#tokenGrid.view-2x2 .token[data-rank-tier="blue"]::before,#tokenGrid.view-5x5 .token[data-rank-tier="blue"]::before,#tokenGrid.compact .token[data-rank-tier="blue"]::before{--rank-color:#d8b4fe}
-#tokenGrid.view-2x2 .token[data-rank-tier="purple"]::before,#tokenGrid.view-5x5 .token[data-rank-tier="purple"]::before,#tokenGrid.compact .token[data-rank-tier="purple"]::before{--rank-color:#60a5fa}
-#tokenGrid.view-2x2 .token[data-id]::after,#tokenGrid.view-5x5 .token[data-id]::after,#tokenGrid.compact .token[data-id]::after{content:"#" attr(data-id);position:absolute;bottom:6px;left:6px;z-index:2;background:rgba(8,12,18,.72);border:1px solid rgba(80,100,130,.45);color:#e6edf7;font-size:12px;line-height:1;padding:4px 6px;border-radius:6px;box-shadow:0 1px 0 rgba(0,0,0,.35)}
+/* jv: "I want the token badges the same on desktop as they are on
+   mobile. Nothing on the image." These two ::before/::after rules put a
+   rank badge and an id badge directly on top of every tile's image for
+   all three dense-grid modes (standard/grid5/compact) -- on both
+   desktop and mobile equally, since nothing here was ever device-
+   specific. Removed rather than restyled: "nothing on the image" means
+   no overlay at all, not a smaller or differently-colored one, and
+   removing this here (rather than patching one device's card-builder)
+   guarantees desktop and mobile render identically for these three
+   modes, since there's nothing left for either device's card structure
+   to differ on. Also removes the now-orphaned tier-color variables
+   (they only ever styled the ::before rank badge just removed) and the
+   matching id badge (::after) below. */
 #tokenGrid.list{display:grid;grid-template-columns:1fr;gap:8px}
 #tokenGrid.list .token{display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:center;padding:10px 14px;min-height:unset}
 #tokenGrid.list .thumb,#tokenGrid.list .thumb img,#tokenGrid.list .thumb .svg-wrap{width:72px;height:72px}
@@ -4213,14 +4221,6 @@ html[data-theme^="minimal-"] .tt:hover::after{
   color:var(--text)!important;
   background:var(--card)!important;
   border-color:var(--border)!important;
-  box-shadow:none!important;
-}
-html[data-theme^="minimal-"] #tokenGrid.view-2x2 .token[data-id]::after,
-html[data-theme^="minimal-"] #tokenGrid.view-5x5 .token[data-id]::after,
-html[data-theme^="minimal-"] #tokenGrid.compact .token[data-id]::after{
-  color:var(--text)!important;
-  background:rgba(0,0,0,.55)!important;
-  border:none!important;
   box-shadow:none!important;
 }
 
