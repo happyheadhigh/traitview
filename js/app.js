@@ -7721,9 +7721,24 @@ async function loadFloorTrend(force){
     // Try Railway DB first — instant, no sequential OpenSea fetches needed
     let loaded = false;
     try{
-      const [data, fhData] = await Promise.all([
-        dbFetch('/db/floor-trend', { days: 90 }),
-        dbFetch('/db/floor-history', { hours: 90*24 }).catch(()=>null)
+      // jv: "Floor trend still doesn't load up until I hit refresh" --
+      // these two dbFetch calls had no timeout at all. If either one hangs
+      // (a slow response, or this page's own many other concurrent
+      // dbFetch calls saturating the browser's connection pool right as
+      // this tab is switched to), the whole function sits stuck forever
+      // at this await -- never reaching the OpenSea fallback that already
+      // exists right below, never showing an error, nothing. A manual
+      // Refresh "working" afterward is just a second attempt getting a
+      // clean run, not Refresh doing anything the automatic trigger
+      // doesn't already do. Racing against an 8s timeout so a hang falls
+      // through to the existing fallback instead of hanging indefinitely.
+      const _timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error('floor-trend DB fetch timed out')), ms));
+      const [data, fhData] = await Promise.race([
+        Promise.all([
+          dbFetch('/db/floor-trend', { days: 90 }),
+          dbFetch('/db/floor-history', { hours: 90*24 }).catch(()=>null)
+        ]),
+        _timeout(8000)
       ]);
       if(data.ok && data.sales && data.sales.length > 0){
         window._floorEvents = data.sales.map(s => ({
