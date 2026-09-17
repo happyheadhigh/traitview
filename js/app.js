@@ -353,7 +353,15 @@ async function updateChartAndList(){
 
 /* grid */
 function gridThumbHtml(id,row){
-  const mapVal=IMAGES_MAP && IMAGES_MAP.get(id);
+  // jv: "OCAS keeps showing up in the other collections when I load it up
+  // from the landing page." Same cross-collection collision class as
+  // _imgSrc()'s identical fix (mobile/VS path) -- mapVal (IMAGES_MAP) is
+  // only ever populated from OCAS's own static files, keyed purely by
+  // numeric token ID with zero collection awareness, yet was read
+  // completely unguarded here regardless of which collection is actually
+  // active. Guarding it the same way imgForId() and the fixed _imgSrc()
+  // already do: only OCAS itself may ever read this map.
+  const mapVal=(LIVE_SLUG === 'on-chain-all-stars') ? (IMAGES_MAP && IMAGES_MAP.get(id)) : null;
   // row.image (live, from /db/all-traits) takes priority over the static
   // original-mint chunk image. Only burn survivors ever have row.image set,
   // so for the ~99% of tokens that never burned this falls through to mapVal
@@ -1110,7 +1118,7 @@ async function openModal(id, opts={}){
   if(pinBtn) pinBtn.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); _flash(pinBtn); pinAdd(id); };
   if(dlSvgBtn){
     const hasInlineSvg = typeof image === 'string' && image.trim().startsWith('<svg');
-    const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
+    const mapVal = (LIVE_SLUG === 'on-chain-all-stars') ? (IMAGES_MAP && IMAGES_MAP.get(id)) : null;
     const mapSvg = typeof mapVal === 'string' && mapVal.trim().startsWith('<svg');
     dlSvgBtn.style.display = (hasInlineSvg || mapSvg) ? 'inline-flex' : 'none';
     dlSvgBtn.onclick = () => downloadTokenSvg(id);
@@ -1161,7 +1169,7 @@ async function openModal(id, opts={}){
 
   // ── Image ────────────────────────────────────────────────────
   const imgBox = $('#mImg');
-  const mapVal = IMAGES_MAP && IMAGES_MAP.get(id);
+  const mapVal = (LIVE_SLUG === 'on-chain-all-stars') ? (IMAGES_MAP && IMAGES_MAP.get(id)) : null;
   // See gridThumbHtml's comment above — row.image (live) beats the static map.
   const src    = row.image || mapVal || (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
   if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgBox.innerHTML=`<div class="svg-wrap" style="width:100%;height:100%">${s}</div>`; else if(/^data:image\//i.test(s)) imgBox.innerHTML=`<img src="${s}" alt="#${id}">`; else imgBox.innerHTML=`<img src="${ipfsToHttp(s)}" alt="#${id}">`;} else imgBox.innerHTML='<div style="color:var(--muted)">No image</div>';
@@ -4755,11 +4763,25 @@ const VS = {
     if(dbImg) return String(dbImg).startsWith('<svg')
       ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(dbImg)
       : dbImg;
-    const v = IMAGES_MAP?.get(id);
-    const s = v ? String(v).trim() : null;
-    if(s && s.startsWith('<svg')){ try{ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s); }catch(e){ return imgForId(id); } }
-    if(s && s.startsWith('data:')) return s;
-    if(s) return ipfsToHttp(s);
+    // jv: "OCAS keeps showing up in the other collections when I load it
+    // up from the landing page." Same cross-collection collision bug class
+    // already fixed at imgForId() and _getTokenImgSrc() elsewhere in this
+    // file, missing here specifically: IMAGES_MAP is only ever populated
+    // from OCAS's own static files, keyed purely by numeric token ID with
+    // zero collection awareness. Right after a fresh landing-page
+    // navigation, CHUNK_CACHE hasn't necessarily finished warming every
+    // visible token's image yet -- falling through to IMAGES_MAP
+    // unguarded in that gap silently showed OCAS's own token #7385/#7177
+    // for cryptoadz's completely different tokens with the same numeric
+    // IDs. Matching imgForId()'s own guard: only OCAS itself may ever read
+    // this map.
+    if(LIVE_SLUG === 'on-chain-all-stars'){
+      const v = IMAGES_MAP?.get(id);
+      const s = v ? String(v).trim() : null;
+      if(s && s.startsWith('<svg')){ try{ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s); }catch(e){ return imgForId(id); } }
+      if(s && s.startsWith('data:')) return s;
+      if(s) return ipfsToHttp(s);
+    }
     return typeof imgForId==='function' ? imgForId(id) : null;
   },
 
@@ -7012,7 +7034,7 @@ async function loadSimilarListedTokens(id){
 
       // Render cards using local image data (same as grid)
       function _makeWalletCard(t){
-        const mapVal = IMAGES_MAP && IMAGES_MAP.get(t.id);
+        const mapVal = (LIVE_SLUG === 'on-chain-all-stars') ? (IMAGES_MAP && IMAGES_MAP.get(t.id)) : null;
         let imgHtml = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px">…</div>';
         if(mapVal){
           const s = String(mapVal).trim();
