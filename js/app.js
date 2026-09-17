@@ -2724,6 +2724,7 @@ function switchTopTab(name){
   }
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
+  if(name === 'pulse' && typeof loadTraitPulse === 'function') loadTraitPulse();
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   // Show/hide view toggles
   const vt = document.getElementById('salesViewToggle');
@@ -2843,9 +2844,9 @@ function openMobileAnalytics(){
   // Build lightweight tab UI — no DOM moves, no large elements
   const isMob = window.innerWidth <= 900;
   const tabs = isMob
-    ? ['chart','sales','burns','mispriced','floor','holders','wallet']
-    : ['chart','sales','burns','mispriced','scatter','floor','holders','wallet'];
-  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet',burns:'Burns'};
+    ? ['chart','sales','burns','mispriced','pulse','floor','holders','wallet']
+    : ['chart','sales','burns','mispriced','pulse','scatter','floor','holders','wallet'];
+  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',pulse:'🔥 Pulse',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet',burns:'Burns'};
   const curActive = document.querySelector('.top-tab.active')?.dataset?.ttab || 'chart';
 
   // Reset inner to just the skeleton — no panel content yet
@@ -2885,7 +2886,7 @@ function switchAnalyticsSheetTab(name){
   const body = document.getElementById('analyticsSheetBody');
   if(!body) return;
 
-  const tabs = ['chart','sales','burns','mispriced','scatter','floor','holders','wallet'];
+  const tabs = ['chart','sales','burns','mispriced','pulse','scatter','floor','holders','wallet'];
   const topTabPanel = document.getElementById('topTabPanel');
 
   // First: return any currently shown panel back to topTabPanel
@@ -2945,6 +2946,7 @@ function switchAnalyticsSheetTab(name){
   else if(name === 'holders' && window._holdersLoaded) renderHolders();
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
+  if(name === 'pulse' && typeof loadTraitPulse === 'function') loadTraitPulse();
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   if(name === 'mispriced'){
     // Auto-trigger listings fetch for mispriced tab
@@ -2993,7 +2995,7 @@ function closeMobileAnalytics(){
   const tabPanel = document.getElementById('topTabPanel');
   const body = document.getElementById('analyticsSheetBody');
   if(tabPanel){
-    ['chart','sales','burns','mispriced','scatter','floor','holders','wallet'].forEach(name => {
+    ['chart','sales','burns','mispriced','pulse','scatter','floor','holders','wallet'].forEach(name => {
       const p = document.getElementById('ttab-' + name);
       if(p && (!tabPanel.contains(p))){
         const inner = tabPanel.querySelector('.c-body-inner');
@@ -3024,6 +3026,7 @@ function switchTopTabInSheet(name){
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
+  if(name === 'pulse' && typeof loadTraitPulse === 'function') loadTraitPulse();
   if(name === 'scatter'){
     const hasListings = window.LISTINGS && Object.keys(window.LISTINGS).length > 0;
     if(hasListings) setTimeout(renderScatter, 100);
@@ -3898,7 +3901,13 @@ window.MISPRICED_MODE = 'rarity';
 const MISPRICED_DESCS = {};
 function setMispricedMode(mode){
   window.MISPRICED_MODE = mode;
-  document.querySelectorAll('.mispriced-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  // Scoped to this tab's own panel -- .mispriced-mode-btn is a shared,
+  // generic pill-button style also reused by the Trait Pulse window
+  // buttons (setPulseWindow below); an unscoped querySelectorAll here
+  // would toggle 'active' off on those too whenever their own
+  // data-window attribute doesn't happen to match this function's mode
+  // argument.
+  document.querySelectorAll('#ttab-mispriced .mispriced-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   // Re-run mispriced panel with new mode if listings are loaded
   if(window.LISTINGS && Object.keys(window.LISTINGS).length > 0){
     const ids = Object.keys(window.LISTINGS).map(Number).filter(id => {
@@ -3907,6 +3916,101 @@ function setMispricedMode(mode){
     });
     if(typeof buildMispricedPanel === 'function') buildMispricedPanel(ids);
   }
+}
+
+// ── Trait Pulse ──────────────────────────────────────────────────────────────
+// jv: "What traits are actually moving right now?" Reads the pre-computed
+// rankings from /db/trait-pulse (lib/trait-pulse.js on the backend does the
+// actual computation, on a schedule) -- this side only ever fetches and
+// renders, never computes live.
+window.PULSE_WINDOW = '1h';
+function setPulseWindow(windowKey){
+  window.PULSE_WINDOW = windowKey;
+  document.querySelectorAll('#ttab-pulse .mispriced-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.window === windowKey));
+  loadTraitPulse();
+}
+
+async function loadTraitPulse(){
+  const grid = document.getElementById('pulseGrid');
+  const computedAtEl = document.getElementById('pulseComputedAt');
+  if(grid) grid.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:8px 0">Loading Trait Pulse…</div>';
+  try{
+    const data = await dbFetch('/db/trait-pulse', { window: window.PULSE_WINDOW, limit: '20' });
+    if(!data.ok) throw new Error(data.error || 'Trait Pulse fetch failed');
+    if(computedAtEl){
+      computedAtEl.textContent = data.computed_at ? `Updated ${_pulseAgoLabel(data.computed_at)}` : '';
+    }
+    buildTraitPulsePanel(data.traits || []);
+  }catch(e){
+    console.warn('[TraitPulse] load failed:', e);
+    if(grid) grid.innerHTML = `<div style="color:#f87171;font-size:12px;padding:10px 0">Could not load Trait Pulse: ${e.message}</div>`;
+  }
+}
+
+function _pulseAgoLabel(iso){
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(ms / 60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  return `${hrs}h ago`;
+}
+
+function buildTraitPulsePanel(traits){
+  const grid = document.getElementById('pulseGrid');
+  if(!grid) return;
+  if(!traits.length){
+    grid.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:10px 0">Nothing unusual right now -- no trait has enough recent activity in this window to confidently call it trending.</div>';
+    return;
+  }
+  grid.innerHTML = traits.map((t, i) => {
+    const heatX = t.velocity_multiplier.toFixed(1);
+    const listingLine = t.listing_pressure_pct != null
+      ? `Listed supply fell ${t.listed_count_prior} → ${t.listed_count}`
+      : (t.listed_count != null ? `${t.listed_count} listed` : '');
+    const floorLine = t.floor_change_pct != null
+      ? `Trait floor Ξ${t.trait_floor_eth.toFixed(4)} ${t.floor_change_pct >= 0 ? '↑' : '↓'}${Math.abs(t.floor_change_pct).toFixed(0)}%`
+      : (t.trait_floor_eth != null ? `Trait floor Ξ${t.trait_floor_eth.toFixed(4)}` : '');
+    const velocityLine = `${t.sales_count} sold · ${t.supply} supply`;
+    // data-* attributes read back via .dataset (not string-interpolated
+    // into an inline onclick) -- a trait value containing an apostrophe
+    // would otherwise break out of an inline onclick='...' string entirely.
+    return `
+      <div class="pulse-card" data-idx="${i}"
+           style="padding:10px 12px;margin-bottom:8px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03);cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <div style="font-weight:700;font-size:13px">${t.trait_name}: ${t.trait_value}</div>
+          <div style="font-weight:700;font-size:13px;color:#f87171;white-space:nowrap">🔥 ${heatX}×</div>
+        </div>
+        <div style="font-size:11px;color:var(--sub);margin-top:3px">${velocityLine}</div>
+        ${floorLine ? `<div style="font-size:11px;color:var(--sub);margin-top:2px">${floorLine}</div>` : ''}
+        ${listingLine ? `<div style="font-size:11px;color:var(--sub);margin-top:2px">${listingLine}</div>` : ''}
+      </div>`;
+  }).join('');
+  // Attach click handlers after insertion, reading trait name/value from a
+  // closed-over array index rather than round-tripping them through HTML
+  // attributes at all.
+  grid.querySelectorAll('.pulse-card').forEach(card => {
+    const idx = parseInt(card.dataset.idx);
+    const t = traits[idx];
+    if(!t) return;
+    card.addEventListener('click', () => applyTraitPulseFilter(t.trait_name, t.trait_value));
+  });
+}
+
+// jv: "clicking Gold Fur immediately applies that trait filter to the
+// existing TraitView grid" -- same activeTraits mechanism every other
+// trait filter in this app already uses (the sidebar accordion's own
+// checkbox handler is the reference for this exact pattern), replacing
+// any existing filter on this trait NAME specifically (a user clicking a
+// Pulse card is jumping straight to this one value, not adding it
+// alongside whatever else may have been selected before).
+async function applyTraitPulseFilter(traitName, traitValue){
+  activeTraits.set(traitName, new Set([traitValue]));
+  OPEN_GROUPS.add(traitName);
+  await updateChartAndList();
+  if(typeof renderActiveChips === 'function') renderActiveChips();
+  if(typeof closeMobileAnalytics === 'function') closeMobileAnalytics();
 }
 
 // ── Mobile filter drawer ──────────────────────────────────────────────────────

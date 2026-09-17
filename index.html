@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609198">
+  <link rel="stylesheet" href="./css/styles.css?v=202609199">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -317,6 +317,7 @@
           <button class="top-tab" data-ttab="mispriced" onclick="switchTopTab('mispriced')" style="display:flex;align-items:center;gap:6px">
             Mispriced <span class="sales-count-badge" id="mispricedCountBadge">–</span>
           </button>
+          <button class="top-tab" data-ttab="pulse" onclick="switchTopTab('pulse')">🔥 Trait Pulse</button>
           <button class="top-tab" data-ttab="burns" id="burnsTabBtn" onclick="switchTopTab('burns')">Burns</button>
           <button class="top-tab" data-ttab="chart" onclick="switchTopTab('chart')">Trait Distribution</button>
           <button class="top-tab" data-ttab="scatter" onclick="switchTopTab('scatter')">Price vs Rank</button>
@@ -391,6 +392,25 @@
           <div id="mispricedSummaryRow" class="mp-summary-row" style="display:none"></div>
           <div id="mispricedGrid" style="max-height:360px;overflow:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(120,130,150,.45) transparent">
             <div style="color:var(--sub);font-size:12px;padding:8px 0">Click this tab to load listings automatically.</div>
+          </div>
+        </div>
+
+        <!-- Trait Pulse tab -- jv: "What traits are actually moving right
+             now?" Ranks trait/value combinations by unusual recent activity
+             (velocity vs. that trait's own baseline, listing depletion,
+             floor movement), not raw sale count. Clicking a card applies
+             that trait as a filter on the main grid, same click-through
+             pattern buildMispricedPanel's own cards already use. -->
+        <div class="top-tab-panel" id="ttab-pulse">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <button class="mispriced-mode-btn active" data-window="1h" onclick="setPulseWindow('1h')">1H</button>
+            <button class="mispriced-mode-btn" data-window="6h" onclick="setPulseWindow('6h')">6H</button>
+            <button class="mispriced-mode-btn" data-window="24h" onclick="setPulseWindow('24h')">24H</button>
+            <button class="mispriced-mode-btn" data-window="7d" onclick="setPulseWindow('7d')">7D</button>
+            <span id="pulseComputedAt" style="margin-left:auto;font-size:10px;color:var(--sub)"></span>
+          </div>
+          <div id="pulseGrid" style="max-height:420px;overflow:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(120,130,150,.45) transparent">
+            <div style="color:var(--sub);font-size:12px;padding:8px 0">Click this tab to load Trait Pulse automatically.</div>
           </div>
         </div>
 
@@ -989,32 +1009,32 @@
 
 
 
-<script src="./js/config.js?v=202609198" defer></script>
-<script src="./js/landingPrefs.js?v=202609198" defer></script>
-<script src="./js/landing.js?v=202609198" defer></script>
-<script src="./js/dataConfig.js?v=202609198" defer></script>
-<script src="./js/formatUtils.js?v=202609198" defer></script>
-<script src="./js/imageMap.js?v=202609198" defer></script>
-<script src="./js/state.js?v=202609198" defer></script>
-<script src="./js/appState.js?v=202609198" defer></script>
-<script src="./js/favorites.js?v=202609198" defer></script>
-<script src="./js/wallet.js?v=202609198" defer></script>
-<script src="./js/api.js?v=202609198" defer></script>
-<script src="./js/rankSort.js?v=202609198" defer></script>
-<script src="./js/rankDisplay.js?v=202609198" defer></script>
-<script src="./js/walletConnect.js?v=202609198" defer></script>
-<script src="./js/walletAnalytics.js?v=202609198" defer></script>
-<script src="./js/mispriced.js?v=202609198" defer></script>
-<script src="./js/traitUtils.js?v=202609198" defer></script>
-<script src="./js/listingMeta.js?v=202609198" defer></script>
-<script src="./js/listCards.js?v=202609198" defer></script>
-<script src="./js/chart.js?v=202609198" defer></script>
-<script src="./js/tooltip.js?v=202609198" defer></script>
-<script src="./js/comboInsights.js?v=202609198" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609198" defer></script>
-<script src="./js/downloadLoader.js?v=202609198" defer></script>
-<script src="./js/gridDownload.js?v=202609198" defer></script>
-<script src="./js/app.js?v=202609198" defer></script>
+<script src="./js/config.js?v=202609199" defer></script>
+<script src="./js/landingPrefs.js?v=202609199" defer></script>
+<script src="./js/landing.js?v=202609199" defer></script>
+<script src="./js/dataConfig.js?v=202609199" defer></script>
+<script src="./js/formatUtils.js?v=202609199" defer></script>
+<script src="./js/imageMap.js?v=202609199" defer></script>
+<script src="./js/state.js?v=202609199" defer></script>
+<script src="./js/appState.js?v=202609199" defer></script>
+<script src="./js/favorites.js?v=202609199" defer></script>
+<script src="./js/wallet.js?v=202609199" defer></script>
+<script src="./js/api.js?v=202609199" defer></script>
+<script src="./js/rankSort.js?v=202609199" defer></script>
+<script src="./js/rankDisplay.js?v=202609199" defer></script>
+<script src="./js/walletConnect.js?v=202609199" defer></script>
+<script src="./js/walletAnalytics.js?v=202609199" defer></script>
+<script src="./js/mispriced.js?v=202609199" defer></script>
+<script src="./js/traitUtils.js?v=202609199" defer></script>
+<script src="./js/listingMeta.js?v=202609199" defer></script>
+<script src="./js/listCards.js?v=202609199" defer></script>
+<script src="./js/chart.js?v=202609199" defer></script>
+<script src="./js/tooltip.js?v=202609199" defer></script>
+<script src="./js/comboInsights.js?v=202609199" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609199" defer></script>
+<script src="./js/downloadLoader.js?v=202609199" defer></script>
+<script src="./js/gridDownload.js?v=202609199" defer></script>
+<script src="./js/app.js?v=202609199" defer></script>
 </body>
 </html>
 
