@@ -4263,13 +4263,26 @@ const VS = {
   _computeCols(tg){
     const w = tg.clientWidth || window.innerWidth || 1200;
     if(this.mode === 'list') return 1;
-    // Confirmed live: .view-5x5's own CSS is a fixed 5-column grid
-    // (repeat(5,minmax(0,1fr))), not a width-based calculation -- the
-    // width-based formula below would never reliably produce exactly 5
-    // regardless of viewport width, so this mode needs its own explicit case.
+    // jv confirmed live: "standard and compact don't change at all" (and
+    // separately, bunched/overlapping thumbnails once rowH was fixed) --
+    // grid5 already had its own explicit case here for exactly this reason
+    // ("the width-based formula below would never reliably produce
+    // exactly 5"), but the identical fix was never applied to 'standard'
+    // or 'compact', even though both are equally fixed, non-width-
+    // responsive CSS grids (view-2x2 is repeat(2,...), compact is
+    // repeat(8,...) -- see css/styles.css). Both used to fall through to
+    // the width-based formula below, which can produce any column count
+    // depending on the container's actual width that day -- almost never
+    // the 2 or 8 the CSS itself is actually locked to. _paint()'s row math
+    // (i0 = firstRow * this.cols) then assumed a completely different
+    // column count than what the grid was actually laid out with,
+    // guaranteeing a mismatch between which ids virtualization thinks
+    // belong in which row and where the CSS grid actually places them.
     if(this.mode === 'grid5') return 5;
+    if(this.mode === 'grid') return 2;
+    if(this.mode === 'compact') return 8;
     if(window.innerWidth <= 900) return 2;
-    const minW = this.mode === 'compact' ? 120 : 220;
+    const minW = 220;
     const gap = 8;
     return Math.max(1, Math.floor((w + gap) / (minW + gap)));
   },
@@ -4327,9 +4340,25 @@ const VS = {
     }
 
     const vw = tg.clientWidth || window.innerWidth;
+    // jv confirmed live: "list view isn't correct... small bunched
+    // thumbnails" and only 5x5/list actually display right. Root cause:
+    // this used a single hardcoded rowH (122 desktop, vw/2+6 mobile) for
+    // BOTH grid and grid5 -- treating a 2-column layout and a 5-column
+    // layout as if their cards were the same height. They're not: every
+    // card here is aspect-ratio:1/1, so a card's actual rendered height
+    // equals its column width (vw/cols), and 2 columns vs 5 columns means
+    // very different actual heights. The virtualizer's own spacer math
+    // (_vsTop/_vsBot heights, firstRow/lastRow in _paint()) entirely
+    // trusts this.rowH to know how tall a row of DOM content really is --
+    // whichever mode didn't match the hardcoded assumption got rows
+    // overlapping their neighbors, which reads exactly as "bunched."
+    // 'compact' already correctly derived this from vw/this.cols; grid
+    // and grid5 both get the identical per-column-width treatment now,
+    // since applyViewMode() already hides the same pinbar/tmeta elements
+    // for all three modes -- they share the same "image fills the tile,
+    // nothing else" layout, just at different column counts.
     if(this.mode === 'list') this.rowH = window.innerWidth <= 900 ? 88 : 112;
-    else if(this.mode === 'compact') this.rowH = Math.round((vw / this.cols)) + 8;
-    else this.rowH = window.innerWidth <= 900 ? Math.round(vw / 2) + 6 : 122;
+    else this.rowH = Math.round(vw / this.cols) + (window.innerWidth <= 900 ? 6 : 8);
 
     tg._vsTop  = document.createElement('div');
     tg._vsRows = document.createElement('div');
