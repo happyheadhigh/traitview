@@ -485,9 +485,25 @@ async function renderTokenGrid(ids, opts){
   const onlyListed = !skipListedFilter && document.getElementById('onlyListed').checked;
   const tg=$('#tokenGrid'); tg.innerHTML='';
   const isMobile = window.innerWidth <= 900;
-  const currentViewMode = tg.classList.contains('list') ? 'list' : (tg.classList.contains('compact') ? 'compact' : (tg.classList.contains('view-5x5') ? 'grid5' : 'grid'));
+  // jv confirmed live: "the 5x5 grid works but that's it." Root cause --
+  // this used to read tg.classList to figure out the current mode, but
+  // that read happened BEFORE applyViewMode() (right below) updates those
+  // very classes for THIS render -- so `mode` below was always one full
+  // render cycle stale, chained off whatever the previous render cycle
+  // happened to leave on tg, not the user's actual current selection.
+  // This function reruns on essentially every filter/sort/search change,
+  // not just a view-button click or collection switch -- far more often
+  // than setView()'s own, already-correctly-fixed path -- so it was the
+  // dominant path actually deciding what got virtualized, and could
+  // silently revert a button click's correct mode on the very next
+  // unrelated interaction. Reading the same source of truth
+  // applyViewMode() itself uses (localStorage/the #viewMode select),
+  // rather than a DOM class that's inherently a step behind, then mapping
+  // it through the same _vsModeFor() every other call site already uses.
+  const desiredView = localStorage.getItem(VIEW_KEY)||document.getElementById('viewMode')?.value||'standard';
+  const currentViewMode = _vsModeFor(desiredView);
   /* progressive paint */
-  const BATCH=180; let i=0; applyViewMode(localStorage.getItem(VIEW_KEY)||document.getElementById('viewMode')?.value||'standard');
+  const BATCH=180; let i=0; applyViewMode(desiredView);
   if(onlyListed){
     await fetchLiveForIds(ids);
     ids = ids.filter(id => window.LISTINGS[id] && window.LISTINGS[id].opensea && window.LISTINGS[id].opensea.price_eth != null);
@@ -4606,56 +4622,29 @@ const VS = {
 
 
   async _standardCard(id){
-    let row = ROW_CACHE.get(id) || null;
-    if(!row){
-      try{ row = await fetchRow(id); }
-      catch(e){ row = { traits:{} }; }
-    }
-    // jv confirmed live: "the token images don't load in for any grid
-    // display." Root cause -- this is the only one of VS's three card
-    // builders that ever resolves its image through row.image (this
-    // fetchRow() call above), rather than this._imgSrc(id), the same
-    // synchronous, already-prewarmed CHUNK_CACHE lookup _gridCard and
-    // _listCard both already use successfully with zero network calls.
-    // On a desktop grid showing dozens of cards per screen, fetchRow(id)
-    // firing once per visible card on every single _paint() (i.e. every
-    // scroll tick, via _paint()'s own Promise.all over all visible ids)
-    // means dozens of simultaneous network requests competing every time
-    // the view repaints -- exactly the kind of load a purely synchronous,
-    // already-warmed cache lookup was never subject to. row is still kept
-    // for the trait data below (traitsMiniHtml), which genuinely has no
-    // synchronous equivalent -- only the image resolution itself is
-    // pointed at the reliable path here, by seeding it onto row before
-    // gridThumbHtml runs (which already checks row.image first).
-    if(!row.image){
-      const reliableImg = this._imgSrc(id);
-      if(reliableImg) row.image = reliableImg;
-    }
-    const d = document.createElement('div');
-    d.className = 'token';
-    if(connectedWalletOwns(id)) d.classList.add('owned-token');
-    const obsRank=RARITY_OBS_RANK.get(id); const theoRank=RARITY_THEO_RANK.get(id);
-    const theoVal2 = (RARITY_MODE==='theoretical' && RARITY_THEO_RANK.size) ? (theoRank||'') : (obsRank||'');
-    const osRankVal2 = OS_RANK_MAP.get(id) || null;
-    const rankVal = getRankSystem() === 'tv' ? theoVal2 : (osRankVal2 || theoVal2);
-    const rankSys2 = getRankSystem() === 'tv' ? 'tv' : (osRankVal2 ? 'os' : 'tv');
-    const rankBadge = rankVal ? `<span class="chip">${rankDiamondHtml(rankVal,'',rankSys2)}</span>` : '';
-    if (rankVal){ d.dataset.rank = String(rankVal); d.dataset.rankSys = rankSys2; const t=rankTier(rankVal); if(t) d.dataset.rankTier=t; }
-    d.dataset.id = String(id);
-    const osCardUrl=`https://opensea.io/assets/ethereum/${LIVE_CONTRACT}/${id}`;
-    d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorite(id)?'active':''}" data-fav-id="${id}" title="${isFavorite(id)?'Remove favorite':'Add favorite'}" aria-pressed="${isFavorite(id)?'true':'false'}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg></button><button type="button" class="pinbtn" data-act="A" title="Pin to A">A</button><button type="button" class="pinbtn" data-act="B" title="Pin to B">B</button><button type="button" class="pinbtn" data-act="+" title="Add to pinned">＋</button></div>
-      ${gridThumbHtml(id,row)}
-      ${connectedWalletOwns(id) ? '<span class="owned-badge">Owned</span>' : ''}
-      <div class="tmeta">
-        <div class="idline">#${id} ${rankBadge} ${priceBadgeHtml(id)} <a href="${osCardUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on OpenSea" style="margin-left:auto;opacity:.6;line-height:1;display:inline-flex;align-items:center"><img src="https://opensea.io/static/images/logos/opensea-logo.svg" style="width:13px;height:13px;border-radius:3px"></a></div>
-        ${document.getElementById('tokenGrid')?.classList.contains('list') ? listStatsRowHtml(id, rankVal, getListingEth(id) != null ? (getListingEth(id) >= 1 ? getListingEth(id).toFixed(3) : getListingEth(id).toFixed(4)) : null) : traitsMiniHtml(row)}
-      </div>`;
-    d.addEventListener('click', async (e)=>{ if(e.target.closest('.pinbtn')) return; await openModal(id); });
-    const pinbar = d.querySelector('.pinbar');
-    if(pinbar){
-      pinbar.addEventListener('click',(ev)=>{ const fav = ev.target.closest('[data-fav-id]'); if(fav){ ev.stopPropagation(); ev.preventDefault(); toggleFavorite(id); return; } const b=ev.target.closest('.pinbtn'); if(!b) return; ev.stopPropagation(); ev.preventDefault(); b.classList.add('flash'); setTimeout(()=>b.classList.remove('flash'), 220); const act=b.getAttribute('data-act'); if(act==='A') setCompare('A',id); else if(act==='B') setCompare('B',id); else pinAdd(id); });
-    }
-    return d;
+    // jv: "images populated after sitting on the site for like 3 minutes"
+    // and "Badges should be there just as they display on mobile." Both
+    // land on the same fix. The await fetchRow(id) this used to do was
+    // for row.traits, which fed traitsMiniHtml(row) inside .tmeta -- but
+    // .tmeta is unconditionally hidden by applyViewMode() for all three
+    // modes this function is ever called in (standard/grid5/compact,
+    // the only three modes _standardCard exists for -- there's no other,
+    // "default" mode beyond these plus list), so that trait data was
+    // never actually visible to begin with. Meanwhile that same await,
+    // firing once per visible card on every _paint() (i.e. every scroll
+    // tick), was almost certainly the real driver behind cards taking
+    // minutes to populate on a grid showing dozens of them per screen --
+    // dozens of simultaneous network requests competing on every repaint.
+    // _gridCard (mobile's equivalent builder for these same three modes)
+    // already needs zero network calls -- rank, price and the image
+    // itself all resolve synchronously from already-loaded state -- and
+    // its own styling has no mobile-specific pixel values, just relative
+    // sizing that fills whatever grid cell the surrounding CSS
+    // (view-2x2/view-5x5/compact) allocates it. Delegating to it directly
+    // rather than keeping a second, separately-maintained copy of the
+    // same logic guarantees desktop and mobile are the literal same code
+    // path from here on, not just visually matched once.
+    return this._gridCard(id);
   },
 
   _listCard(id){
