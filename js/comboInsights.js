@@ -126,7 +126,7 @@ async function buildComboInsights(id, row){
         count: t.count,
         weight: 70 - t.count,
         label: comboTraitCountLabel(t.count),
-        text: `${comboTraitPhrase(t)} appears on only ${t.count} OCAS.`,
+        text: `${comboTraitPhrase(t)} appears on only ${t.count} tokens.`,
         meta: `${traitDisplayLabel(t.name)} - ${comboPct(t.count)}% of collection`
       });
     }
@@ -162,8 +162,8 @@ async function buildComboInsights(id, row){
           weight: 84 - count,
           label: count === 1 ? '1 of 1' : 'Rare combo',
           text: count === 1
-            ? `No other OCAS shares this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`
-            : `Only ${count} OCAS share this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`,
+            ? `No other token shares this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`
+            : `Only ${count} tokens share this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`,
           meta: `${traitDisplayLabel(p1.name)}: ${p1.value} + ${traitDisplayLabel(p2.name)}: ${p2.value}`
         });
       }
@@ -192,8 +192,8 @@ async function buildComboInsights(id, row){
         weight: def.weight - count,
         label: count === 1 ? '1 of 1' : def.label,
         text: count === 1
-          ? `No other OCAS shares this ${def.name} combo.`
-          : `Only ${count} OCAS share this ${def.name} combo.`,
+          ? `No other token shares this ${def.name} combo.`
+          : `Only ${count} tokens share this ${def.name} combo.`,
         meta: parts.map(p => `${traitDisplayLabel(p.name)}: ${p.value}`).join(' + ')
       });
     }
@@ -208,8 +208,8 @@ async function buildComboInsights(id, row){
         weight: 110 - count,
         label: count === 1 ? '1 of 1' : 'Closest face',
         text: count === 1
-          ? 'No other OCAS shares this high-impact face combo.'
-          : `Only ${count} OCAS share this high-impact face combo.`,
+          ? 'No other token shares this high-impact face combo.'
+          : `Only ${count} tokens share this high-impact face combo.`,
         meta: faceParts.map(p => traitDisplayLabel(p.name)).join(' + ')
       });
     }
@@ -232,7 +232,7 @@ async function buildComboInsights(id, row){
           count: exceptionCount,
           weight: 68 - exceptionCount,
           label: 'Trait exception',
-          text: `Only ${exceptionCount} ${t.value} OCAS are not ${top.value}.`,
+          text: `Only ${exceptionCount} ${t.value} tokens are not ${top.value}.`,
           meta: `${traitDisplayLabel(t.name)} exception within ${traitDisplayLabel(type.name)}`
         });
         break;

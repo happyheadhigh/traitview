@@ -1528,7 +1528,12 @@ a{color:var(--accent)!important}
 .combo-insights-sub {
   margin-top: 3px;
   font-size: 11px;
-  color: var(--muted);
+  /* jv: "the combo intelligence text is hard to read" -- --muted is
+     #111111 in the minimal-dark theme (near-black, meant for subtle
+     borders/dividers, e.g. chip borders), not readable text color --
+     against this panel's own dark background it's nearly invisible.
+     --sub is the theme's actual readable secondary-text color. */
+  color: var(--sub);
   text-transform: none;
   letter-spacing: 0;
   font-weight: 600;
@@ -1569,7 +1574,7 @@ a{color:var(--accent)!important}
 }
 .combo-insight-text { color: var(--text); font-size: 12px; line-height: 1.35; min-width: 0; }
 .combo-insight-meta { margin-top: 3px; color: rgba(226,232,240,.78); font-size: 10.5px; }
-.combo-insights-fallback { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.combo-insights-fallback { color: var(--sub); font-size: 12px; line-height: 1.4; }
 @media (max-width: 900px) {
   .rarity-row { grid-template-columns: minmax(0,1fr) 40px minmax(70px,.8fr) 40px; }
   .combo-insights-panel { padding: 10px; border-radius: 10px; }

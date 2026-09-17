@@ -1548,7 +1548,7 @@ function buildRarityBreakdown(id, row){
     </div>`;
   }
 
-  html += `<div style="margin-top:10px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px">
+  html += `<div style="margin-top:10px;font-size:11px;color:var(--sub);border-top:1px solid var(--border);padding-top:8px">
     Total rarity score: <b>${totalScore.toFixed(2)}</b> &nbsp;•&nbsp;
     ${traitScores.length} traits &nbsp;•&nbsp;
     Bar width = % contribution to score
@@ -1559,7 +1559,7 @@ function buildRarityBreakdown(id, row){
     <div class="combo-insights-head">
       <div class="combo-insights-title">
         Combo Intelligence
-        <div class="combo-insights-sub">Objective rarity relationships from loaded OCAS traits</div>
+        <div class="combo-insights-sub">Objective rarity relationships from loaded traits</div>
       </div>
       <button id="comboInsightsToggle" class="combo-insights-toggle" type="button" onclick="toggleComboInsights()">Hide</button>
     </div>
