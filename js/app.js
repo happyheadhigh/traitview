@@ -535,6 +535,13 @@ async function renderTokenGrid(ids, opts){
   // ── Virtual scroller: mobile + desktop ───────────────────────────────────
   {
     const mode = currentViewMode;
+    // jv confirmed live (fourth report of "switching grids doesn't
+    // work"): logging this render path's own mode decision too, since
+    // this function reruns on nearly every filter/sort/search change --
+    // if this ever disagrees with what [ViewSwitch] just logged for a
+    // button click, this path is the one winning (it runs after, on the
+    // very next render), which would explain a click "reverting."
+    console.log(`[MainRender] desiredView=${desiredView} mode=${mode} idsLength=${ids.length}`);
     // Confirmed live: desktop rendering ALL matching tokens in the grid at
     // once (batched 72 at a time, but still every single one eventually)
     // was the actual dominant cost behind "thumbnails take a while to
@@ -4300,7 +4307,16 @@ const VS = {
     if(window.innerWidth <= 900) return 2;
     const minW = 220;
     const gap = 8;
-    return Math.max(1, Math.floor((w + gap) / (minW + gap)));
+    const fallback = Math.max(1, Math.floor((w + gap) / (minW + gap)));
+    // jv confirmed live (fourth report of "switching grids doesn't
+    // work"): if this ever logs, this.mode is something other than the
+    // four known values (grid5/grid/compact/list) at the moment
+    // _computeCols runs -- meaning whatever set this.mode passed through
+    // something other than _vsModeFor, or _vsModeFor itself isn't being
+    // reached. Worth knowing either way rather than silently falling
+    // through to a width-based guess for an unrecognized mode.
+    console.log(`[VS._computeCols] FELL THROUGH to width-based formula -- this.mode="${this.mode}" (expected grid5/grid/compact) fallback=${fallback}`);
+    return fallback;
   },
 
   async init(ids, mode){
@@ -4434,7 +4450,18 @@ const VS = {
             if(rowsEl.children[i].offsetTop !== firstTop){ measuredCols = i; break; }
             measuredCols = i + 1;
           }
+          // jv confirmed live (fourth report of "switching grids doesn't
+          // work"): logging this specifically since it's the one place
+          // that can silently override an already-correct this.cols
+          // (set moments earlier by _computeCols) with a wrong one -- if
+          // rowsEl has fewer children than the real column count at the
+          // instant this runs, every rendered child still shares the
+          // first row's offsetTop, so this loop never finds a "next row"
+          // and measuredCols ends up as rowsEl.children.length itself,
+          // not the actual column count.
+          console.log(`[VS.measureCols] mode=${this.mode} computedCols=${this.cols} rowsEl.children.length=${rowsEl.children.length} measuredCols=${measuredCols}`);
           if(measuredCols > 0 && measuredCols !== this.cols){
+            console.log(`[VS.measureCols] OVERRIDING this.cols ${this.cols} -> ${measuredCols}`);
             this.cols = measuredCols;
             this.visStart = -1; this.visEnd = -1;
             this._paint();
@@ -5338,8 +5365,20 @@ if(!window.__TV_LANDING__) init();
     localStorage.setItem(KEY, v);
     if (typeof applyViewMode === 'function') applyViewMode(v);
     syncActive();
+    // jv confirmed live (fourth report of "switching grids doesn't work"
+    // after four separate real bugs already found and fixed in this
+    // area): logging every step of this decision now rather than
+    // continuing to guess at a fifth. Shows exactly what mode was
+    // clicked, what _vsModeFor resolved it to, and what VS.init actually
+    // ends up with for cols/rowH/tg's className immediately after --
+    // the next report can quote this instead of just "still broken."
+    const resolvedMode = _vsModeFor(v);
+    console.log(`[ViewSwitch] clicked=${v} resolvedMode=${resolvedMode} VS.enabled=${!!(window.VS&&VS.enabled)} VS.ids.length=${window.VS?.ids?.length}`);
     if(window.VS && VS.enabled && Array.isArray(VS.ids) && VS.ids.length){
-      VS.init(VS.ids, _vsModeFor(v));
+      VS.init(VS.ids, resolvedMode).then(() => {
+        const tg = document.getElementById('tokenGrid');
+        console.log(`[ViewSwitch] after VS.init: VS.mode=${VS.mode} VS.cols=${VS.cols} VS.rowH=${VS.rowH} tg.className="${tg?.className}"`);
+      });
     }
     // Inject data rows when switching TO list view (no full re-render needed)
     if(v === 'list' && prev !== 'list'){
