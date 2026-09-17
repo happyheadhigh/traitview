@@ -434,6 +434,28 @@ function gridDownloadOnFormatChange(){
   if(disabled && checkbox) checkbox.checked = false;
 }
 
+// jv: "if it's random can there be an option to select the order in
+// which the photos are" -- it was never actually random (Set insertion
+// order the whole time), but there was no explicit way to choose it.
+// 'selected' is a no-op (preserves whatever order the caller already
+// built, i.e. click order or the wallet view's own current sort);
+// everything else re-sorts by an actual, checkable criterion. Falls back
+// to the original order for any ID missing a rank (RARITY_OBS_RANK not
+// yet populated, or a burned/edge-case token) rather than clumping
+// unranked tokens at one end arbitrarily.
+function _sortGridDownloadIds(ids, order){
+  if(order === 'id_asc') return [...ids].sort((a,b) => a - b);
+  if(order === 'id_desc') return [...ids].sort((a,b) => b - a);
+  if(order === 'rank_asc' || order === 'rank_desc'){
+    const withRank = ids.map((id, i) => ({ id, i, rank: RARITY_OBS_RANK?.get(id) }));
+    const known = withRank.filter(t => t.rank != null);
+    const unknown = withRank.filter(t => t.rank == null).sort((a,b) => a.i - b.i);
+    known.sort((a,b) => order === 'rank_asc' ? a.rank - b.rank : b.rank - a.rank);
+    return [...known, ...unknown].map(t => t.id);
+  }
+  return ids; // 'selected' (default) -- as-is
+}
+
 async function gridDownloadGo(){
   const selected = window._gridDownloadSelected;
   if(!selected || !selected.size){
@@ -454,6 +476,7 @@ async function gridDownloadGo(){
     alert(`You selected ${ids.length} tokens but a ${gridSize}×${gridSize} grid only fits ${capacity}. Using the first ${capacity}.`);
     ids = ids.slice(0, capacity);
   }
+  ids = _sortGridDownloadIds(ids, document.getElementById('gridDownloadOrder')?.value || 'selected');
 
   const btn = document.getElementById('gridDownloadGoBtn');
   const progressEl = document.getElementById('gridDownloadProgress');
