@@ -67,6 +67,16 @@ async function ensureComboRows(){
     }
     COMBO_ROWS_CACHE.rows = rows;
     COMBO_ROWS_CACHE.ready = true;
+    // jv: "I'm still not getting any combo intelligence info" -- last
+    // exchange's fix (resetting this cache on collection switch) should
+    // have addressed a real, confirmed bug, but evidently something is
+    // still wrong. Logging what this function actually built -- if rows
+    // is 0 or very small for a real, populated collection, the chunk-
+    // loading side itself isn't the confirmed-fixed stale-cache issue at
+    // all, but something upstream (indices()/ensureChunk not yet ready
+    // when this runs, or this collection's own chunk data shaped
+    // differently than expected) -- rather than guessing further.
+    console.log(`[ComboInsights] ensureComboRows built ${rows.length} row(s) for slug=${typeof LIVE_SLUG!=='undefined'?LIVE_SLUG:'?'}`);
     return rows;
   })();
   return COMBO_ROWS_CACHE.promise;
@@ -243,6 +253,14 @@ async function buildComboInsights(id, row){
   const best = insights.sort(comboInsightSort).slice(0, 6);
   const result = { insights: best, rarest: traitStats.slice(0, 4) };
   COMBO_INSIGHT_CACHE.set(id, result);
+  // jv: "I'm still not getting any combo intelligence info" -- even with
+  // zero qualifying insights, renderComboInsights() below is designed to
+  // still show a fallback listing the token's rarest traits, never a
+  // blank panel -- so "nothing at all" points at an exception being
+  // thrown somewhere in this function instead (caught by
+  // hydrateComboInsights's own try/catch, which already logs it, but
+  // this confirms whether execution even reached this far).
+  console.log(`[ComboInsights] token #${id}: ${entries.length} traits, ${insights.length} insight(s) found, ${traitStats.length} traitStats, rareLimit=${rareLimit}`);
   return result;
 }
 function renderComboInsights(data){

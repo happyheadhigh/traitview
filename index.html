@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609203">
+  <link rel="stylesheet" href="./css/styles.css?v=202609204">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -740,6 +740,18 @@
       No background (on-chain art only — may not apply to every collection)
     </label>
 
+    <!-- jv: "for the grid download is it possible to create a small
+         gapping between images" -- shared an example Discord-posted grid
+         with visible spacing between cells. Simple on/off rather than a
+         precise pixel input, matching this modal's existing toggle style
+         (the transparency checkbox right above) rather than adding a
+         fiddlier numeric control for what's meant to be a quick, casual
+         export option. -->
+    <label id="gridDownloadGapRow" style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="gridDownloadGap">
+      Add spacing between images
+    </label>
+
     <div id="gridDownloadProgress" style="display:none;font-size:12px;color:var(--sub);margin-bottom:10px"></div>
 
     <button class="btn" id="gridDownloadGoBtn" onclick="gridDownloadGo()" style="width:100%;padding:10px;font-weight:700;background:#2dd4bf;color:#04201c;border:none">Download</button>
@@ -1009,32 +1021,32 @@
 
 
 
-<script src="./js/config.js?v=202609203" defer></script>
-<script src="./js/landingPrefs.js?v=202609203" defer></script>
-<script src="./js/landing.js?v=202609203" defer></script>
-<script src="./js/dataConfig.js?v=202609203" defer></script>
-<script src="./js/formatUtils.js?v=202609203" defer></script>
-<script src="./js/imageMap.js?v=202609203" defer></script>
-<script src="./js/state.js?v=202609203" defer></script>
-<script src="./js/appState.js?v=202609203" defer></script>
-<script src="./js/favorites.js?v=202609203" defer></script>
-<script src="./js/wallet.js?v=202609203" defer></script>
-<script src="./js/api.js?v=202609203" defer></script>
-<script src="./js/rankSort.js?v=202609203" defer></script>
-<script src="./js/rankDisplay.js?v=202609203" defer></script>
-<script src="./js/walletConnect.js?v=202609203" defer></script>
-<script src="./js/walletAnalytics.js?v=202609203" defer></script>
-<script src="./js/mispriced.js?v=202609203" defer></script>
-<script src="./js/traitUtils.js?v=202609203" defer></script>
-<script src="./js/listingMeta.js?v=202609203" defer></script>
-<script src="./js/listCards.js?v=202609203" defer></script>
-<script src="./js/chart.js?v=202609203" defer></script>
-<script src="./js/tooltip.js?v=202609203" defer></script>
-<script src="./js/comboInsights.js?v=202609203" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609203" defer></script>
-<script src="./js/downloadLoader.js?v=202609203" defer></script>
-<script src="./js/gridDownload.js?v=202609203" defer></script>
-<script src="./js/app.js?v=202609203" defer></script>
+<script src="./js/config.js?v=202609204" defer></script>
+<script src="./js/landingPrefs.js?v=202609204" defer></script>
+<script src="./js/landing.js?v=202609204" defer></script>
+<script src="./js/dataConfig.js?v=202609204" defer></script>
+<script src="./js/formatUtils.js?v=202609204" defer></script>
+<script src="./js/imageMap.js?v=202609204" defer></script>
+<script src="./js/state.js?v=202609204" defer></script>
+<script src="./js/appState.js?v=202609204" defer></script>
+<script src="./js/favorites.js?v=202609204" defer></script>
+<script src="./js/wallet.js?v=202609204" defer></script>
+<script src="./js/api.js?v=202609204" defer></script>
+<script src="./js/rankSort.js?v=202609204" defer></script>
+<script src="./js/rankDisplay.js?v=202609204" defer></script>
+<script src="./js/walletConnect.js?v=202609204" defer></script>
+<script src="./js/walletAnalytics.js?v=202609204" defer></script>
+<script src="./js/mispriced.js?v=202609204" defer></script>
+<script src="./js/traitUtils.js?v=202609204" defer></script>
+<script src="./js/listingMeta.js?v=202609204" defer></script>
+<script src="./js/listCards.js?v=202609204" defer></script>
+<script src="./js/chart.js?v=202609204" defer></script>
+<script src="./js/tooltip.js?v=202609204" defer></script>
+<script src="./js/comboInsights.js?v=202609204" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609204" defer></script>
+<script src="./js/downloadLoader.js?v=202609204" defer></script>
+<script src="./js/gridDownload.js?v=202609204" defer></script>
+<script src="./js/app.js?v=202609204" defer></script>
 </body>
 </html>
 

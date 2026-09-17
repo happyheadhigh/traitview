@@ -81,17 +81,17 @@ function suggestGridDimensions(count){
 // element in that one cell. A mixed-source grid still comes out as one
 // valid SVG file either way; only the truly-SVG cells get the "fully
 // zoomable at any scale" property jv asked for.
-function _buildGridSvg(resolvedTokens, rows, cols, cellSize){
-  const width = cols * cellSize;
-  const height = rows * cellSize;
+function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0){
+  const width = cols * cellSize + (cols - 1) * gap;
+  const height = rows * cellSize + (rows - 1) * gap;
   const parser = new DOMParser();
   let cellsMarkup = '';
 
   resolvedTokens.forEach((token, i) => {
     const row = Math.floor(i / cols);
     const col = i % cols;
-    const x = col * cellSize;
-    const y = row * cellSize;
+    const x = col * (cellSize + gap);
+    const y = row * (cellSize + gap);
 
     if(token.kind === 'svg'){
       try{
@@ -146,10 +146,10 @@ function _drawTokenOnCanvas(ctx, token, x, y, cellSize){
   });
 }
 
-async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, transparentBg){
+async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, transparentBg, gap = 0){
   const canvas = document.createElement('canvas');
-  canvas.width = cols * cellSize;
-  canvas.height = rows * cellSize;
+  canvas.width = cols * cellSize + (cols - 1) * gap;
+  canvas.height = rows * cellSize + (rows - 1) * gap;
   const ctx = canvas.getContext('2d');
   // JPEG has no alpha channel -- transparent cells would otherwise come
   // out black. Fill white first for JPEG specifically; PNG stays truly
@@ -161,7 +161,7 @@ async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, tr
   for(let i = 0; i < resolvedTokens.length; i++){
     const row = Math.floor(i / cols);
     const col = i % cols;
-    await _drawTokenOnCanvas(ctx, resolvedTokens[i], col * cellSize, row * cellSize, cellSize);
+    await _drawTokenOnCanvas(ctx, resolvedTokens[i], col * (cellSize + gap), row * (cellSize + gap), cellSize);
   }
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), format === 'jpeg' ? 'image/jpeg' : 'image/png', 0.92);
@@ -175,6 +175,9 @@ async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, tr
 async function downloadTokenGrid(ids, options, onProgress){
   const { rows, cols, format, transparentBg } = options;
   const cellSize = options.cellSize || 1000;
+  // gap is a fraction of cellSize (e.g. 0.04 = 4%), converted to an actual
+  // pixel value here so both composition paths below just deal in pixels.
+  const gap = Math.round(cellSize * (options.gap || 0));
   const capped = ids.slice(0, GRID_DOWNLOAD_MAX_TOKENS);
   const resolved = [];
   for(let i = 0; i < capped.length; i++){
@@ -204,11 +207,11 @@ async function downloadTokenGrid(ids, options, onProgress){
   const filename = `${slugPart}-grid-${actualRows}x${cols}`;
 
   if(format === 'svg'){
-    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize);
+    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize, gap);
     const blob = new Blob([svgText], { type: 'image/svg+xml' });
     _triggerBlobDownload(blob, `${filename}.svg`);
   }else{
-    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg);
+    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg, gap);
     if(!blob){
       alert('Something went wrong building the image. Please try again.');
       return;
@@ -440,6 +443,11 @@ async function gridDownloadGo(){
   const gridSize = parseInt(document.getElementById('gridDownloadSize')?.value || '4', 10);
   const format = document.getElementById('gridDownloadFormat')?.value || 'svg';
   const transparentBg = !!document.getElementById('gridDownloadTransparent')?.checked;
+  // jv: "is it possible to create a small gapping between images" -- 4% of
+  // the cell size scales sensibly across every grid size/cellSize combo
+  // rather than a fixed pixel value that would look proportionally huge
+  // on a small grid and barely visible on a large one.
+  const addGap = !!document.getElementById('gridDownloadGap')?.checked;
   const capacity = gridSize * gridSize;
   let ids = [...selected];
   if(ids.length > capacity){
@@ -453,7 +461,7 @@ async function gridDownloadGo(){
   if(progressEl) progressEl.style.display = 'block';
 
   try{
-    await downloadTokenGrid(ids, { rows: gridSize, cols: gridSize, format, transparentBg }, (done, total) => {
+    await downloadTokenGrid(ids, { rows: gridSize, cols: gridSize, format, transparentBg, gap: addGap ? 0.04 : 0 }, (done, total) => {
       if(progressEl) progressEl.textContent = `Resolving images: ${done} / ${total}`;
     });
     closeGridDownloadModal();
