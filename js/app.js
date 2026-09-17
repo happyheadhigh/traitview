@@ -5330,7 +5330,15 @@ async function exportTraitViewStudioPng(){
 /* SVG download helper moved to js/downloads.js */
 
 window.addEventListener('resize', ()=>{
-  if(window.VS && VS.enabled && Array.isArray(VS.ids) && VS.ids.length){
+  // jv confirmed live (root cause of "switching grids doesn't work,"
+  // found via the diagnostic logging from the previous exchange):
+  // VS is declared with `const VS = {...}` at the top level of this
+  // regular (non-module) script -- top-level const/let never attaches
+  // to window, only var does, even though the bare identifier VS still
+  // works correctly everywhere via ordinary lexical scoping. This
+  // window.VS check is always false as a result (window.VS is always
+  // undefined), so this whole block silently never ran on resize either.
+  if(VS.enabled && Array.isArray(VS.ids) && VS.ids.length){
     clearTimeout(window.__vsResizeTimer);
     window.__vsResizeTimer = setTimeout(()=>{
       const v = localStorage.getItem('viewMode') || 'standard';
@@ -5373,8 +5381,8 @@ if(!window.__TV_LANDING__) init();
     // ends up with for cols/rowH/tg's className immediately after --
     // the next report can quote this instead of just "still broken."
     const resolvedMode = _vsModeFor(v);
-    console.log(`[ViewSwitch] clicked=${v} resolvedMode=${resolvedMode} VS.enabled=${!!(window.VS&&VS.enabled)} VS.ids.length=${window.VS?.ids?.length}`);
-    if(window.VS && VS.enabled && Array.isArray(VS.ids) && VS.ids.length){
+    console.log(`[ViewSwitch] clicked=${v} resolvedMode=${resolvedMode} VS.enabled=${!!(VS&&VS.enabled)} VS.ids.length=${VS?.ids?.length}`);
+    if(VS && VS.enabled && Array.isArray(VS.ids) && VS.ids.length){
       VS.init(VS.ids, resolvedMode).then(() => {
         const tg = document.getElementById('tokenGrid');
         console.log(`[ViewSwitch] after VS.init: VS.mode=${VS.mode} VS.cols=${VS.cols} VS.rowH=${VS.rowH} tg.className="${tg?.className}"`);
