@@ -6024,7 +6024,40 @@ async function loadManifest(){
       setStatus('idle');
     }catch(e){
       console.warn('[Sales] fetchNewest error:', e);
-      setStatus('error', e.message);
+      // jv: "the sales tab doesn't load sales UNLESS there is a filter on
+      // which is weird to me" -- confirmed why: applying a trait-count
+      // filter already routes through _runSalesSearch -> /db/sales-search
+      // (this repo's own backend, its own already-synced sales data),
+      // completely bypassing the Cloudflare Worker this unfiltered path
+      // depends on -- whose separate OPENSEA_API_KEY secret is what's
+      // actually returning "Invalid API key". Rather than surface an
+      // error when a perfectly good data source already exists one call
+      // away, fall back to that same healthy endpoint here too, unfiltered
+      // (most recent sales for this collection), only when the worker
+      // itself is the thing that failed.
+      try{
+        const data = await dbFetch('/db/sales-search', { limit: String(PAGE_SIZE) });
+        if(!data.ok) throw new Error(data.error || 'fallback search failed');
+        const fallbackSales = await Promise.all((data.sales || []).map(async s => {
+          const imgSrc = (typeof _getTokenImgSrcAsync === 'function') ? await _getTokenImgSrcAsync(s.token_id) : null;
+          return {
+            event_timestamp: new Date(s.sale_ts).getTime() / 1000,
+            payment: { quantity: String(Math.round((s.price_eth||0) * 1e18)), decimals: 18, symbol: s.currency || 'ETH' },
+            nft: { identifier: String(s.token_id), image_url: imgSrc || null },
+            transaction: null,
+            seller: s.seller ? { address: s.seller } : null,
+            buyer:  s.buyer  ? { address: s.buyer  } : null,
+          };
+        }));
+        ALL_SALES = fallbackSales;
+        salesKnownIds.clear();
+        nextCursor = null; // this fallback has no worker-style pagination cursor
+        await renderSales(false);
+        setStatus('idle');
+      }catch(fallbackErr){
+        console.warn('[Sales] fetchNewest fallback also failed:', fallbackErr);
+        setStatus('error', e.message);
+      }
     }
   }
 
