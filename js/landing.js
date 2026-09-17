@@ -59,6 +59,7 @@ if(window.__TV_LANDING__){
     { label: '/lastsale', detail: 'Show the most recent sale, instantly' },
     { label: '/me', detail: 'Your personal hub — alerts, wallet, preferences' },
     { label: '/arbitrage', detail: 'Spot listings priced below the best current offer' },
+    { label: '/download', detail: 'Download a high-res PNG of any token' },
   ];
   const BOT_PILLS = ['Sales', 'Listings', 'Rank Filters', 'Trait Filters', 'Sweeps', 'Arbitrage', 'Personal Alerts', 'Portfolio'];
 
