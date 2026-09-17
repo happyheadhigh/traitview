@@ -393,6 +393,22 @@ function resetCollectionState(){
   if(typeof HOLDER_TAG_CACHE !== 'undefined') HOLDER_TAG_CACHE.clear();
   if(typeof priceHistoryCache !== 'undefined') priceHistoryCache.clear();
   if(typeof tokenHistoryCache !== 'undefined') tokenHistoryCache.clear();
+  // jv: "I'm not getting any combo intelligence for other collections."
+  // COMBO_ROWS_CACHE (comboInsights.js) is a one-time, module-level cache --
+  // once ensureComboRows() populates it for whichever collection happens to
+  // be active the first time a token modal's Rarity tab is opened, it was
+  // never reset here on a live collection switch, unlike every other
+  // per-collection cache right above it. Every subsequent comboCount() call
+  // for any OTHER collection kept matching against that first collection's
+  // stale trait rows -- which, for a differently-named trait schema (e.g.
+  // Argonauts' Sight/Crown/Bones vs. whatever was cached first), essentially
+  // never matches, so every combo count came back 0 and no insight ever
+  // cleared its own minimum-count threshold. COMBO_COUNT_CACHE and
+  // COMBO_INSIGHT_CACHE are keyed in ways that would also silently carry
+  // stale, wrong-collection answers forward otherwise.
+  if(typeof COMBO_ROWS_CACHE !== 'undefined'){ COMBO_ROWS_CACHE.ready = false; COMBO_ROWS_CACHE.promise = null; COMBO_ROWS_CACHE.rows = []; }
+  if(typeof COMBO_COUNT_CACHE !== 'undefined') COMBO_COUNT_CACHE.clear();
+  if(typeof COMBO_INSIGHT_CACHE !== 'undefined') COMBO_INSIGHT_CACHE.clear();
 
   // imageMap.js
   if(typeof IMAGES_MAP !== 'undefined' && IMAGES_MAP) IMAGES_MAP.clear();
