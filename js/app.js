@@ -7734,6 +7734,17 @@ function renderScatter(){
   };
 
   layout.hoverlabel = {bgcolor:'rgba(0,0,0,0)', bordercolor:'rgba(0,0,0,0)', font:{color:'rgba(0,0,0,0)', size:1}};
+  // Same latent listener-accumulation bug as renderFloorTrend() below
+  // (host.on() re-attaching on every render without ever clearing a
+  // previous one) -- not yet reported here, but this chart re-renders on
+  // every trait-filter change the same way floor trend re-renders on
+  // every timeframe click, so fixing it here too rather than waiting for
+  // the same complaint to show up on this chart as well.
+  if(typeof host.removeAllListeners === 'function'){
+    host.removeAllListeners('plotly_hover');
+    host.removeAllListeners('plotly_unhover');
+    host.removeAllListeners('plotly_click');
+  }
   Plotly.newPlot(host, [trace, trend], layout, {responsive:true, displayModeBar:false});
 
   // Custom frosted-glass hover tooltip
@@ -8099,8 +8110,25 @@ function renderFloorTrend(){
   // laggier, with every timeframe switch. Plotly.purge() fully tears down
   // the existing plot (including its event listeners) before rebuilding
   // from scratch, so each render starts clean.
-  if(host.data) Plotly.purge(host);
-  Plotly.newPlot(host, traces, layout, {
+  // jv: purging the whole plot before every redraw (to stop listeners
+  // piling up -- see below) visibly flashed the chart to blank and back
+  // on every single timeframe click, which is exactly the "flickering on
+  // and off" jv then reported. Plotly.react() is the actual right tool
+  // here: it updates an existing plot's data/layout smoothly in place
+  // (falling back to a fresh newPlot() internally on the very first call,
+  // when there's nothing to update yet) without tearing the whole chart
+  // out of the DOM first. Clearing this chart's specific listeners
+  // (rather than the whole plot) still solves the original leak -- every
+  // timeframe click attached a brand new plotly_hover/plotly_unhover/
+  // plotly_click handler on top of whatever was already there, since
+  // Plotly.newPlot() never cleared them itself -- without the
+  // flash-to-blank side effect purge() had.
+  if(typeof host.removeAllListeners === 'function'){
+    host.removeAllListeners('plotly_hover');
+    host.removeAllListeners('plotly_unhover');
+    host.removeAllListeners('plotly_click');
+  }
+  Plotly.react(host, traces, layout, {
     responsive:true,
     displayModeBar:true,
     displaylogo:false,
@@ -8108,17 +8136,6 @@ function renderFloorTrend(){
     modeBarButtonsToKeep:['zoom2d','pan2d','zoomIn2d','zoomOut2d','resetScale2d'],
     scrollZoom:true
   });
-  // Belt-and-suspenders alongside the offsetWidth check above: the mobile
-  // analytics sheet may reveal this tab through a different mechanism
-  // (an animated slide-in, say) than the desktop tab panel's plain
-  // display:none -> block, where the container could already report a
-  // non-zero offsetWidth immediately even though its FINAL settled size
-  // isn't what Plotly measured at newPlot() time. Plotly.Plots.resize()
-  // explicitly re-measures the container and redraws to fit -- the
-  // standard fix for a chart rendered into a container whose size hadn't
-  // actually settled yet, regardless of which specific show/hide
-  // mechanism caused that.
-  requestAnimationFrame(() => { try{ Plotly.Plots.resize(host); }catch(_){} });
 
   // Custom frosted hover + click
   let _floorHoverId = null;
