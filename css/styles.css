@@ -119,7 +119,6 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid .token:hover{outline:1px solid var(--accent)}
 #tokenGrid .token.owned-token{border-color:rgba(28,255,175,.36)!important;box-shadow:var(--shadow),0 0 0 1px rgba(28,255,175,.13) inset,0 0 22px rgba(28,255,175,.12)}
 #tokenGrid .owned-badge,.vs-owned-badge{position:absolute;right:7px;bottom:7px;z-index:4;pointer-events:none;border-radius:999px;border:1px solid rgba(28,255,175,.36);background:rgba(5,14,19,.82);color:#1CFFAF;font-size:10px;font-weight:900;line-height:1;padding:4px 7px;box-shadow:0 0 14px rgba(28,255,175,.14)}
-#tokenGrid .burned-badge,.vs-burned-badge{position:absolute;left:7px;bottom:7px;z-index:4;pointer-events:none;border-radius:999px;border:1px solid rgba(255,90,90,.4);background:rgba(19,5,5,.82);color:#ff5a5a;font-size:10px;font-weight:900;line-height:1;padding:4px 7px;box-shadow:0 0 14px rgba(255,90,90,.16)}
 .thumb{width:94px;height:94px;border:1px solid var(--chip-b);border-radius:10px;background:var(--soft);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:contain}
 .thumb .svg-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
@@ -311,8 +310,6 @@ a{color:var(--accent)!important}
 .tbtn{background:var(--chip);border:1px solid var(--muted);color:var(--text);border-radius:8px;padding:6px 10px;cursor:pointer;opacity:.85;transition:transform .12s ease, box-shadow .12s ease}
 #onlyListedPill.pill-on{background:rgba(45,212,191,.15)!important;border-color:#2dd4bf!important;color:#2dd4bf!important}
 #onlyListedPill.pill-on #onlyListedDot{opacity:1!important}
-#hideBurnedPill.pill-on{background:rgba(248,113,113,.15)!important;border-color:#f87171!important;color:#f87171!important}
-#hideBurnedPill.pill-on #hideBurnedDot{opacity:1!important}
 .tbtn:hover{opacity:1}.tbtn:active{transform:scale(.97)}.tbtn.active{outline:2px solid var(--accent);box-shadow:0 0 0 3px rgba(124,77,255,.25)}
 #themePicker .tbtn.active{outline:2px solid var(--accent)}
 .trait-count,.trait-count *,.compare,.compare *,#pinned,#pinned *{color:var(--text)!important}
@@ -3905,8 +3902,6 @@ html[data-theme^="minimal-"] .badge,
 html[data-theme^="minimal-"] .linkpill,
 html[data-theme^="minimal-"] #tokenGrid .owned-badge,
 html[data-theme^="minimal-"] .vs-owned-badge,
-html[data-theme^="minimal-"] #tokenGrid .burned-badge,
-html[data-theme^="minimal-"] .vs-burned-badge,
 html[data-theme^="minimal-"] .pinbtn,
 html[data-theme^="minimal-"] .market-tag,
 html[data-theme^="minimal-"] #walletConnectBtn,

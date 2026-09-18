@@ -482,13 +482,6 @@ async function renderTokenGrid(ids, opts){
   if (window._BURNED_IDS && window._BURNED_IDS.size > 0) {
     ids = ids.filter(id => !window._BURNED_IDS.has(id));
   }
-  // "Hide Burned" pill (general is_burned flag) -- opt-in, unlike the
-  // exclusion above: these tokens are still real, present entries (see
-  // window._BURNED_TOKEN_SET's own comment), so only actually filtered
-  // out of the main grid when the user turns this on.
-  if (document.getElementById('hideBurned')?.checked && window._BURNED_TOKEN_SET && window._BURNED_TOKEN_SET.size > 0) {
-    ids = ids.filter(id => !window._BURNED_TOKEN_SET.has(+id));
-  }
   const preserveOrder = !!(opts && opts.preserveOrder);
   // jv confirmed live: clicking a Discord sale/listing embed's TraitView
   // link (?jump=ID) landed on an empty grid whenever "Live Listings" was
@@ -612,7 +605,6 @@ const osCardUrl=`https://opensea.io/assets/ethereum/${LIVE_CONTRACT}/${id}`;
 d.innerHTML=`<div class="pinbar"><button type="button" class="favbtn ${isFavorite(id)?'active':''}" data-fav-id="${id}" title="${isFavorite(id)?'Remove favorite':'Add favorite'}" aria-pressed="${isFavorite(id)?'true':'false'}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg></button><button type="button" class="pinbtn" data-act="A" title="Pin to A">A</button><button type="button" class="pinbtn" data-act="B" title="Pin to B">B</button><button type="button" class="pinbtn" data-act="+" title="Add to pinned">＋</button></div>
       ${gridThumbHtml(id,row)}
       ${connectedWalletOwns(id) ? '<span class="owned-badge">Owned</span>' : ''}
-      ${row.burned ? '<span class="burned-badge">Burned</span>' : ''}
       <div class="tmeta">
         <div class="idline">#${id} ${rankBadge} ${priceBadgeHtml(id)} <a href="${osCardUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on OpenSea" style="margin-left:auto;opacity:.6;line-height:1;display:inline-flex;align-items:center"><img src="https://opensea.io/static/images/logos/opensea-logo.svg" style="width:13px;height:13px;border-radius:3px"></a></div>
         ${tg.classList.contains('list') ? listStatsRowHtml(id, rankVal, getListingEth(id) != null ? (getListingEth(id) >= 1 ? getListingEth(id).toFixed(3) : getListingEth(id).toFixed(4)) : null) : traitsMiniHtml(row)}
@@ -1046,7 +1038,7 @@ async function openModal(id, opts={}){
   const _osChip  = _osR ? `<span class='chip'>${rankDiamondHtml(_osR,'','os')}</span>` : '';
   const _tvChip  = _tvR ? `<span class='chip'>${rankDiamondHtml(_tvR,'','tv')}</span>` : '';
   const _ownedChip = connectedWalletOwns(id) ? `<span class="chip" style="color:#1CFFAF;border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.08)">Owned</span>` : '';
-  const _burnedChip = ((window._BURNED_IDS && window._BURNED_IDS.has(+id)) || row?.burned) ? `<span class="chip" style="color:#f87171;border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.08)">🔥 Burned</span>` : '';
+  const _burnedChip = (window._BURNED_IDS && window._BURNED_IDS.has(+id)) ? `<span class="chip" style="color:#f87171;border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.08)">🔥 Burned</span>` : '';
   const _survivorChip = survivorChipHtml(id);
   $('#mTitle').innerHTML = `#${id} &nbsp; ${_osChip}${_tvChip}${_ownedChip}${_burnedChip}${_survivorChip}`;
   hydrateMarketPersonalityTags(id, row);
@@ -1867,16 +1859,6 @@ function toggleLiveListingsMode(forceValue){
     resetMatchingGridDefaults();
   }
 
-  if(typeof renderTokenGridFromState==='function') renderTokenGridFromState();
-}
-
-function toggleHideBurnedMode(forceValue){
-  const cb = document.getElementById('hideBurned');
-  if(!cb) return;
-  const nextChecked = typeof forceValue === 'boolean' ? forceValue : !cb.checked;
-  cb.checked = nextChecked;
-  const pill = document.getElementById('hideBurnedPill');
-  if(pill) pill.classList.toggle('pill-on', nextChecked);
   if(typeof renderTokenGridFromState==='function') renderTokenGridFromState();
 }
 
@@ -4792,7 +4774,6 @@ const VS = {
           (priceStr ? `<span class="minimal-tile-price" style="color:${isWethPrice?'#f87171':'#2dd4bf'}!important">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</span>` : '') +
         `</div>`;
       if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
-      if(window._BURNED_TOKEN_SET && window._BURNED_TOKEN_SET.has(+id)) d.insertAdjacentHTML('beforeend', '<span class="vs-burned-badge">Burned</span>');
       d.addEventListener('click', () => openModal(id));
       return d;
     }
@@ -4815,7 +4796,6 @@ const VS = {
     d.innerHTML =
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '<div style="width:100%;height:100%;background:rgba(255,255,255,.05)"></div>');
     if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
-    if(window._BURNED_TOKEN_SET && window._BURNED_TOKEN_SET.has(+id)) d.insertAdjacentHTML('beforeend', '<span class="vs-burned-badge">Burned</span>');
     d.addEventListener('click', () => openModal(id));
     return d;
   },
@@ -4868,8 +4848,7 @@ const VS = {
       `<div style="font-weight:700;font-size:13px;margin-bottom:2px;color:#e6edf7">#${id}</div>` +
       listStatsRowHtml(id, rank, priceStr) +
       `</div>` +
-      (connectedWalletOwns(id) ? '<span class="vs-owned-badge" style="top:8px;right:8px;bottom:auto">Owned</span>' : '') +
-      (window._BURNED_TOKEN_SET && window._BURNED_TOKEN_SET.has(+id) ? '<span class="vs-burned-badge" style="top:8px;left:8px;bottom:auto">Burned</span>' : '');
+      (connectedWalletOwns(id) ? '<span class="vs-owned-badge" style="top:8px;right:8px;bottom:auto">Owned</span>' : '');
     // Apply scroll styles directly to the datarow so it stays within the meta column
     const statsRow = d.querySelector('.vs-datarow');
     if(statsRow){
