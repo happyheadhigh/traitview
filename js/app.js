@@ -49,6 +49,10 @@ activateCollection(collectionSlugFromUrl());
       if(typeof updateMenuLinks === 'function' && COLLECTIONS[LIVE_SLUG]) updateMenuLinks(COLLECTIONS[LIVE_SLUG]);
       if(newlyAdded.length && typeof populateCollectionSwitcher === 'function') populateCollectionSwitcher();
     }
+    // Same reasoning as updateMenuLinks above: banner/avatar for a
+    // hardcoded baseline collection (e.g. argonauts) only arrive via this
+    // fetch, never available synchronously at the init() call below.
+    if(typeof applyCollectionBannerHeader === 'function') applyCollectionBannerHeader();
   });
 })();
 
@@ -2107,6 +2111,7 @@ async function init(){
   try{
     populateCollectionSwitcher();
     applyCollectionFeatureGating();
+    applyCollectionBannerHeader();
 
     // Shared background listings bootstrap so ?jump links and normal loads behave the same
     const startBackgroundListingsLoad = () => {

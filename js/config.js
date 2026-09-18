@@ -134,6 +134,12 @@ async function loadDynamicCollections(){
         COLLECTIONS[slug].openseaUrl = row.opensea_url || COLLECTIONS[slug].openseaUrl;
         COLLECTIONS[slug].websiteUrl = row.website_url || null;
         COLLECTIONS[slug].twitterUrl = row.twitter_url || null;
+        // jv: OpenSea-style banner + avatar shown above the collection
+        // stats bar. Same refresh-on-load pattern as the three link
+        // fields right above -- backfill-links updates the DB row, next
+        // page load picks it up here.
+        COLLECTIONS[slug].avatarImageUrl = row.avatar_image_url || null;
+        COLLECTIONS[slug].bannerImageUrl = row.banner_image_url || null;
         continue;
       }
       COLLECTIONS[slug] = {
@@ -158,6 +164,8 @@ async function loadDynamicCollections(){
         openseaUrl: row.opensea_url || `https://opensea.io/collection/${slug}`,
         websiteUrl: row.website_url || null,
         twitterUrl: row.twitter_url || null,
+        avatarImageUrl: row.avatar_image_url || null,
+        bannerImageUrl: row.banner_image_url || null,
       };
       newlyAdded.push(slug);
     }
@@ -490,6 +498,7 @@ function _applyCollectionSwitch(slug){
   resetCollectionState();
   populateCollectionSwitcher();
   applyCollectionFeatureGating();
+  applyCollectionBannerHeader();
   // Confirmed live: jv reported the header stats bar (floor, volume,
   // sales, 24h, owners) never actually switching over on a collection
   // change -- traced to a separate, page-load-only IIFE in app.js that
@@ -546,4 +555,35 @@ function applyCollectionFeatureGating(){
   // neither.
   const burnedBtn = document.getElementById('burnedTabBtn');
   if(burnedBtn) burnedBtn.style.display = hasBurn ? 'none' : '';
+}
+
+// jv: OpenSea-style banner + avatar above the collection stats bar.
+// Sourced from COLLECTIONS[slug].bannerImageUrl/avatarImageUrl, which
+// loadDynamicCollections() (above) already merges in from
+// /db/collections (avatar_image_url/banner_image_url -- captured at
+// onboarding time, or via /db/collections/backfill-links for a
+// collection onboarded before these columns existed). Hidden entirely
+// -- not shown with a placeholder -- for any collection that has
+// neither cached yet, rather than a banner-less empty bar that would
+// just look broken.
+function applyCollectionBannerHeader(){
+  const header = document.getElementById('collectionBannerHeader');
+  const bannerEl = document.getElementById('collectionBannerImg');
+  const avatarEl = document.getElementById('collectionHeaderAvatarImg');
+  if(!header || !bannerEl || !avatarEl) return;
+  const entry = COLLECTIONS[LIVE_SLUG];
+  const bannerUrl = entry?.bannerImageUrl || null;
+  const avatarUrl = entry?.avatarImageUrl || null;
+  if(!bannerUrl && !avatarUrl){
+    header.style.display = 'none';
+    return;
+  }
+  bannerEl.style.backgroundImage = bannerUrl ? `url("${bannerUrl}")` : 'none';
+  if(avatarUrl){
+    avatarEl.src = avatarUrl;
+    avatarEl.style.display = '';
+  }else{
+    avatarEl.style.display = 'none';
+  }
+  header.style.display = 'block';
 }
