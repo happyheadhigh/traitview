@@ -6781,11 +6781,10 @@ async function buildMispricedPanel(listedIds){
   // A real mispriced/best-deal signal has to compare a token's actual
   // price against what similarly-ranked tokens are actually asking --
   // exactly what the Price vs Rank scatter chart's own trend line
-  // already does correctly (renderScatter() above: a simple rank/price
-  // linear regression, "Undervalued" = priced >=7% below that line).
-  // Reusing that same model and threshold here instead of a separate,
+  // already does (renderScatter() / fitRankPriceTrend() above). Reusing
+  // that same model and threshold here instead of a separate,
   // inconsistent definition of "good deal".
-  let trendSlope = null, trendIntercept = null;
+  let trendModel = null;
   {
     const trendPts = [];
     for(const id of listedIds){
@@ -6794,22 +6793,7 @@ async function buildMispricedPanel(listedIds){
       if(r == null || p == null) continue;
       trendPts.push({ rank: r, price: +p });
     }
-    // Same reasoning as renderScatter(): a line fit to only a handful of
-    // points is noise, not a trend -- fall back to the old rank-weighted
-    // formula (still imperfect, but better than an unstable regression)
-    // when there simply isn't enough listed data to fit one meaningfully.
-    if(trendPts.length >= 8){
-      const n = trendPts.length;
-      const sumX = trendPts.reduce((s,p)=>s+p.rank,0);
-      const sumY = trendPts.reduce((s,p)=>s+p.price,0);
-      const sumXY = trendPts.reduce((s,p)=>s+p.rank*p.price,0);
-      const sumX2 = trendPts.reduce((s,p)=>s+p.rank*p.rank,0);
-      const denom = (n*sumX2 - sumX*sumX);
-      if(denom !== 0){
-        trendSlope = (n*sumXY - sumX*sumY) / denom;
-        trendIntercept = (sumY - trendSlope*sumX) / n;
-      }
-    }
+    trendModel = fitRankPriceTrend(trendPts);
   }
 
   // Pre-compute per-trait rarity scores for all modes
@@ -6905,8 +6889,8 @@ async function buildMispricedPanel(listedIds){
       // priced above trend (not a deal, regardless of how rare it is).
       // Falls back to the old rank-weighted approximation only when the
       // trend line itself couldn't be fit (too few live listings).
-      if(trendSlope != null && price_eth != null){
-        const expected = Math.max(0, trendSlope * rank + trendIntercept);
+      if(trendModel && price_eth != null){
+        const expected = Math.max(0, trendModel.predict(rank));
         score = expected > 0 ? (price_eth - expected) / expected : Infinity;
       } else {
         score = price_eth != null ? (price_eth * (rank / 10000)) : Infinity;
@@ -7607,6 +7591,34 @@ function _hideChartTooltip(tooltipId){
   if(tt) tt.style.display = 'none';
 }
 
+// jv: linear price-vs-rank trend called a rank #9768 (near-bottom,
+// common) token priced barely above floor a "Best Deal" -- a straight
+// line fit across the whole rank range gets pulled around by the
+// handful of genuinely expensive rare listings, which systematically
+// over-predicts the "expected" price for common tokens, making anything
+// near floor look artificially underpriced. NFT price-vs-rank curves are
+// much closer to exponential decay (a steep premium for the rarest few,
+// flattening out near floor for the bulk) -- fitting in log-price space
+// instead (price ≈ exp(intercept + slope·rank)) matches that shape, and
+// matches the Price vs Rank chart's own y-axis already being log-scaled.
+// Shared by renderScatter() and buildMispricedPanel() so both use the
+// same definition of "expected price for this rank". Returns null when
+// there isn't enough real listing data to fit anything meaningful.
+function fitRankPriceTrend(pts){
+  const valid = pts.filter(p => p.price > 0);
+  if(valid.length < 8) return null;
+  const n = valid.length;
+  const sumX = valid.reduce((s,p)=>s+p.rank,0);
+  const sumY = valid.reduce((s,p)=>s+Math.log(p.price),0);
+  const sumXY = valid.reduce((s,p)=>s+p.rank*Math.log(p.price),0);
+  const sumX2 = valid.reduce((s,p)=>s+p.rank*p.rank,0);
+  const denom = (n*sumX2 - sumX*sumX);
+  if(denom === 0) return null;
+  const slope = (n*sumXY - sumX*sumY) / denom;
+  const intercept = (sumY - slope*sumX) / n;
+  return { slope, intercept, predict(rank){ return Math.exp(slope*rank + intercept); } };
+}
+
 function renderScatter(){
   const host = document.getElementById('scatterHost');
   const countEl = document.getElementById('scatterCount');
@@ -7660,22 +7672,17 @@ function renderScatter(){
   pts.sort((a,b) => a.rank - b.rank);
   countEl.textContent = pts.length + ' listings';
 
-  // Trend line
-  const n = pts.length;
-  const sumX = pts.reduce((s,p)=>s+p.rank,0);
-  const sumY = pts.reduce((s,p)=>s+p.price,0);
-  const sumXY = pts.reduce((s,p)=>s+p.rank*p.price,0);
-  const sumX2 = pts.reduce((s,p)=>s+p.rank*p.rank,0);
-  const slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
-  const intercept = (sumY - slope*sumX) / n;
+  // Trend line (see fitRankPriceTrend() above for why this is fit in
+  // log-price space rather than a plain straight line)
+  const trendModel = fitRankPriceTrend(pts);
 
   const minRank = pts[0].rank, maxRank = pts[pts.length-1].rank;
   const trendX = [minRank, maxRank];
-  const trendY = trendX.map(x => Math.max(0, slope*x + intercept));
+  const trendY = trendModel ? trendX.map(x => Math.max(0, trendModel.predict(x))) : trendX.map(() => 0);
 
   // Jitter Y slightly to reduce overplotting on flat floor
   const jitter = pts.map(p => {
-    const expected = slope * p.rank + intercept;
+    const expected = trendModel ? trendModel.predict(p.rank) : Infinity;
     return { ...p, isUnder: p.price < expected * 0.93 };
   });
 
