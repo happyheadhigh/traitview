@@ -55,6 +55,21 @@ async function ensureComboRows(){
   if(COMBO_ROWS_CACHE.ready) return COMBO_ROWS_CACHE.rows;
   if(COMBO_ROWS_CACHE.promise) return COMBO_ROWS_CACHE.promise;
   COMBO_ROWS_CACHE.promise = (async()=>{
+    // jv: "the combo intelligence for argonauts is showing up as OCAS
+    // combo intelligence" -- traced to the exact same race already fixed
+    // for _getTokenImgSrcAsync() (app.js): ensureChunk() falls through to
+    // OCAS's own static chunk files whenever CHUNK_CACHE isn't warmed for
+    // a given index yet, and this ran with no guard against that at all.
+    // If a token's Combo Intelligence got opened before the bulk
+    // /db/all-traits fetch finished warming CHUNK_CACHE for the current
+    // collection, ensureChunk() would silently pull OCAS's own wrong
+    // chunk data -- and since this cache's own .ready flag then stays
+    // true for the rest of the session (only a real collection switch
+    // resets it), that one bad snapshot poisoned every combo lookup after
+    // it, even once CHUNK_CACHE itself later got correctly overwritten by
+    // the real fetch. Awaiting the same promise _getTokenImgSrcAsync()
+    // already exposes for this purpose before ever touching a chunk.
+    if(window._allTraitsPromise) await window._allTraitsPromise;
     const rows = [];
     for(const idx of indices()){
       const ch = await ensureChunk(idx);
@@ -67,15 +82,6 @@ async function ensureComboRows(){
     }
     COMBO_ROWS_CACHE.rows = rows;
     COMBO_ROWS_CACHE.ready = true;
-    // jv: "I'm still not getting any combo intelligence info" -- last
-    // exchange's fix (resetting this cache on collection switch) should
-    // have addressed a real, confirmed bug, but evidently something is
-    // still wrong. Logging what this function actually built -- if rows
-    // is 0 or very small for a real, populated collection, the chunk-
-    // loading side itself isn't the confirmed-fixed stale-cache issue at
-    // all, but something upstream (indices()/ensureChunk not yet ready
-    // when this runs, or this collection's own chunk data shaped
-    // differently than expected) -- rather than guessing further.
     console.log(`[ComboInsights] ensureComboRows built ${rows.length} row(s) for slug=${typeof LIVE_SLUG!=='undefined'?LIVE_SLUG:'?'}`);
     return rows;
   })();

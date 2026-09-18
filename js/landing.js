@@ -23,6 +23,84 @@ if(window.__TV_LANDING__){
 
   const CREATOR_TWITTER_URL = 'https://x.com/happyheadhigh?s=11&t=hxAwdrwmqftDdnfTLGICcQ';
 
+  // jv: "is there a way to add emojis on each collection... others can
+  // see that the collection is liked or flagged" -- "open, but still
+  // only 1 tap per person if doable". A fixed set (matches the backend's
+  // own REACTION_EMOJI in api.js) rather than free-text input -- a plain
+  // button row, no arbitrary-emoji validation needed anywhere. "1 tap per
+  // person" without any login system on this site means a persistent
+  // anonymous id generated once and stored in this browser -- not
+  // airtight against clearing storage or a different device, but the
+  // standard approach for a lightweight, no-account reaction like this.
+  const REACTION_EMOJI = ['🚀', '❤️', '👀', '🚩'];
+  const REACTION_CLIENT_ID_KEY = 'traitview_reaction_client_id';
+  function getReactionClientId(){
+    try{
+      let id = localStorage.getItem(REACTION_CLIENT_ID_KEY);
+      if(!id){
+        id = (crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        localStorage.setItem(REACTION_CLIENT_ID_KEY, id);
+      }
+      return id;
+    }catch(_){
+      return 'anon'; // localStorage unavailable (private mode, etc.) -- still functions, just can't remember the pick across reloads
+    }
+  }
+  let reactionCache = {}; // slug -> {counts, mine} | 'pending' | null
+  async function fetchReactionData(slug){
+    if(reactionCache[slug] && reactionCache[slug] !== 'pending') return reactionCache[slug];
+    if(reactionCache[slug] === 'pending') return null;
+    reactionCache[slug] = 'pending';
+    try{
+      const qs = new URLSearchParams({ client_id: getReactionClientId(), key: TV_BOT_API_KEY });
+      const r = await fetch(`${TV_BOT_API_BASE}/db/collections/${encodeURIComponent(slug)}/reactions?${qs}`);
+      const j = r.ok ? await r.json() : null;
+      reactionCache[slug] = (j?.ok) ? { counts: j.counts, mine: j.mine } : null;
+      return reactionCache[slug];
+    }catch(e){
+      console.warn(`[landing] reactions fetch failed for ${slug}:`, e.message);
+      reactionCache[slug] = null;
+      return null;
+    }
+  }
+  async function postReaction(slug, emoji){
+    try{
+      const r = await fetch(`${TV_BOT_API_BASE}/db/collections/${encodeURIComponent(slug)}/react?key=${encodeURIComponent(TV_BOT_API_KEY)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: getReactionClientId(), emoji }),
+      });
+      const j = r.ok ? await r.json() : null;
+      if(j?.ok) reactionCache[slug] = { counts: j.counts, mine: j.mine };
+      return j;
+    }catch(e){
+      console.warn(`[landing] react failed for ${slug}:`, e.message);
+      return null;
+    }
+  }
+  function reactionRowHtml(slug){
+    const data = reactionCache[slug];
+    return `<div class="landing-reactions" data-slug="${slug}" style="display:flex;gap:4px;margin-top:4px">
+      ${REACTION_EMOJI.map(e => {
+        const count = (data && data !== 'pending') ? (data.counts?.[e] || 0) : 0;
+        const mine = (data && data !== 'pending' && data.mine === e);
+        return `<button type="button" class="landing-reaction-btn" data-slug="${slug}" data-emoji="${e}" style="display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;border:1px solid ${mine ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${mine ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:11px;cursor:pointer;line-height:1">
+          <span>${e}</span>${count > 0 ? `<span style="font-weight:700">${count}</span>` : ''}
+        </button>`;
+      }).join('')}
+    </div>`;
+  }
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('.landing-reaction-btn');
+    if(!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    const slug = btn.dataset.slug, emoji = btn.dataset.emoji;
+    btn.style.opacity = '.5'; btn.disabled = true;
+    const j = await postReaction(slug, emoji);
+    const row = document.querySelector(`.landing-reactions[data-slug="${CSS.escape(slug)}"]`);
+    if(row && j?.ok) row.outerHTML = reactionRowHtml(slug);
+  });
+
   const FAQ_ITEMS = [
     {
       q: 'What is TraitView?',
@@ -277,6 +355,16 @@ if(window.__TV_LANDING__){
           </div>
           ${floorBadgeHtml(floor)}
         </a>
+        <!-- jv: reactions need their own absolutely-positioned slot with a
+             z-index above the full-card <a> overlay right above (same
+             reasoning as the "•••" menu button at the top -- a sibling
+             positioned on top of the <a>, not a descendant of it, so
+             clicking it hits the button itself and never triggers the
+             card's own navigate-to-collection click at all). Top-left,
+             the one corner nothing else here already uses (menu button
+             is top-right; name/avatar and floor badge are both anchored
+             to the bottom via the <a> overlay's own flex layout). -->
+        <div style="position:absolute;top:10px;left:10px;z-index:2">${customizeMode ? '' : reactionRowHtml(slug)}</div>
       </div>
     `;
   }
@@ -332,7 +420,7 @@ if(window.__TV_LANDING__){
       if(myGeneration !== renderGeneration) return; // a newer render has since replaced this grid
       const batch = visible.slice(i, i + BATCH_SIZE);
       await Promise.all(batch.map(async slug => {
-        const [info, floor] = await Promise.all([fetchCollectionInfo(slug), fetchFloor(slug)]);
+        const [info, floor] = await Promise.all([fetchCollectionInfo(slug), fetchFloor(slug), fetchReactionData(slug)]);
         if(myGeneration !== renderGeneration) return;
         const card = host.querySelector(`.landing-card[data-slug="${CSS.escape(slug)}"]`);
         if(card) card.outerHTML = collectionCardHtml(slug, COLLECTIONS[slug] || { name: slug }, info, floor);
