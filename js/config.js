@@ -376,7 +376,7 @@ function resetCollectionState(){
   window.LISTINGS = {};
   LIVE_OK = false;
   MANIFEST = null; CHUNK_SIZE = 1000; CHUNKS_DIR = 'traits_chunks'; TOKEN_COUNT = 0;
-  TRAIT_FREQ = {}; TRAIT_DOMAIN = {}; MAX_TRAIT_COUNT = 0;
+  TRAIT_FREQ = {}; TRAIT_DOMAIN = {}; MAX_TRAIT_COUNT = 0; TRAIT_COUNT_FREQ = {};
   currentTraitCount = null; AVAILABLE_DOMAIN = null;
   RARITY_MODE = 'observed'; PROB_DATA = null;
   pinnedA = null; pinnedB = null; pinnedSet = [];

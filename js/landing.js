@@ -46,7 +46,7 @@ if(window.__TV_LANDING__){
       return 'anon'; // localStorage unavailable (private mode, etc.) -- still functions, just can't remember the pick across reloads
     }
   }
-  let reactionCache = {}; // slug -> {counts, mine} | 'pending' | null
+  let reactionCache = {}; // slug -> {counts, mine: string[]} | 'pending' | null
   async function fetchReactionData(slug){
     if(reactionCache[slug] && reactionCache[slug] !== 'pending') return reactionCache[slug];
     if(reactionCache[slug] === 'pending') return null;
@@ -55,7 +55,7 @@ if(window.__TV_LANDING__){
       const qs = new URLSearchParams({ client_id: getReactionClientId(), key: TV_BOT_API_KEY });
       const r = await fetch(`${TV_BOT_API_BASE}/db/collections/${encodeURIComponent(slug)}/reactions?${qs}`);
       const j = r.ok ? await r.json() : null;
-      reactionCache[slug] = (j?.ok) ? { counts: j.counts, mine: j.mine } : null;
+      reactionCache[slug] = (j?.ok) ? { counts: j.counts, mine: j.mine || [] } : null;
       return reactionCache[slug];
     }catch(e){
       console.warn(`[landing] reactions fetch failed for ${slug}:`, e.message);
@@ -71,32 +71,40 @@ if(window.__TV_LANDING__){
         body: JSON.stringify({ client_id: getReactionClientId(), emoji }),
       });
       const j = r.ok ? await r.json() : null;
-      if(j?.ok) reactionCache[slug] = { counts: j.counts, mine: j.mine };
+      if(j?.ok) reactionCache[slug] = { counts: j.counts, mine: j.mine || [] };
       return j;
     }catch(e){
       console.warn(`[landing] react failed for ${slug}:`, e.message);
       return null;
     }
   }
-  function reactionRowHtml(slug){
+  function reactionRowHtml(slug, expanded){
     const data = reactionCache[slug];
     const counts = (data && data !== 'pending') ? (data.counts || {}) : {};
-    const mine = (data && data !== 'pending') ? data.mine : null;
+    // jv: "yes i want multiple picks per person just not the same one
+    // twice" -- mine is an array now (was a single value), any number of
+    // distinct emojis this client has picked for this collection.
+    const mine = (data && data !== 'pending') ? (data.mine || []) : [];
     const total = REACTION_EMOJI.reduce((sum, e) => sum + (counts[e] || 0), 0);
     // jv: "are we able to do just like a '+' sign that when clicked
     // brings up the emojis?" -- collapsed by default now: a single
-    // toggle button (your own pick if you've already reacted, otherwise
-    // a plain +, with the total count alongside if anyone's reacted at
-    // all) that reveals the full emoji row on tap instead of always
-    // showing all four buttons up front.
-    return `<div class="landing-reactions" data-slug="${slug}" data-expanded="false">
-      <button type="button" class="landing-reaction-toggle" data-slug="${slug}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;border:1px solid ${mine ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${mine ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:12px;cursor:pointer;line-height:1">
-        <span>${mine || '+'}</span>${total > 0 ? `<span style="font-weight:700;font-size:10px">${total}</span>` : ''}
+    // toggle button (all of your own picks concatenated if you have any,
+    // otherwise a plain +, with the total count alongside if anyone's
+    // reacted at all) that reveals the full emoji row on tap instead of
+    // always showing all four buttons up front. Stays open across a
+    // re-render right after picking one (see the click handler below) --
+    // now that more than one pick is allowed, collapsing after every
+    // single tap would make picking a second one more annoying than it
+    // needs to be.
+    const mineLabel = mine.length ? mine.join('') : '+';
+    return `<div class="landing-reactions" data-slug="${slug}" data-expanded="${expanded ? 'true' : 'false'}">
+      <button type="button" class="landing-reaction-toggle" data-slug="${slug}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;border:1px solid ${mine.length ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${mine.length ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:12px;cursor:pointer;line-height:1">
+        <span>${mineLabel}</span>${total > 0 ? `<span style="font-weight:700;font-size:10px">${total}</span>` : ''}
       </button>
-      <div class="landing-reaction-options" style="display:none;gap:4px;margin-top:4px">
+      <div class="landing-reaction-options" style="display:${expanded ? 'flex' : 'none'};gap:4px;margin-top:4px">
         ${REACTION_EMOJI.map(e => {
           const count = counts[e] || 0;
-          const isMine = mine === e;
+          const isMine = mine.includes(e);
           return `<button type="button" class="landing-reaction-btn" data-slug="${slug}" data-emoji="${e}" style="display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;border:1px solid ${isMine ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${isMine ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:11px;cursor:pointer;line-height:1">
             <span>${e}</span>${count > 0 ? `<span style="font-weight:700">${count}</span>` : ''}
           </button>`;
@@ -128,7 +136,7 @@ if(window.__TV_LANDING__){
     btn.style.opacity = '.5'; btn.disabled = true;
     const j = await postReaction(slug, emoji);
     const row = document.querySelector(`.landing-reactions[data-slug="${CSS.escape(slug)}"]`);
-    if(row && j?.ok) row.outerHTML = reactionRowHtml(slug); // collapses back to the toggle button, showing the new pick
+    if(row && j?.ok) row.outerHTML = reactionRowHtml(slug, true); // stays open -- may want to pick another
   });
 
   const FAQ_ITEMS = [

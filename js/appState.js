@@ -10,6 +10,13 @@ let MANIFEST = null, CHUNK_SIZE = 1000, CHUNKS_DIR = 'traits_chunks', TOKEN_COUN
 const CHUNK_CACHE = new Map(), ROW_CACHE = new Map();
 
 let TRAIT_FREQ = {}, TRAIT_DOMAIN = {}, MAX_TRAIT_COUNT = 0;
+// jv: "I do want to add trait count. It's an important factor in NFTs."
+// How many tokens share each exact (meaningful) trait count -- kept
+// separate from TRAIT_FREQ/TRAIT_DOMAIN (used to build the actual
+// trait-filter UI elsewhere) so this synthetic pseudo-attribute never
+// shows up there as a selectable filter option. Built and consumed only
+// by buildStatsAndRanks() in app.js.
+let TRAIT_COUNT_FREQ = {};
 let currentTraitCount = null, activeTraits = new Map(), AVAILABLE_DOMAIN = null;
 
 let RARITY_OBS_RANK = new Map(), RARITY_THEO_RANK = new Map(), RARITY_MODE = 'observed', PROB_DATA = null;

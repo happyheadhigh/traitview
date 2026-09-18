@@ -171,20 +171,36 @@ async function buildStatsAndRanks(){
   // Build into temp objects so TRAIT_DOMAIN stays readable during loading
   const _freq={}, _domain={};
   let _max=0;
+  // jv: "I do want to add trait count. It's an important factor in
+  // NFTs." How many tokens share each exact meaningful trait count --
+  // built in this same pass as every other trait's own frequency, kept
+  // separate from _freq/_domain (see appState.js's own comment on
+  // TRAIT_COUNT_FREQ for why) rather than injected as a fake trait
+  // category there.
+  const _countFreq={};
   for(const idx of indices()){
     const ch=await ensureChunk(idx);
     for(const [sid,row] of Object.entries(ch)){
       const n=getTraitCount(row); if(n>_max) _max=n;
+      _countFreq[n]=(_countFreq[n]||0)+1;
       for(const [k,v] of keepEntries(row.traits)){ (_domain[k] ||= new Set()).add(v); (_freq[k] ||= {})[v]=(_freq[k][v]||0)+1; }
     }
   }
   // Swap atomically when complete — TRAIT_DOMAIN never goes empty mid-load
-  TRAIT_FREQ=_freq; TRAIT_DOMAIN=_domain; MAX_TRAIT_COUNT=_max;
+  TRAIT_FREQ=_freq; TRAIT_DOMAIN=_domain; MAX_TRAIT_COUNT=_max; TRAIT_COUNT_FREQ=_countFreq;
   const obs=[];
   for(const idx of indices()){
     const ch=await ensureChunk(idx);
     for(const [sid,row] of Object.entries(ch)){
       let s=0; for(const [k,v] of keepEntries(row.traits)){ const c=(TRAIT_FREQ[k]?.[v])||1; const p=c/(TOKEN_COUNT||1); s += -Math.log(Math.max(p,1e-12)); }
+      // jv: treats "has exactly N meaningful traits" as its own
+      // pseudo-attribute with its own real frequency across the
+      // collection, weighted the exact same way every individual trait
+      // already is above -- rewards a token whose trait COUNT itself is
+      // unusual (rare, whether unusually low or unusually high),
+      // instead of that only ever emerging incidentally from summing
+      // more or fewer individual trait terms.
+      const n=getTraitCount(row); const cCount=(TRAIT_COUNT_FREQ[n])||1; const cP=cCount/(TOKEN_COUNT||1); s += -Math.log(Math.max(cP,1e-12));
       obs.push([+sid,s]);
     }
   }
@@ -194,7 +210,19 @@ async function buildStatsAndRanks(){
     const theo=[];
     for(const idx of indices()){
       const ch=await ensureChunk(idx);
-      for(const [sid,row] of Object.entries(ch)){ let p=1; for(const [k,v] of keepEntries(row.traits)) p*=pTheo(k,v); theo.push([+sid,p]); }
+      for(const [sid,row] of Object.entries(ch)){
+        let p=1; for(const [k,v] of keepEntries(row.traits)) p*=pTheo(k,v);
+        // Same trait-count factor for the theoretical-odds ranking --
+        // a collection's own published generation probabilities
+        // (PROB_DATA) essentially never separately model "how many
+        // traits total" as its own weighted attribute, so this always
+        // falls back to the observed frequency for it specifically,
+        // same as pTheo() itself falls back to observed frequency for
+        // any individual trait PROB_DATA doesn't cover.
+        const n=getTraitCount(row); const cCount=(TRAIT_COUNT_FREQ[n])||1;
+        p *= Math.max(cCount/(TOKEN_COUNT||1), 1e-12);
+        theo.push([+sid,p]);
+      }
     }
     theo.sort((a,b)=>a[1]-b[1]); RARITY_THEO_RANK=new Map(theo.map(([id,_],i)=>[id,i+1]));
   }
