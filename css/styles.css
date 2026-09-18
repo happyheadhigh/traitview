@@ -119,6 +119,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Seg
 #tokenGrid .token:hover{outline:1px solid var(--accent)}
 #tokenGrid .token.owned-token{border-color:rgba(28,255,175,.36)!important;box-shadow:var(--shadow),0 0 0 1px rgba(28,255,175,.13) inset,0 0 22px rgba(28,255,175,.12)}
 #tokenGrid .owned-badge,.vs-owned-badge{position:absolute;right:7px;bottom:7px;z-index:4;pointer-events:none;border-radius:999px;border:1px solid rgba(28,255,175,.36);background:rgba(5,14,19,.82);color:#1CFFAF;font-size:10px;font-weight:900;line-height:1;padding:4px 7px;box-shadow:0 0 14px rgba(28,255,175,.14)}
+#tokenGrid .burned-badge,.vs-burned-badge{position:absolute;left:7px;bottom:7px;z-index:4;pointer-events:none;border-radius:999px;border:1px solid rgba(255,90,90,.4);background:rgba(19,5,5,.82);color:#ff5a5a;font-size:10px;font-weight:900;line-height:1;padding:4px 7px;box-shadow:0 0 14px rgba(255,90,90,.16)}
 .thumb{width:94px;height:94px;border:1px solid var(--chip-b);border-radius:10px;background:var(--soft);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:contain}
 .thumb .svg-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
@@ -3902,6 +3903,8 @@ html[data-theme^="minimal-"] .badge,
 html[data-theme^="minimal-"] .linkpill,
 html[data-theme^="minimal-"] #tokenGrid .owned-badge,
 html[data-theme^="minimal-"] .vs-owned-badge,
+html[data-theme^="minimal-"] #tokenGrid .burned-badge,
+html[data-theme^="minimal-"] .vs-burned-badge,
 html[data-theme^="minimal-"] .pinbtn,
 html[data-theme^="minimal-"] .market-tag,
 html[data-theme^="minimal-"] #walletConnectBtn,

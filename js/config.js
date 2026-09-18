@@ -64,6 +64,15 @@ const COLLECTIONS = {
     // filter panel means every occurrence happens to be "Gold" so far, not
     // that only one token has it. It counts normally now.
     nonWornTraitCategories: ['Bones', 'Palette', 'Print', 'Fate'],
+    // Combo Intelligence (js/comboInsights.js) anchors most of its scoring on
+    // a Type/Base/Species-style category that argonauts simply doesn't have
+    // (Artifact/Bones/Cloak/Crown/Fate/Palette/Print/Relic/Sight -- none
+    // match) -- without this, 7 of 9 combo definitions plus two whole
+    // scoring loops silently never fire for any argonauts token. Crown is
+    // the closest stand-in available (a real, always-present worn slot,
+    // moderate cardinality) -- adjust here if a different category scores
+    // more interesting combos in practice.
+    comboAnchorCategory: 'Crown',
     openseaUrl: 'https://opensea.io/collection/argonauts',
     // Confirmed via /db/collections/backfill-links: OpenSea's own collection
     // page for Argonauts genuinely has no website/external_url set at all --

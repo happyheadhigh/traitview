@@ -96,7 +96,20 @@ async function comboCount(parts, notParts){
   return count;
 }
 function comboVisualTraits(entries){
-  const type = comboFindTrait(entries, [/^type$/i, /base/i, /skin/i, /body/i, /species/i]);
+  // Anchor category for the type-based scoring paths below (7 of 9
+  // comboDefs, the type+rare-trait loop, and the trait-exception loop all
+  // key off this). Collections with a literal Type/Base/Species-style
+  // category get it automatically via the pattern match; a collection
+  // without one (confirmed for argonauts: Artifact/Bones/Cloak/Crown/
+  // Fate/Palette/Print/Relic/Sight -- none match) previously left `type`
+  // permanently null, silently disabling most of this file's scoring for
+  // every one of its tokens. comboAnchorCategory (config.js, per
+  // collection) lets a collection designate its own best stand-in
+  // category explicitly instead.
+  const anchorOverride = (typeof COLLECTIONS !== 'undefined' && typeof LIVE_SLUG !== 'undefined' && COLLECTIONS[LIVE_SLUG]?.comboAnchorCategory) || null;
+  const type = anchorOverride
+    ? comboFindTrait(entries, [new RegExp(`^${anchorOverride.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')])
+    : comboFindTrait(entries, [/^type$/i, /base/i, /skin/i, /body/i, /species/i]);
   const eyes = comboFindTrait(entries, [/eyes?/i]);
   const teeth = comboFindTrait(entries, [/teeth/i, /mouth/i, /grill/i]);
   const hair = comboFindTrait(entries, [/^hair$/i, /hair/i]);
