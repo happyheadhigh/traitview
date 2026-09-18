@@ -7757,21 +7757,22 @@ function renderScatter(){
   };
 
   layout.hoverlabel = {bgcolor:'rgba(0,0,0,0)', bordercolor:'rgba(0,0,0,0)', font:{color:'rgba(0,0,0,0)', size:1}};
-  // Same latent listener-accumulation bug as renderFloorTrend() below
-  // (host.on() re-attaching on every render without ever clearing a
-  // previous one) -- not yet reported here, but this chart re-renders on
-  // every trait-filter change the same way floor trend re-renders on
-  // every timeframe click, so fixing it here too rather than waiting for
-  // the same complaint to show up on this chart as well.
-  if(typeof host.removeAllListeners === 'function'){
-    host.removeAllListeners('plotly_hover');
-    host.removeAllListeners('plotly_unhover');
-    host.removeAllListeners('plotly_click');
-  }
   Plotly.newPlot(host, [trace, trend], layout, {responsive:true, displayModeBar:false});
 
+  // jv: "switching the time frame, it lags and lags the whole analytics
+  // tabs" turned out to be the same listener-accumulation bug on
+  // renderFloorTrend() below despite removeAllListeners() being real,
+  // documented Plotly.js API -- something about it still wasn't
+  // preventing accumulation in practice when paired with repeated
+  // newPlot()/react() calls on the same div. Applying the same
+  // structurally-can't-leak fix here: bind the hover/click/unhover
+  // handlers to this host EXACTLY ONCE ever (guarded by
+  // host._scatterListenersBound) instead of re-attaching (and trying to
+  // first clear) them on every render.
+  if(host._scatterListenersBound) return;
+  host._scatterListenersBound = true;
+
   // Custom frosted-glass hover tooltip
-  let _scatterHoverId = null;
   function _scatterTooltipHtml(cd, img, isTap){
     const imgHtml = img
       ? `<img src="${img}" style="width:64px;height:64px;object-fit:contain;border-radius:6px;image-rendering:pixelated;display:block;margin-bottom:8px">`
@@ -7791,7 +7792,7 @@ function renderScatter(){
     const cd  = pt.customdata;
     if(!cd || !cd.id) return; // trend line has no customdata
     const ev  = data.event;
-    _scatterHoverId = cd.id;
+    host._scatterHoverId = cd.id;
     _showChartTooltip('_scatterTT', ev.clientX, ev.clientY, _scatterTooltipHtml(cd, _getTokenImgSrc(cd.id)));
     // jv: "I was in desktop when I noticed they weren't being displayed."
     // The synchronous lookup above can miss a token whose chunk hasn't
@@ -7804,30 +7805,29 @@ function renderScatter(){
     // resolves, so a stale image never pops back up after the user's
     // already moved to a different dot.
     _getTokenImgSrcAsync(cd.id).then(img => {
-      if(img && _scatterHoverId === cd.id){
+      if(img && host._scatterHoverId === cd.id){
         _showChartTooltip('_scatterTT', ev.clientX, ev.clientY, _scatterTooltipHtml(cd, img));
       }
     });
   });
-  host.on('plotly_unhover', () => { _scatterHoverId = null; _hideChartTooltip('_scatterTT'); });
+  host.on('plotly_unhover', () => { host._scatterHoverId = null; _hideChartTooltip('_scatterTT'); });
   // Same tap-to-preview pattern as renderFloorTrend() below: first tap
   // shows the same image-including tooltip hover already shows on
   // desktop, a second tap on that SAME point opens the modal. Desktop is
   // unaffected -- hover already shows the preview there, so a click there
   // still opens directly.
-  let _scatterLastTapId = null;
   host.on('plotly_click', data => {
     const cd = data.points[0].customdata;
     if(!cd?.id || typeof openModal !== 'function') return;
-    if(_scatterLastTapId === cd.id){
-      _scatterLastTapId = null;
+    if(host._scatterLastTapId === cd.id){
+      host._scatterLastTapId = null;
       openModal(cd.id);
     } else {
-      _scatterLastTapId = cd.id;
+      host._scatterLastTapId = cd.id;
       const clientX = data.event.clientX, clientY = data.event.clientY;
       _showChartTooltip('_scatterTT', clientX, clientY, _scatterTooltipHtml(cd, _getTokenImgSrc(cd.id), true));
       _getTokenImgSrcAsync(cd.id).then(img => {
-        if(img && _scatterLastTapId === cd.id){
+        if(img && host._scatterLastTapId === cd.id){
           _showChartTooltip('_scatterTT', clientX, clientY, _scatterTooltipHtml(cd, img, true));
         }
       });
@@ -8132,36 +8132,23 @@ function renderFloorTrend(){
 
   // Make Plotly's built-in tooltip invisible — we draw our own
   layout.hoverlabel = {bgcolor:'rgba(0,0,0,0)', bordercolor:'rgba(0,0,0,0)', font:{color:'rgba(0,0,0,0)', size:1}};
-  // jv: "clicking through the time frames is buggy and laggy" -- every
-  // call to this function (every timeframe button click re-runs it
-  // directly, see setFloorRange() above) attaches a brand new
-  // plotly_hover/plotly_unhover/plotly_click listener via host.on()
-  // below, but Plotly.newPlot() does NOT clear listeners already
-  // attached to this same container from a previous render -- it only
-  // replaces the chart's visual data. So each click ADDED another full
-  // set of handlers on top of whatever was already there, and a single
-  // hover started firing all of them at once -- compounding, and getting
-  // laggier, with every timeframe switch. Plotly.purge() fully tears down
-  // the existing plot (including its event listeners) before rebuilding
-  // from scratch, so each render starts clean.
-  // jv: purging the whole plot before every redraw (to stop listeners
-  // piling up -- see below) visibly flashed the chart to blank and back
-  // on every single timeframe click, which is exactly the "flickering on
-  // and off" jv then reported. Plotly.react() is the actual right tool
-  // here: it updates an existing plot's data/layout smoothly in place
-  // (falling back to a fresh newPlot() internally on the very first call,
-  // when there's nothing to update yet) without tearing the whole chart
-  // out of the DOM first. Clearing this chart's specific listeners
-  // (rather than the whole plot) still solves the original leak -- every
-  // timeframe click attached a brand new plotly_hover/plotly_unhover/
-  // plotly_click handler on top of whatever was already there, since
-  // Plotly.newPlot() never cleared them itself -- without the
-  // flash-to-blank side effect purge() had.
-  if(typeof host.removeAllListeners === 'function'){
-    host.removeAllListeners('plotly_hover');
-    host.removeAllListeners('plotly_unhover');
-    host.removeAllListeners('plotly_click');
-  }
+  // jv: "switching the time frame, it lags and lags the whole analytics
+  // tabs. I have to refresh the page." Confirmed this got worse with
+  // every timeframe click, matching the same listener-accumulation shape
+  // as the original "buggy and laggy" report -- despite host.on()/
+  // removeAllListeners() being real, documented Plotly.js API (it uses a
+  // Node-style EventEmitter internally), something about calling
+  // removeAllListeners() then Plotly.react() repeatedly on the same div
+  // still wasn't preventing accumulation in practice. Rather than keep
+  // trusting that exact mechanism, this now structurally can't leak:
+  // the hover/click/unhover handlers are bound to this host EXACTLY ONCE
+  // ever (guarded by host._floorListenersBound), and read the current
+  // sales data from host._floorRenderState -- a plain object reassigned
+  // fresh on every render -- instead of closing over a new copy of that
+  // data at attach-time. So there is only ever one of each listener for
+  // the life of the page, full stop, regardless of how many times this
+  // function runs.
+  host._floorRenderState = { allSalesDots };
   Plotly.react(host, traces, layout, {
     responsive:true,
     displayModeBar:true,
@@ -8171,8 +8158,10 @@ function renderFloorTrend(){
     scrollZoom:true
   });
 
+  if(host._floorListenersBound) return;
+  host._floorListenersBound = true;
+
   // Custom frosted hover + click
-  let _floorHoverId = null;
   function _floorSaleTooltipHtml(id, sale, img, isTap){
     const imgH = img ? `<img src="${img}" style="width:60px;height:60px;object-fit:contain;border-radius:6px;image-rendering:pixelated;display:block;margin-bottom:8px">` : '';
     const rank = `<div style="font-size:11px;margin-bottom:3px">${displayRankHtml(id, 'font-weight:700;')}</div>`;
@@ -8189,10 +8178,11 @@ function renderFloorTrend(){
   host.on('plotly_hover', data=>{
     const pt  = data.points[0];
     const ev  = data.event;
+    const allSalesDots = host._floorRenderState?.allSalesDots || [];
     if(pt.data.name === 'Sales' && pt.customdata){
       const id   = pt.customdata;
       const sale = allSalesDots.find(s=>s.id===id) || {};
-      _floorHoverId = id;
+      host._floorHoverId = id;
       _showChartTooltip('_floorTT', ev.clientX, ev.clientY, _floorSaleTooltipHtml(id, sale, _getTokenImgSrc(id)));
       // jv: "I was in desktop when I noticed they weren't being
       // displayed." Same class of gap as the scatter chart's own hover
@@ -8201,18 +8191,18 @@ function renderFloorTrend(){
       // and re-shows the tooltip once loaded, only if still hovering this
       // same point.
       _getTokenImgSrcAsync(id).then(img => {
-        if(img && _floorHoverId === id){
+        if(img && host._floorHoverId === id){
           _showChartTooltip('_floorTT', ev.clientX, ev.clientY, _floorSaleTooltipHtml(id, sale, img));
         }
       });
     } else if(pt.data.name === 'Daily Floor'){
-      _floorHoverId = null;
+      host._floorHoverId = null;
       const html = `<div style="font-weight:600;margin-bottom:3px">${pt.x}</div>
         <div style="color:#2dd4bf;font-weight:700;font-size:14px">Floor: ${(+pt.y).toFixed(4)} ETH</div>`;
       _showChartTooltip('_floorTT', ev.clientX, ev.clientY, html);
     }
   });
-  host.on('plotly_unhover', ()=> { _floorHoverId = null; _hideChartTooltip('_floorTT'); });
+  host.on('plotly_unhover', ()=> { host._floorHoverId = null; _hideChartTooltip('_floorTT'); });
   // jv: "let's make sure that the dots on those graphs display the token
   // images as well" -- the rich tooltip above (with the token's own
   // image) was already built, but only ever wired to plotly_hover, a
@@ -8226,16 +8216,16 @@ function renderFloorTrend(){
   // (image included); a second tap on that SAME dot (while its preview is
   // still showing) opens the full modal. Desktop is unaffected -- hover
   // already shows the preview there, so a click there still opens directly.
-  let _floorLastTapId = null;
   host.on('plotly_click', data=>{
     const pt = data.points[0];
     if(pt.data.name!=='Sales' || !pt.customdata || typeof openModal!=='function') return;
     const id = pt.customdata;
-    if(_floorLastTapId === id){
-      _floorLastTapId = null;
+    const allSalesDots = host._floorRenderState?.allSalesDots || [];
+    if(host._floorLastTapId === id){
+      host._floorLastTapId = null;
       openModal(id);
     } else {
-      _floorLastTapId = id;
+      host._floorLastTapId = id;
       const sale = allSalesDots.find(s=>s.id===id) || {};
       const clientX = data.event.clientX, clientY = data.event.clientY;
       // data.event carries clientX/clientY for both mouse and touch
@@ -8243,7 +8233,7 @@ function renderFloorTrend(){
       // where the user actually tapped, same as the hover tooltip does.
       _showChartTooltip('_floorTT', clientX, clientY, _floorSaleTooltipHtml(id, sale, _getTokenImgSrc(id), true));
       _getTokenImgSrcAsync(id).then(img => {
-        if(img && _floorLastTapId === id){
+        if(img && host._floorLastTapId === id){
           _showChartTooltip('_floorTT', clientX, clientY, _floorSaleTooltipHtml(id, sale, img, true));
         }
       });
