@@ -81,12 +81,17 @@ function suggestGridDimensions(count){
 // element in that one cell. A mixed-source grid still comes out as one
 // valid SVG file either way; only the truly-SVG cells get the "fully
 // zoomable at any scale" property jv asked for.
-function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0, cornerRadius = 0){
+function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0, cornerRadius = 0, bgColor = null){
   const width = cols * cellSize + (cols - 1) * gap;
   const height = rows * cellSize + (rows - 1) * gap;
   const parser = new DOMParser();
   let defsMarkup = '';
-  let cellsMarkup = '';
+  // jv: PNG/JPEG's gap fill is user-choosable now (white/black) -- same
+  // choice applies here so a gapped SVG grid doesn't look inconsistent
+  // with the raster export of the same selection. null/omitted means
+  // "no background" (the SVG's own natural transparency), same meaning
+  // as the raster path's transparentBg.
+  let cellsMarkup = bgColor ? `<rect x="0" y="0" width="${width}" height="${height}" fill="${bgColor}"/>` : '';
 
   resolvedTokens.forEach((token, i) => {
     const row = Math.floor(i / cols);
@@ -183,16 +188,20 @@ function _drawTokenOnCanvas(ctx, token, x, y, cellSize, cornerRadius = 0){
   });
 }
 
-async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, transparentBg, gap = 0, cornerRadius = 0){
+async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, transparentBg, gap = 0, cornerRadius = 0, bgColor = '#ffffff'){
   const canvas = document.createElement('canvas');
   canvas.width = cols * cellSize + (cols - 1) * gap;
   canvas.height = rows * cellSize + (rows - 1) * gap;
   const ctx = canvas.getContext('2d');
-  // JPEG has no alpha channel -- transparent cells would otherwise come
-  // out black. Fill white first for JPEG specifically; PNG stays truly
-  // transparent when transparentBg is requested.
+  // jv: PNG's gap color was hardcoded white -- JPEG has no alpha channel
+  // at all, so it still always needs some fill (was and still is white by
+  // default there since bgColor's own default is white), but PNG's
+  // "otherwise fill white" was never meant to preclude a real choice, just
+  // to avoid unrequested transparency. bgColor is user-chosen now for
+  // either format, transparentBg (the "No background" checkbox) still
+  // wins outright for PNG when it's checked.
   if(format === 'jpeg' || !transparentBg){
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = bgColor || '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   for(let i = 0; i < resolvedTokens.length; i++){
@@ -246,11 +255,11 @@ async function downloadTokenGrid(ids, options, onProgress){
   const filename = `${slugPart}-grid-${actualRows}x${cols}`;
 
   if(format === 'svg'){
-    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize, gap, cornerRadius);
+    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize, gap, cornerRadius, transparentBg ? null : (options.bgColor || '#ffffff'));
     const blob = new Blob([svgText], { type: 'image/svg+xml' });
     _triggerBlobDownload(blob, `${filename}.svg`);
   }else{
-    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg, gap, cornerRadius);
+    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg, gap, cornerRadius, options.bgColor || '#ffffff');
     if(!blob){
       alert('Something went wrong building the image. Please try again.');
       return;
@@ -503,6 +512,15 @@ function gridDownloadOnFormatChange(){
   if(checkbox) checkbox.disabled = disabled;
   if(row) row.style.opacity = disabled ? '0.45' : '1';
   if(disabled && checkbox) checkbox.checked = false;
+  // Background color only means anything when there IS a background:
+  // JPEG always has one (no transparency at all), PNG/SVG only when
+  // "No background" is left unchecked.
+  const bgLabel = document.getElementById('gridDownloadBgColorLabel');
+  const bgSelect = document.getElementById('gridDownloadBgColor');
+  const showBgColor = format === 'jpeg' || !checkbox?.checked;
+  if(bgLabel) bgLabel.style.display = showBgColor ? '' : 'none';
+  if(bgSelect) bgSelect.style.display = showBgColor ? '' : 'none';
+  _invalidateGridDownloadPreview();
 }
 
 // jv: "if it's random can there be an option to select the order in
@@ -545,6 +563,7 @@ async function gridDownloadPreview(){
   const transparentBg = !!document.getElementById('gridDownloadTransparent')?.checked;
   const addGap = !!document.getElementById('gridDownloadGap')?.checked;
   const rounded = !!document.getElementById('gridDownloadRounded')?.checked;
+  const bgColor = document.getElementById('gridDownloadBgColor')?.value || '#ffffff';
   const capacity = gridSize * gridSize;
   let ids = [...selected];
   if(ids.length > capacity) ids = ids.slice(0, capacity);
@@ -574,11 +593,11 @@ async function gridDownloadPreview(){
     }
     const actualRows = Math.ceil(resolved.length / gridSize);
     if(format === 'svg'){
-      host.innerHTML = _buildGridSvg(resolved, actualRows, gridSize, cellSize, gap, cornerRadius);
+      host.innerHTML = _buildGridSvg(resolved, actualRows, gridSize, cellSize, gap, cornerRadius, transparentBg ? null : bgColor);
       const svgEl = host.querySelector('svg');
       if(svgEl){ svgEl.style.width = '100%'; svgEl.style.height = 'auto'; svgEl.style.display = 'block'; }
     }else{
-      const blob = await _buildGridRaster(resolved, actualRows, gridSize, cellSize, format, transparentBg, gap, cornerRadius);
+      const blob = await _buildGridRaster(resolved, actualRows, gridSize, cellSize, format, transparentBg, gap, cornerRadius, bgColor);
       if(!blob){
         host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Something went wrong building the preview.</div>';
         return;
@@ -612,6 +631,7 @@ async function gridDownloadGo(){
   // radius (10px on a 94px card, ~10.6%) without being so large it
   // clips into the actual art on a tightly-cropped token image.
   const rounded = !!document.getElementById('gridDownloadRounded')?.checked;
+  const bgColor = document.getElementById('gridDownloadBgColor')?.value || '#ffffff';
   const capacity = gridSize * gridSize;
   let ids = [...selected];
   if(ids.length > capacity){
@@ -626,7 +646,7 @@ async function gridDownloadGo(){
   if(progressEl) progressEl.style.display = 'block';
 
   try{
-    await downloadTokenGrid(ids, { rows: gridSize, cols: gridSize, format, transparentBg, gap: addGap ? 0.04 : 0, cornerRadius: rounded ? 0.06 : 0 }, (done, total) => {
+    await downloadTokenGrid(ids, { rows: gridSize, cols: gridSize, format, transparentBg, gap: addGap ? 0.04 : 0, cornerRadius: rounded ? 0.06 : 0, bgColor }, (done, total) => {
       if(progressEl) progressEl.textContent = `Resolving images: ${done} / ${total}`;
     });
     closeGridDownloadModal();
