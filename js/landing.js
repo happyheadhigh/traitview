@@ -136,7 +136,18 @@ if(window.__TV_LANDING__){
     btn.style.opacity = '.5'; btn.disabled = true;
     const j = await postReaction(slug, emoji);
     const row = document.querySelector(`.landing-reactions[data-slug="${CSS.escape(slug)}"]`);
-    if(row && j?.ok) row.outerHTML = reactionRowHtml(slug, true); // stays open -- may want to pick another
+    if(j?.ok){
+      if(row) row.outerHTML = reactionRowHtml(slug, true); // stays open -- may want to pick another
+    } else {
+      // jv: "clicking on an emoji to select just highlights it, doesn't
+      // actually select" -- if the request fails for any reason (a
+      // fixed server-side bug caused exactly this once, but this isn't
+      // specific to that one cause), the button was left disabled and
+      // faded forever with no way to even retry, which is exactly what
+      // that looked like. Resetting it back to normal on any failure.
+      btn.style.opacity = ''; btn.disabled = false;
+      console.warn(`[landing] reaction for ${slug} (${emoji}) did not save`);
+    }
   });
 
   const FAQ_ITEMS = [
