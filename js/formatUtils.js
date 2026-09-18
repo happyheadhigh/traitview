@@ -43,6 +43,34 @@ function formatEth(v){
 function fmt(n){ return n.toLocaleString();
 }
 
+// jv: "add the chain symbol for each collection since the bot is
+// genuinely multi chain". No single glyph is universally recognized for
+// every chain the way Ξ is for Ethereum (Robinhood Chain, for instance,
+// doesn't have one) -- rather than invent one, this pairs a distinct
+// colored dot with the chain's own real name, so it's still an
+// at-a-glance visual distinction (like the Ξ/WETH color-coding
+// elsewhere in this app) without fabricating iconography. Any chain not
+// in this list still gets a badge -- just its own capitalized name and a
+// neutral color -- rather than being silently unlabeled, which is the
+// actual point given how many chains this app may eventually support.
+const CHAIN_DISPLAY = {
+  ethereum: { label: 'Ethereum', color: '#8a92b2' },
+  robinhood: { label: 'Robinhood', color: '#2dd4bf' },
+};
+function chainDisplayInfo(chain){
+  const key = String(chain || 'ethereum').toLowerCase();
+  if(CHAIN_DISPLAY[key]) return CHAIN_DISPLAY[key];
+  const label = key.charAt(0).toUpperCase() + key.slice(1);
+  return { label, color: '#8a92b2' };
+}
+// Small inline dot + name, sized/colored via currentColor so it drops
+// into any existing text flow (a stat pill, a card corner, etc.)
+// without needing its own font-size/weight rules at each call site.
+function chainBadgeHtml(chain){
+  const { label, color } = chainDisplayInfo(chain);
+  return `<span style="display:inline-flex;align-items:center;gap:5px;color:${color}"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0"></span>${label}</span>`;
+}
+
 // jv confirmed live on nekoadz (Robinhood Chain, USDG): grid/tile price
 // badges showed the ETH glyph regardless of the token's actual listing
 // currency -- same bug class as the floor pill's own fix (fetchFloor's

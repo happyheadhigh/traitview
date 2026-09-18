@@ -29,6 +29,10 @@ if(window.__TV_LANDING__){
       a: 'TraitView is a live trait explorer, rarity ranker, and marketplace tracker for NFT collections. It shows every token\'s traits, computed rarity rank, current OpenSea listing (if any), and recent sales history -- all kept up to date automatically, not a one-time snapshot.',
     },
     {
+      q: 'What is TV Rank, and how is it calculated?',
+      a: 'TV Rank (▲) is TraitView\'s own rarity ranking, computed directly from a collection\'s actual trait data -- separate from OS Rank (◆), which is whatever OpenSea itself reports. Every trait a token has is scored by how rare that exact trait value is across the whole collection (a value only 12 tokens share scores far higher than one shared by 4,000), and those per-trait scores are combined into one rarity score for the token. Rank #1 is the token with the highest combined score -- the rarest overall trait combination -- down to the most common. If a collection has published its own intended/theoretical trait odds (from how it was originally generated) rather than relying purely on what actually got minted, TraitView can rank against those instead for extra precision. Toggle between TV and OS rank anywhere you see the ▲/◆ icon.',
+    },
+    {
       q: 'How does this connect to the Discord bot?',
       a: 'A companion Discord bot backfills a collection\'s on-chain trait data, tracks live listings and sales, and posts real-time alerts to a server when something sells or gets listed. Every one of those alerts links straight back to the exact token here on TraitView.',
     },
@@ -266,7 +270,10 @@ if(window.__TV_LANDING__){
         <a href="?collection=${encodeURIComponent(slug)}" class="landing-card-link" draggable="false" style="position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:space-between;padding:14px;gap:10px;text-decoration:none;color:inherit">
           <div style="display:flex;align-items:center;gap:10px;min-width:0">
             ${avatar ? `<img src="${avatar}" alt="" style="width:40px;height:40px;border-radius:10px;border:2px solid rgba(255,255,255,.85);object-fit:cover;flex-shrink:0">` : ''}
-            <div style="font-weight:700;font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}${isFav ? ' ★' : ''}</div>
+            <div style="min-width:0">
+              <div style="font-weight:700;font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}${isFav ? ' ★' : ''}</div>
+              <div style="font-size:11px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.6)">${chainBadgeHtml(entry.chain)}</div>
+            </div>
           </div>
           ${floorBadgeHtml(floor)}
         </a>

@@ -6592,7 +6592,14 @@ async function loadManifest(){
   };
 
   function updateMetaRow({ owners, items }){
-    setText('mmetaChainVal', 'ETH');
+    // jv: "add the chain symbol for each collection since the bot is
+    // genuinely multi chain" -- while wiring that up, found this was
+    // hardcoded to always show "ETH" regardless of the collection's
+    // actual chain (LIVE_CHAIN, already set correctly elsewhere by
+    // config.js on every collection switch) -- e.g. nekoadz (Robinhood
+    // Chain) showed "ETH" here despite it being wrong.
+    const chainEl = document.getElementById('mmetaChainVal');
+    if(chainEl) chainEl.innerHTML = chainBadgeHtml(typeof LIVE_CHAIN !== 'undefined' ? LIVE_CHAIN : 'ethereum');
     if(items != null) setText('mmetaItemsVal', fmtNum(items));
     if(owners != null) setText('mmetaOwnersVal', fmtNum(owners));
   }
@@ -6611,7 +6618,13 @@ async function loadManifest(){
       if(!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
       if(j?.ok){
-        updateMetaRow({ owners: j.unique_wallets, items: j.total_supply || 10000 });
+        // jv: genuinely multi-collection now -- 10000 was an
+        // OCAS-coincidental fallback, wrong for any other collection's
+        // real supply (e.g. nekoadz's 134) if this specific field ever
+        // comes back empty. TOKEN_COUNT is this collection's own known
+        // supply, already used as the authoritative count everywhere
+        // else in this app.
+        updateMetaRow({ owners: j.unique_wallets, items: j.total_supply || (typeof TOKEN_COUNT !== 'undefined' ? TOKEN_COUNT : null) });
       }
     }catch(e){
       console.warn('[Header] owners fetch error:', e.message);
