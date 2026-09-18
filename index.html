@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609213">
+  <link rel="stylesheet" href="./css/styles.css?v=202609214">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -141,18 +141,22 @@
     </div>
   </div>
 </div>
-<div class="wrap" id="mainApp">
 
-  <!-- jv: OpenSea-style banner + avatar above the collection stats bar.
-       Hidden entirely (see applyCollectionBannerHeader in config.js)
-       whenever the current collection has neither image cached yet --
-       most collections onboarded before this feature won't until
-       /db/collections/backfill-links has been run for them, and a
-       banner-less empty bar would look broken rather than just absent. -->
-  <div id="collectionBannerHeader" style="display:none">
-    <div id="collectionBannerImg"></div>
-    <img id="collectionHeaderAvatarImg" alt="">
-  </div>
+<!-- jv: OpenSea-style banner + avatar above the collection stats bar --
+     full-bleed (edge-to-edge, flush against the top of the page), a
+     direct sibling of #mainApp rather than a child of it specifically so
+     it isn't constrained by .wrap's own 14px side padding. Hidden
+     entirely (see applyCollectionBannerHeader in config.js) whenever the
+     current collection has neither image cached yet -- most collections
+     onboarded before this feature won't until
+     /db/collections/backfill-links has been run for them, and a
+     banner-less empty bar would look broken rather than just absent. -->
+<div id="collectionBannerHeader" style="display:none">
+  <div id="collectionBannerImg"></div>
+  <img id="collectionHeaderAvatarImg" alt="">
+</div>
+
+<div class="wrap" id="mainApp">
 
   <div class="topbar">
     <div id="mobileHeaderIdentity">
@@ -1093,32 +1097,32 @@
 
 
 
-<script src="./js/config.js?v=202609213" defer></script>
-<script src="./js/landingPrefs.js?v=202609213" defer></script>
-<script src="./js/landing.js?v=202609213" defer></script>
-<script src="./js/dataConfig.js?v=202609213" defer></script>
-<script src="./js/formatUtils.js?v=202609213" defer></script>
-<script src="./js/imageMap.js?v=202609213" defer></script>
-<script src="./js/state.js?v=202609213" defer></script>
-<script src="./js/appState.js?v=202609213" defer></script>
-<script src="./js/favorites.js?v=202609213" defer></script>
-<script src="./js/wallet.js?v=202609213" defer></script>
-<script src="./js/api.js?v=202609213" defer></script>
-<script src="./js/rankSort.js?v=202609213" defer></script>
-<script src="./js/rankDisplay.js?v=202609213" defer></script>
-<script src="./js/walletConnect.js?v=202609213" defer></script>
-<script src="./js/walletAnalytics.js?v=202609213" defer></script>
-<script src="./js/mispriced.js?v=202609213" defer></script>
-<script src="./js/traitUtils.js?v=202609213" defer></script>
-<script src="./js/listingMeta.js?v=202609213" defer></script>
-<script src="./js/listCards.js?v=202609213" defer></script>
-<script src="./js/chart.js?v=202609213" defer></script>
-<script src="./js/tooltip.js?v=202609213" defer></script>
-<script src="./js/comboInsights.js?v=202609213" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609213" defer></script>
-<script src="./js/downloadLoader.js?v=202609213" defer></script>
-<script src="./js/gridDownload.js?v=202609213" defer></script>
-<script src="./js/app.js?v=202609213" defer></script>
+<script src="./js/config.js?v=202609214" defer></script>
+<script src="./js/landingPrefs.js?v=202609214" defer></script>
+<script src="./js/landing.js?v=202609214" defer></script>
+<script src="./js/dataConfig.js?v=202609214" defer></script>
+<script src="./js/formatUtils.js?v=202609214" defer></script>
+<script src="./js/imageMap.js?v=202609214" defer></script>
+<script src="./js/state.js?v=202609214" defer></script>
+<script src="./js/appState.js?v=202609214" defer></script>
+<script src="./js/favorites.js?v=202609214" defer></script>
+<script src="./js/wallet.js?v=202609214" defer></script>
+<script src="./js/api.js?v=202609214" defer></script>
+<script src="./js/rankSort.js?v=202609214" defer></script>
+<script src="./js/rankDisplay.js?v=202609214" defer></script>
+<script src="./js/walletConnect.js?v=202609214" defer></script>
+<script src="./js/walletAnalytics.js?v=202609214" defer></script>
+<script src="./js/mispriced.js?v=202609214" defer></script>
+<script src="./js/traitUtils.js?v=202609214" defer></script>
+<script src="./js/listingMeta.js?v=202609214" defer></script>
+<script src="./js/listCards.js?v=202609214" defer></script>
+<script src="./js/chart.js?v=202609214" defer></script>
+<script src="./js/tooltip.js?v=202609214" defer></script>
+<script src="./js/comboInsights.js?v=202609214" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609214" defer></script>
+<script src="./js/downloadLoader.js?v=202609214" defer></script>
+<script src="./js/gridDownload.js?v=202609214" defer></script>
+<script src="./js/app.js?v=202609214" defer></script>
 </body>
 </html>
 

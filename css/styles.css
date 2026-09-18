@@ -4344,15 +4344,13 @@ html[data-theme^="minimal-"] .tt:hover::after{
 #collectionBannerHeader{
   position: relative;
   width: 100%;
-  height: 120px;
-  margin-bottom: 34px; /* room for the avatar hanging below the banner */
-  border-radius: 12px;
+  height: 200px;
+  margin: 0 0 40px; /* room for the avatar hanging below the banner */
   overflow: visible;
 }
 #collectionBannerImg{
   width: 100%;
   height: 100%;
-  border-radius: 12px;
   background-size: cover;
   background-position: center;
   background-color: var(--soft);
@@ -4367,22 +4365,24 @@ html[data-theme^="minimal-"] .tt:hover::after{
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 12px;
   background: linear-gradient(to bottom, transparent 55%, var(--bg) 100%);
   pointer-events: none;
 }
 #collectionHeaderAvatarImg{
   position: absolute;
-  left: 16px;
-  bottom: -28px;
-  width: 72px;
-  height: 72px;
+  /* Lines up with .wrap's own 14px side padding, so the avatar sits
+     directly above the page content column below it even though the
+     banner itself spans the full, un-padded viewport width behind it. */
+  left: 14px;
+  bottom: -30px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   border: 4px solid var(--bg);
   background: var(--soft);
   object-fit: cover;
 }
 @media (max-width: 640px){
-  #collectionBannerHeader{ height: 84px; margin-bottom: 26px; }
-  #collectionHeaderAvatarImg{ width: 56px; height: 56px; bottom: -20px; border-width: 3px; }
+  #collectionBannerHeader{ height: 140px; margin-bottom: 30px; }
+  #collectionHeaderAvatarImg{ width: 60px; height: 60px; bottom: -22px; border-width: 3px; }
 }
