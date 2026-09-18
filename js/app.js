@@ -6678,7 +6678,14 @@ async function loadManifest(){
         const changeEl = document.getElementById('floorChange');
         if(!changeEl || val == null) return;
         const currentFloor = val;
-        const CACHE_KEY = '_floorHistory24hCache';
+        // jv: percentage was wildly wrong and inconsistent with OpenSea --
+        // this cache key wasn't scoped by collection at all, so switching
+        // collections within the 5-minute cache window compared the
+        // CURRENT collection's real floor against a DIFFERENT collection's
+        // stale ref_24h left over from before the switch (e.g. argonauts'
+        // real ~0.575 ETH floor vs on-chain-all-stars' ~0.0039 ETH 24h-ago
+        // floor produces exactly the absurd ~14,700% jv saw).
+        const CACHE_KEY = `_floorHistory24hCache_${LIVE_SLUG}`;
         const cached = (() => { try{ return JSON.parse(sessionStorage.getItem(CACHE_KEY)||'null'); }catch{ return null; } })();
         const now = Date.now();
         if(cached && (now - cached.ts) < 5 * 60 * 1000){
