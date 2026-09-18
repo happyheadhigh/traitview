@@ -8087,6 +8087,19 @@ function renderFloorTrend(){
 
   // Make Plotly's built-in tooltip invisible — we draw our own
   layout.hoverlabel = {bgcolor:'rgba(0,0,0,0)', bordercolor:'rgba(0,0,0,0)', font:{color:'rgba(0,0,0,0)', size:1}};
+  // jv: "clicking through the time frames is buggy and laggy" -- every
+  // call to this function (every timeframe button click re-runs it
+  // directly, see setFloorRange() above) attaches a brand new
+  // plotly_hover/plotly_unhover/plotly_click listener via host.on()
+  // below, but Plotly.newPlot() does NOT clear listeners already
+  // attached to this same container from a previous render -- it only
+  // replaces the chart's visual data. So each click ADDED another full
+  // set of handlers on top of whatever was already there, and a single
+  // hover started firing all of them at once -- compounding, and getting
+  // laggier, with every timeframe switch. Plotly.purge() fully tears down
+  // the existing plot (including its event listeners) before rebuilding
+  // from scratch, so each render starts clean.
+  if(host.data) Plotly.purge(host);
   Plotly.newPlot(host, traces, layout, {
     responsive:true,
     displayModeBar:true,
@@ -8095,6 +8108,17 @@ function renderFloorTrend(){
     modeBarButtonsToKeep:['zoom2d','pan2d','zoomIn2d','zoomOut2d','resetScale2d'],
     scrollZoom:true
   });
+  // Belt-and-suspenders alongside the offsetWidth check above: the mobile
+  // analytics sheet may reveal this tab through a different mechanism
+  // (an animated slide-in, say) than the desktop tab panel's plain
+  // display:none -> block, where the container could already report a
+  // non-zero offsetWidth immediately even though its FINAL settled size
+  // isn't what Plotly measured at newPlot() time. Plotly.Plots.resize()
+  // explicitly re-measures the container and redraws to fit -- the
+  // standard fix for a chart rendered into a container whose size hadn't
+  // actually settled yet, regardless of which specific show/hide
+  // mechanism caused that.
+  requestAnimationFrame(() => { try{ Plotly.Plots.resize(host); }catch(_){} });
 
   // Custom frosted hover + click
   let _floorHoverId = null;
