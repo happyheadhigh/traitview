@@ -180,11 +180,21 @@ async function buildComboInsights(id, row){
   }
 
   const allTraitParts = traitStats.map(t => ({ name:t.name, value:t.value, count:t.count }));
+  // jv: "even if the token isn't rare it should show at least some info
+  // about trait combos about that token and take into account all of
+  // the traits" -- this loop already computes every pair's real combo
+  // count, but only ever kept the ones rare enough to cross the
+  // threshold below, discarding the rest entirely. Capturing all of
+  // them here too so there's always something concrete to show about
+  // this token's actual trait pairs, even when none of them are
+  // individually striking.
+  const allPairs = [];
   for(let a = 0; a < allTraitParts.length; a++){
     for(let b = a + 1; b < allTraitParts.length; b++){
       const p1 = allTraitParts[a], p2 = allTraitParts[b];
       if(comboPartKey(p1) === comboPartKey(p2)) continue;
       const count = await comboCount([p1, p2]);
+      allPairs.push({ p1, p2, count });
       if(count > 0 && count <= Math.max(4, Math.floor(total * 0.004))){
         pushComboInsight(insights, {
           count,
@@ -270,7 +280,10 @@ async function buildComboInsights(id, row){
   }
 
   const best = insights.sort(comboInsightSort).slice(0, 6);
-  const result = { insights: best, rarest: traitStats.slice(0, 4) };
+  // Rarest pairs first -- most useful ordering for the no-extreme-insights
+  // fallback below, and harmless extra data otherwise.
+  allPairs.sort((a,b) => a.count - b.count);
+  const result = { insights: best, rarest: traitStats.slice(0, 4), allPairs };
   COMBO_INSIGHT_CACHE.set(id, result);
   // jv: "I'm still not getting any combo intelligence info" -- even with
   // zero qualifying insights, renderComboInsights() below is designed to
@@ -285,7 +298,23 @@ async function buildComboInsights(id, row){
 function renderComboInsights(data){
   if(!data.insights.length){
     const rare = data.rarest.map(t => `${comboEsc(t.value)} (${t.count})`).join(', ');
-    return `<div class="combo-insights-fallback">No extreme combo insights found, but this token's rarest traits are: ${rare || 'not available'}.</div>`;
+    // jv: "even if the token isn't rare it should show at least some
+    // info about trait combos... and take into account all of the
+    // traits" -- previously stopped at individual trait rarity here,
+    // never showing anything about how this token's traits actually
+    // combine. Every one of its trait pairs (not just ones rare enough
+    // to earn a headline "insight" above) gets listed here instead,
+    // rarest first, so there's always genuine combo-level information
+    // regardless of whether anything about this token is individually
+    // striking.
+    const pairsHtml = (data.allPairs && data.allPairs.length)
+      ? `<div class="combo-pairs-list">${data.allPairs.map(({p1,p2,count}) => `
+          <div class="combo-pair-row">
+            <span>${traitDisplayLabel(p1.name)}: ${comboEsc(p1.value)} + ${traitDisplayLabel(p2.name)}: ${comboEsc(p2.value)}</span>
+            <span class="combo-pair-count">${count === 1 ? '1 of 1' : `${count} tokens`} - ${comboPct(count)}%</span>
+          </div>`).join('')}</div>`
+      : '';
+    return `<div class="combo-insights-fallback">No extreme combo insights found, but this token's rarest traits are: ${rare || 'not available'}.</div>${pairsHtml}`;
   }
   return `<div class="combo-insights-list">${data.insights.map(i => `
     <div class="combo-insight-card">

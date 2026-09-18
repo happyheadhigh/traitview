@@ -80,17 +80,47 @@ if(window.__TV_LANDING__){
   }
   function reactionRowHtml(slug){
     const data = reactionCache[slug];
-    return `<div class="landing-reactions" data-slug="${slug}" style="display:flex;gap:4px;margin-top:4px">
-      ${REACTION_EMOJI.map(e => {
-        const count = (data && data !== 'pending') ? (data.counts?.[e] || 0) : 0;
-        const mine = (data && data !== 'pending' && data.mine === e);
-        return `<button type="button" class="landing-reaction-btn" data-slug="${slug}" data-emoji="${e}" style="display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;border:1px solid ${mine ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${mine ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:11px;cursor:pointer;line-height:1">
-          <span>${e}</span>${count > 0 ? `<span style="font-weight:700">${count}</span>` : ''}
-        </button>`;
-      }).join('')}
+    const counts = (data && data !== 'pending') ? (data.counts || {}) : {};
+    const mine = (data && data !== 'pending') ? data.mine : null;
+    const total = REACTION_EMOJI.reduce((sum, e) => sum + (counts[e] || 0), 0);
+    // jv: "are we able to do just like a '+' sign that when clicked
+    // brings up the emojis?" -- collapsed by default now: a single
+    // toggle button (your own pick if you've already reacted, otherwise
+    // a plain +, with the total count alongside if anyone's reacted at
+    // all) that reveals the full emoji row on tap instead of always
+    // showing all four buttons up front.
+    return `<div class="landing-reactions" data-slug="${slug}" data-expanded="false">
+      <button type="button" class="landing-reaction-toggle" data-slug="${slug}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;border:1px solid ${mine ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${mine ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:12px;cursor:pointer;line-height:1">
+        <span>${mine || '+'}</span>${total > 0 ? `<span style="font-weight:700;font-size:10px">${total}</span>` : ''}
+      </button>
+      <div class="landing-reaction-options" style="display:none;gap:4px;margin-top:4px">
+        ${REACTION_EMOJI.map(e => {
+          const count = counts[e] || 0;
+          const isMine = mine === e;
+          return `<button type="button" class="landing-reaction-btn" data-slug="${slug}" data-emoji="${e}" style="display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;border:1px solid ${isMine ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${isMine ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:11px;cursor:pointer;line-height:1">
+            <span>${e}</span>${count > 0 ? `<span style="font-weight:700">${count}</span>` : ''}
+          </button>`;
+        }).join('')}
+      </div>
     </div>`;
   }
   document.addEventListener('click', async e => {
+    const toggle = e.target.closest('.landing-reaction-toggle');
+    if(toggle){
+      e.preventDefault(); e.stopPropagation();
+      const row = toggle.closest('.landing-reactions');
+      const options = row?.querySelector('.landing-reaction-options');
+      if(!row || !options) return;
+      const expanded = row.dataset.expanded === 'true';
+      // Collapse any other card's open picker first, so at most one is
+      // open at a time -- avoids a page full of expanded emoji rows.
+      document.querySelectorAll('.landing-reactions[data-expanded="true"]').forEach(r => {
+        if(r !== row){ r.dataset.expanded = 'false'; const o = r.querySelector('.landing-reaction-options'); if(o) o.style.display = 'none'; }
+      });
+      row.dataset.expanded = expanded ? 'false' : 'true';
+      options.style.display = expanded ? 'none' : 'flex';
+      return;
+    }
     const btn = e.target.closest('.landing-reaction-btn');
     if(!btn) return;
     e.preventDefault(); e.stopPropagation();
@@ -98,7 +128,7 @@ if(window.__TV_LANDING__){
     btn.style.opacity = '.5'; btn.disabled = true;
     const j = await postReaction(slug, emoji);
     const row = document.querySelector(`.landing-reactions[data-slug="${CSS.escape(slug)}"]`);
-    if(row && j?.ok) row.outerHTML = reactionRowHtml(slug);
+    if(row && j?.ok) row.outerHTML = reactionRowHtml(slug); // collapses back to the toggle button, showing the new pick
   });
 
   const FAQ_ITEMS = [

@@ -1573,6 +1573,22 @@ a{color:var(--accent)!important}
 .combo-insight-text { color: var(--text); font-size: 12px; line-height: 1.35; min-width: 0; }
 .combo-insight-meta { margin-top: 3px; color: rgba(226,232,240,.78); font-size: 10.5px; }
 .combo-insights-fallback { color: var(--sub); font-size: 12px; line-height: 1.4; }
+.combo-pairs-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.combo-pair-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 8px;
+  background: rgba(255,255,255,.03);
+  font-size: 11.5px;
+  color: var(--sub);
+}
+.combo-pair-count { color: var(--text); font-weight: 700; white-space: nowrap; }
+@media (max-width: 900px) {
+  .combo-pair-row { flex-direction: column; gap: 3px; }
+}
 @media (max-width: 900px) {
   .rarity-row { grid-template-columns: minmax(0,1fr) 40px minmax(70px,.8fr) 40px; }
   .combo-insights-panel { padding: 10px; border-radius: 10px; }
