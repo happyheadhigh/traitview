@@ -76,6 +76,14 @@ async function ensureComboRows(){
       for(const [sid,data] of Object.entries(ch || {})){
         const id = +sid;
         if(!Number.isFinite(id) || id < 1 || id > (TOKEN_COUNT || 10000)) continue;
+        // jv: "the burned tokens still have a rarity rank and combo
+        // intelligence. It shouldn't have either... they're removed
+        // from the collection permanently." Same reasoning as
+        // buildStatsAndRanks()'s own burned-token exclusion (app.js) --
+        // a burned token's trait combo shouldn't count toward any OTHER
+        // token's "how many share this combo" comparison, since it's
+        // gone for good.
+        if(data.burned) continue;
         const entries = keepEntries(data.traits);
         if(entries.length) rows.push({ id, entries });
       }
@@ -329,6 +337,18 @@ async function hydrateComboInsights(id, row){
   const body = document.getElementById('comboInsightsBody');
   if(!body) return;
   const tokenId = +id;
+  // jv: "the burned tokens still have a rarity rank and combo
+  // intelligence. It shouldn't have either... they're removed from the
+  // collection permanently." A burned token's own combo intelligence is
+  // just as meaningless as its rank would be -- there's no longer a
+  // real "how does this compare to the rest of the collection" for a
+  // token that's gone for good, and ensureComboRows() (above) has
+  // already stopped counting it toward anyone ELSE's combo comparisons
+  // for the same reason.
+  if(row?.burned){
+    body.innerHTML = '<div class="combo-insights-fallback">Combo Intelligence isn\'t shown for burned tokens.</div>';
+    return;
+  }
   body.innerHTML = '<div class="combo-insights-fallback">Analyzing local trait combos...</div>';
   try{
     const data = await buildComboInsights(tokenId, row);

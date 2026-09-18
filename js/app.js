@@ -1062,8 +1062,20 @@ async function openModal(id, opts={}){
 
   // ── Header ──────────────────────────────────────────────────
   // Modal always shows both OS rank and TV rank
-  const _osR = OS_RANK_MAP.get(+id);
-  const _tvR = RARITY_OBS_RANK.get(+id);
+  // jv: "the burned tokens still have a rarity rank... it shouldn't
+  // have either... they're removed from the collection permanently."
+  // This bypassed displayRankFor()/rankDisplay.js's own already-fixed
+  // burned-token suppression entirely -- it reads OS_RANK_MAP/
+  // RARITY_OBS_RANK directly instead, which is exactly why the fix
+  // applied everywhere else (grid cards, etc.) never reached the modal
+  // itself. Checking the same general is_burned flag (window.
+  // _BURNED_TOKEN_SET) here too, for both rank systems, same reasoning
+  // as before: OS_RANK_MAP is external data this site only mirrors,
+  // with no ability to make OpenSea itself stop ranking a token it may
+  // still consider part of the collection.
+  const _isBurned = !!(window._BURNED_TOKEN_SET && window._BURNED_TOKEN_SET.has(+id));
+  const _osR = _isBurned ? null : OS_RANK_MAP.get(+id);
+  const _tvR = _isBurned ? null : RARITY_OBS_RANK.get(+id);
   const _osChip  = _osR ? `<span class='chip'>${rankDiamondHtml(_osR,'','os')}</span>` : '';
   const _tvChip  = _tvR ? `<span class='chip'>${rankDiamondHtml(_tvR,'','tv')}</span>` : '';
   const _ownedChip = connectedWalletOwns(id) ? `<span class="chip" style="color:#1CFFAF;border-color:rgba(28,255,175,.35);background:rgba(28,255,175,.08)">Owned</span>` : '';

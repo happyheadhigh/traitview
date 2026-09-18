@@ -85,22 +85,24 @@ if(window.__TV_LANDING__){
     // twice" -- mine is an array now (was a single value), any number of
     // distinct emojis this client has picked for this collection.
     const mine = (data && data !== 'pending') ? (data.mine || []) : [];
-    const total = REACTION_EMOJI.reduce((sum, e) => sum + (counts[e] || 0), 0);
-    // jv: "are we able to do just like a '+' sign that when clicked
-    // brings up the emojis?" -- collapsed by default now: a single
-    // toggle button (all of your own picks concatenated if you have any,
-    // otherwise a plain +, with the total count alongside if anyone's
-    // reacted at all) that reveals the full emoji row on tap instead of
-    // always showing all four buttons up front. Stays open across a
-    // re-render right after picking one (see the click handler below) --
-    // now that more than one pick is allowed, collapsing after every
-    // single tap would make picking a second one more annoying than it
-    // needs to be.
-    const mineLabel = mine.length ? mine.join('') : '+';
+    // jv: "it stacks the tap number under all 3 emojis and it should be
+    // separate for each" -- the old toggle button concatenated every
+    // picked emoji together with ONE merged total count next to all of
+    // them (e.g. "❤️👀🚀 3"), which reads as one combined count rather
+    // than three separate ones. Splitting these into two genuinely
+    // different things now: this toggle is a PURE expand/collapse
+    // control (just + or −, nothing else on it), and each of your own
+    // picks gets its own small pill with its own real count, shown
+    // separately alongside it -- always visible, not tied to the
+    // expanded state at all, so you can see exactly what you've picked
+    // without needing to open the picker.
     return `<div class="landing-reactions" data-slug="${slug}" data-expanded="${expanded ? 'true' : 'false'}">
-      <button type="button" class="landing-reaction-toggle" data-slug="${slug}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;border:1px solid ${mine.length ? 'rgba(45,212,191,.7)' : 'rgba(255,255,255,.25)'};background:${mine.length ? 'rgba(45,212,191,.18)' : 'rgba(0,0,0,.4)'};color:#fff;font-size:12px;cursor:pointer;line-height:1">
-        <span>${mineLabel}</span>${total > 0 ? `<span style="font-weight:700;font-size:10px">${total}</span>` : ''}
-      </button>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <button type="button" class="landing-reaction-toggle" data-slug="${slug}" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.4);color:#fff;font-size:14px;font-weight:700;cursor:pointer;line-height:1">${expanded ? '−' : '+'}</button>
+        ${mine.map(e => `<span class="landing-reaction-mine-pill" style="display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;border:1px solid rgba(45,212,191,.7);background:rgba(45,212,191,.18);color:#fff;font-size:11px;line-height:1">
+          <span>${e}</span><span style="font-weight:700">${counts[e] || 0}</span>
+        </span>`).join('')}
+      </div>
       <div class="landing-reaction-options" style="display:${expanded ? 'flex' : 'none'};gap:4px;margin-top:4px">
         ${REACTION_EMOJI.map(e => {
           const count = counts[e] || 0;
@@ -122,11 +124,25 @@ if(window.__TV_LANDING__){
       const expanded = row.dataset.expanded === 'true';
       // Collapse any other card's open picker first, so at most one is
       // open at a time -- avoids a page full of expanded emoji rows.
+      // Resets each one's own toggle symbol back to + too, not just its
+      // hidden options row.
       document.querySelectorAll('.landing-reactions[data-expanded="true"]').forEach(r => {
-        if(r !== row){ r.dataset.expanded = 'false'; const o = r.querySelector('.landing-reaction-options'); if(o) o.style.display = 'none'; }
+        if(r !== row){
+          r.dataset.expanded = 'false';
+          const o = r.querySelector('.landing-reaction-options'); if(o) o.style.display = 'none';
+          const t = r.querySelector('.landing-reaction-toggle'); if(t) t.textContent = '+';
+        }
       });
       row.dataset.expanded = expanded ? 'false' : 'true';
       options.style.display = expanded ? 'none' : 'flex';
+      // jv: "when you click the '+' symbol it should turn to '-' so i
+      // can close the emoji selection" -- this toggle button is a plain
+      // DOM node being flipped in place here (not a full re-render, so
+      // the rest of the row -- your own picked pills, their counts --
+      // doesn't flash/reset every time you just open or close the
+      // picker), so its own +/− symbol needs updating the same direct
+      // way.
+      toggle.textContent = expanded ? '+' : '−';
       return;
     }
     const btn = e.target.closest('.landing-reaction-btn');
