@@ -171,16 +171,25 @@ async function buildStatsAndRanks(){
   // Build into temp objects so TRAIT_DOMAIN stays readable during loading
   const _freq={}, _domain={};
   let _max=0;
-  // jv: "I do want to add trait count. It's an important factor in
-  // NFTs." How many tokens share each exact meaningful trait count --
-  // built in this same pass as every other trait's own frequency, kept
-  // separate from _freq/_domain (see appState.js's own comment on
-  // TRAIT_COUNT_FREQ for why) rather than injected as a fake trait
-  // category there.
   const _countFreq={};
+  // jv: "the burned tokens shouldn't count towards the rarity... they're
+  // removed from the collection permanently so they can't count towards
+  // rarity." Confirmed: this client-side fallback (only actually run
+  // when the server-computed fast-path -- lib/rank-compute.js in
+  // ocas-sales-bot, which already correctly excludes is_burned tokens
+  // from both frequency and scoring, and already re-triggers itself the
+  // moment lib/burn-detect.js marks new ones -- isn't available for some
+  // reason) had no such exclusion at all. row.burned (the general,
+  // any-collection is_burned flag exposed via /db/all-traits, separate
+  // from OCAS's own fusion-mechanic survivors which are excluded from
+  // that response entirely already) is now skipped in every pass below,
+  // matching the server path exactly: never counted toward any other
+  // token's trait/trait-count rarity, and never assigned a rank of its
+  // own.
   for(const idx of indices()){
     const ch=await ensureChunk(idx);
     for(const [sid,row] of Object.entries(ch)){
+      if(row.burned) continue;
       const n=getTraitCount(row); if(n>_max) _max=n;
       _countFreq[n]=(_countFreq[n]||0)+1;
       for(const [k,v] of keepEntries(row.traits)){ (_domain[k] ||= new Set()).add(v); (_freq[k] ||= {})[v]=(_freq[k][v]||0)+1; }
@@ -192,14 +201,8 @@ async function buildStatsAndRanks(){
   for(const idx of indices()){
     const ch=await ensureChunk(idx);
     for(const [sid,row] of Object.entries(ch)){
+      if(row.burned) continue;
       let s=0; for(const [k,v] of keepEntries(row.traits)){ const c=(TRAIT_FREQ[k]?.[v])||1; const p=c/(TOKEN_COUNT||1); s += -Math.log(Math.max(p,1e-12)); }
-      // jv: treats "has exactly N meaningful traits" as its own
-      // pseudo-attribute with its own real frequency across the
-      // collection, weighted the exact same way every individual trait
-      // already is above -- rewards a token whose trait COUNT itself is
-      // unusual (rare, whether unusually low or unusually high),
-      // instead of that only ever emerging incidentally from summing
-      // more or fewer individual trait terms.
       const n=getTraitCount(row); const cCount=(TRAIT_COUNT_FREQ[n])||1; const cP=cCount/(TOKEN_COUNT||1); s += -Math.log(Math.max(cP,1e-12));
       obs.push([+sid,s]);
     }
@@ -211,14 +214,8 @@ async function buildStatsAndRanks(){
     for(const idx of indices()){
       const ch=await ensureChunk(idx);
       for(const [sid,row] of Object.entries(ch)){
+        if(row.burned) continue;
         let p=1; for(const [k,v] of keepEntries(row.traits)) p*=pTheo(k,v);
-        // Same trait-count factor for the theoretical-odds ranking --
-        // a collection's own published generation probabilities
-        // (PROB_DATA) essentially never separately model "how many
-        // traits total" as its own weighted attribute, so this always
-        // falls back to the observed frequency for it specifically,
-        // same as pTheo() itself falls back to observed frequency for
-        // any individual trait PROB_DATA doesn't cover.
         const n=getTraitCount(row); const cCount=(TRAIT_COUNT_FREQ[n])||1;
         p *= Math.max(cCount/(TOKEN_COUNT||1), 1e-12);
         theo.push([+sid,p]);
@@ -1204,10 +1201,27 @@ async function openModal(id, opts={}){
   const mapVal = (LIVE_SLUG === 'on-chain-all-stars') ? (IMAGES_MAP && IMAGES_MAP.get(id)) : null;
   // See gridThumbHtml's comment above — row.image (live) beats the static map.
   const src    = row.image || mapVal || (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
-  if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgBox.innerHTML=`<div class="svg-wrap" style="width:100%;height:100%">${s}</div>`; else if(/^data:image\//i.test(s)) imgBox.innerHTML=`<img src="${s}" alt="#${id}">`; else imgBox.innerHTML=`<img src="${ipfsToHttp(s)}" alt="#${id}">`;} else imgBox.innerHTML='<div style="color:var(--muted)">No image</div>';
+  // jv: "the burns... are actually animated. Anyway to get that
+  // animation to display on the site??" row.animation (from
+  // /db/all-traits, captured by lib/metadata-update-poller.js alongside
+  // the static image) takes priority over the static image whenever a
+  // token has one -- not just for burned tokens specifically, since
+  // there's no reason to suppress a token's own animated art just
+  // because it happens to still be alive.
+  const animUrl = row.animation ? (typeof ipfsToHttp === 'function' ? ipfsToHttp(row.animation) : row.animation) : null;
+  if(animUrl){
+    const animLower = String(animUrl).toLowerCase();
+    imgBox.innerHTML = (animLower.includes('.mp4') || animLower.includes('.webm') || animLower.includes('.mov') || animLower.includes('video/'))
+      ? `<video src="${animUrl}" autoplay loop muted playsinline style="max-width:100%;max-height:100%;object-fit:contain"></video>`
+      : `<img src="${animUrl}" alt="#${id}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+  } else if(src){ const s=String(src).trim(); if(s.startsWith('<svg')) imgBox.innerHTML=`<div class="svg-wrap" style="width:100%;height:100%">${s}</div>`; else if(/^data:image\//i.test(s)) imgBox.innerHTML=`<img src="${s}" alt="#${id}">`; else imgBox.innerHTML=`<img src="${ipfsToHttp(s)}" alt="#${id}">`;} else imgBox.innerHTML='<div style="color:var(--muted)">No image</div>';
   // Fetch live image for this token (picks up background changes)
   // Uses shared TTL cache — hover and grid also benefit
-  if(typeof _fetchFreshImg === 'function'){
+  // Skip the "fresh" background-color re-fetch entirely when we're
+  // already showing this token's own animation -- that path only ever
+  // returns a static image and would silently replace the animation
+  // with a still frame a moment after the modal opened.
+  if(!animUrl && typeof _fetchFreshImg === 'function'){
     _fetchFreshImg(id).then(() => {
       const fresh = typeof _getFreshImg === 'function' ? _getFreshImg(id) : null;
       if(fresh){

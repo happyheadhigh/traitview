@@ -593,6 +593,26 @@ async function loadBurnsAnalytics(force=false){
    row.burned flag, itself lib/burn-detect.js's is_burned -- a token
    currently sitting at a known dead address). No network calls of its own:
    everything it needs is already loaded for the main grid. */
+// jv: "the burns... are actually animated. Anyway to get that animation
+// to display on the site??" row.animation (from /db/all-traits, captured
+// by lib/metadata-update-poller.js alongside the static image) is a raw
+// URL/data URI in whatever format the metadata gives -- video (mp4/webm)
+// needs an actual <video> tag, while a GIF (or most other animated image
+// formats) already animates natively through a plain <img>. Falls back
+// to the normal static thumbnail (gridThumbHtml) when a token has no
+// animation of its own.
+function burnedTokenMediaHtml(id, row){
+  const anim = row.animation;
+  if(anim){
+    const url = typeof ipfsToHttp === 'function' ? ipfsToHttp(anim) : anim;
+    const lower = String(url).toLowerCase();
+    if(lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.mov') || lower.includes('video/')){
+      return `<video src="${url}" autoplay loop muted playsinline style="width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:8px;background:var(--soft)"></video>`;
+    }
+    return `<img src="${url}" alt="#${id}" loading="lazy" style="width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:8px;background:var(--soft)">`;
+  }
+  return (typeof gridThumbHtml === 'function' ? gridThumbHtml(id, row) : '');
+}
 function renderBurnedTokensTab(){
   const host = document.getElementById('burnedTokensHost');
   if(!host) return;
@@ -614,7 +634,7 @@ function renderBurnedTokensTab(){
   const cards = ids.map(id => {
     const row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || (typeof CHUNK_CACHE !== 'undefined' && CHUNK_CACHE.get(chunkIndexFor(id))?.[String(id)]) || { traits:{} };
     return `<div class="token" style="cursor:pointer" onclick="openModal(${id})">
-      ${typeof gridThumbHtml === 'function' ? gridThumbHtml(id, row) : ''}
+      ${burnedTokenMediaHtml(id, row)}
       <div class="tmeta"><div class="idline">#${id}</div></div>
     </div>`;
   }).join('');

@@ -24,6 +24,19 @@ function rankDiamondHtml(rank, extraStyle, system){
 // source -- visually claiming a TraitView-computed number is OpenSea's real
 // published rank.
 function displayRankFor(id){
+  // jv: "the burned tokens shouldn't count towards the rarity... they
+  // can't count towards rarity" -- stronger than just fixing
+  // TraitView's own computed rank (RARITY_OBS_RANK, handled at the
+  // source in buildStatsAndRanks() now): OpenSea's own published rank
+  // (OS_RANK_MAP) is external data this site only mirrors, with no
+  // ability to make OpenSea itself stop ranking a token it may still
+  // consider part of the collection. Suppressing display of EITHER
+  // rank system for a token flagged burned (window._BURNED_TOKEN_SET,
+  // the general is_burned flag) is the only way to actually guarantee
+  // "no rank shown" regardless of which source it would have come from.
+  if(typeof window !== 'undefined' && window._BURNED_TOKEN_SET && window._BURNED_TOKEN_SET.has(+id)){
+    return { value: null, system: 'os' };
+  }
   const osVal = (typeof OS_RANK_MAP !== 'undefined' && OS_RANK_MAP) ? OS_RANK_MAP.get(+id) : null;
   if(osVal) return { value: osVal, system: 'os' };
   const tvVal = (typeof RARITY_OBS_RANK !== 'undefined' && RARITY_OBS_RANK) ? RARITY_OBS_RANK.get(+id) : null;
