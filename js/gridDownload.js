@@ -81,10 +81,11 @@ function suggestGridDimensions(count){
 // element in that one cell. A mixed-source grid still comes out as one
 // valid SVG file either way; only the truly-SVG cells get the "fully
 // zoomable at any scale" property jv asked for.
-function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0){
+function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0, cornerRadius = 0){
   const width = cols * cellSize + (cols - 1) * gap;
   const height = rows * cellSize + (rows - 1) * gap;
   const parser = new DOMParser();
+  let defsMarkup = '';
   let cellsMarkup = '';
 
   resolvedTokens.forEach((token, i) => {
@@ -92,6 +93,18 @@ function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0){
     const col = i % cols;
     const x = col * (cellSize + gap);
     const y = row * (cellSize + gap);
+    // Rounded corners: a per-cell clipPath (a plain rounded <rect> at this
+    // cell's own x/y) wrapping whatever this cell renders, SVG or raster
+    // alike -- clip-path works the same way regardless of what's inside
+    // it, so this one addition covers both content kinds without
+    // touching the per-kind code below.
+    const clipId = `gdlClip${i}`;
+    let cellOpen = '', cellClose = '';
+    if(cornerRadius > 0){
+      defsMarkup += `<clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="${cornerRadius}" ry="${cornerRadius}"/></clipPath>`;
+      cellOpen = `<g clip-path="url(#${clipId})">`;
+      cellClose = `</g>`;
+    }
 
     if(token.kind === 'svg'){
       try{
@@ -108,17 +121,17 @@ function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0){
         const offsetX = (cellSize - vbW * scale) / 2;
         const offsetY = (cellSize - vbH * scale) / 2;
         const inner = svgEl.innerHTML;
-        cellsMarkup += `<g transform="translate(${x + offsetX}, ${y + offsetY}) scale(${scale})">${inner}</g>`;
+        cellsMarkup += `${cellOpen}<g transform="translate(${x + offsetX}, ${y + offsetY}) scale(${scale})">${inner}</g>${cellClose}`;
       }catch(_){
         // Malformed SVG somehow slipped through -- skip this cell rather
         // than let one bad token corrupt the whole combined file.
       }
     } else if(token.kind === 'raster'){
-      cellsMarkup += `<image x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" preserveAspectRatio="xMidYMid meet" href="${token.url}"/>`;
+      cellsMarkup += `${cellOpen}<image x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" preserveAspectRatio="xMidYMid meet" href="${token.url}"/>${cellClose}`;
     }
   });
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${cellsMarkup}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${defsMarkup ? `<defs>${defsMarkup}</defs>` : ''}${cellsMarkup}</svg>`;
 }
 
 // Rasterizes one token (SVG markup or a raster URL) onto an offscreen
@@ -126,7 +139,21 @@ function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0){
 // SVG output (_buildGridSvg above) never touches a canvas at all, which
 // is exactly what keeps it genuinely zoomable rather than resolution-
 // limited.
-function _drawTokenOnCanvas(ctx, token, x, y, cellSize){
+// Small helper: traces a rounded-rect path on the given context. Not
+// relying on the native ctx.roundRect (Safari only shipped it fairly
+// recently) -- this works identically everywhere _buildGridRaster runs.
+function _roundRectPath(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function _drawTokenOnCanvas(ctx, token, x, y, cellSize, cornerRadius = 0){
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -134,7 +161,17 @@ function _drawTokenOnCanvas(ctx, token, x, y, cellSize){
       const scale = Math.min(cellSize / img.naturalWidth, cellSize / img.naturalHeight);
       const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
       const offsetX = x + (cellSize - w) / 2, offsetY = y + (cellSize - h) / 2;
+      // Rounded corners: clip to a rounded-rect covering the whole cell
+      // (not just the drawn image) before drawing, same visual result as
+      // the SVG path's per-cell clipPath -- corners of the cell itself
+      // are rounded, not just whatever image happens to land inside it.
+      if(cornerRadius > 0){
+        ctx.save();
+        _roundRectPath(ctx, x, y, cellSize, cellSize, cornerRadius);
+        ctx.clip();
+      }
       try{ ctx.drawImage(img, offsetX, offsetY, w, h); }catch(_){}
+      if(cornerRadius > 0) ctx.restore();
       resolve();
     };
     img.onerror = () => resolve(); // skip this cell rather than fail the whole grid
@@ -146,7 +183,7 @@ function _drawTokenOnCanvas(ctx, token, x, y, cellSize){
   });
 }
 
-async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, transparentBg, gap = 0){
+async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, transparentBg, gap = 0, cornerRadius = 0){
   const canvas = document.createElement('canvas');
   canvas.width = cols * cellSize + (cols - 1) * gap;
   canvas.height = rows * cellSize + (rows - 1) * gap;
@@ -161,7 +198,7 @@ async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, tr
   for(let i = 0; i < resolvedTokens.length; i++){
     const row = Math.floor(i / cols);
     const col = i % cols;
-    await _drawTokenOnCanvas(ctx, resolvedTokens[i], col * (cellSize + gap), row * (cellSize + gap), cellSize);
+    await _drawTokenOnCanvas(ctx, resolvedTokens[i], col * (cellSize + gap), row * (cellSize + gap), cellSize, cornerRadius);
   }
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), format === 'jpeg' ? 'image/jpeg' : 'image/png', 0.92);
@@ -178,6 +215,8 @@ async function downloadTokenGrid(ids, options, onProgress){
   // gap is a fraction of cellSize (e.g. 0.04 = 4%), converted to an actual
   // pixel value here so both composition paths below just deal in pixels.
   const gap = Math.round(cellSize * (options.gap || 0));
+  // Same fraction-of-cellSize approach as gap, for the same reason.
+  const cornerRadius = Math.round(cellSize * (options.cornerRadius || 0));
   const capped = ids.slice(0, GRID_DOWNLOAD_MAX_TOKENS);
   const resolved = [];
   for(let i = 0; i < capped.length; i++){
@@ -207,11 +246,11 @@ async function downloadTokenGrid(ids, options, onProgress){
   const filename = `${slugPart}-grid-${actualRows}x${cols}`;
 
   if(format === 'svg'){
-    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize, gap);
+    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize, gap, cornerRadius);
     const blob = new Blob([svgText], { type: 'image/svg+xml' });
     _triggerBlobDownload(blob, `${filename}.svg`);
   }else{
-    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg, gap);
+    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg, gap, cornerRadius);
     if(!blob){
       alert('Something went wrong building the image. Please try again.');
       return;
@@ -375,6 +414,17 @@ function closeGridDownloadModal(){
   if(overlay) overlay.style.display = 'none';
   // Clear the visual "selected" state from any cards still in the DOM.
   document.querySelectorAll('[data-token-id].grid-dl-selected').forEach(el => el.classList.remove('grid-dl-selected'));
+  const previewWrap = document.getElementById('gridDownloadPreviewWrap');
+  const previewHost = document.getElementById('gridDownloadPreviewHost');
+  if(previewWrap) previewWrap.style.display = 'none';
+  if(previewHost) previewHost.innerHTML = '';
+}
+
+function _invalidateGridDownloadPreview(){
+  const wrap = document.getElementById('gridDownloadPreviewWrap');
+  const host = document.getElementById('gridDownloadPreviewHost');
+  if(wrap) wrap.style.display = 'none';
+  if(host) host.innerHTML = '';
 }
 
 function toggleGridDownloadSelection(id, cardEl){
@@ -390,7 +440,25 @@ function toggleGridDownloadSelection(id, cardEl){
     set.add(id);
     if(cardEl) cardEl.classList.add('grid-dl-selected');
   }
+  // jv: a clear way to see which order tokens were picked in. Set
+  // insertion order already IS the actual selection order (see
+  // _sortGridDownloadIds's 'selected' comment below) -- this just makes
+  // that order visible, restamping every still-selected card's badge
+  // number each time, since removing one from the middle shifts every
+  // later position down by one.
+  _renumberGridDownloadOrderBadges();
   _updateGridDownloadCount();
+  _invalidateGridDownloadPreview();
+}
+
+function _renumberGridDownloadOrderBadges(){
+  const grid = document.getElementById('gridDownloadTokenGrid');
+  if(!grid) return;
+  const ids = [...(window._gridDownloadSelected || [])];
+  ids.forEach((id, i) => {
+    const card = grid.querySelector(`[data-token-id="${id}"]`);
+    if(card) card.dataset.gridDlOrder = String(i + 1);
+  });
 }
 
 function _updateGridDownloadCount(){
@@ -412,13 +480,16 @@ function gridDownloadSelectAll(){
   if(ids.length > GRID_DOWNLOAD_MAX_TOKENS){
     alert(`Selected the first ${GRID_DOWNLOAD_MAX_TOKENS} tokens (the max for one grid).`);
   }
+  _renumberGridDownloadOrderBadges();
   _updateGridDownloadCount();
+  _invalidateGridDownloadPreview();
 }
 
 function gridDownloadClearAll(){
   window._gridDownloadSelected = new Set();
   document.querySelectorAll('[data-token-id].grid-dl-selected').forEach(el => el.classList.remove('grid-dl-selected'));
   _updateGridDownloadCount();
+  _invalidateGridDownloadPreview();
 }
 
 function gridDownloadOnFormatChange(){
@@ -456,6 +527,73 @@ function _sortGridDownloadIds(ids, order){
   return ids; // 'selected' (default) -- as-is
 }
 
+// jv: "before the download could there be an option to display a
+// preview?" Deliberately calls the exact same _resolveGridToken /
+// _buildGridSvg / _buildGridRaster functions the real download uses --
+// at a smaller cellSize (fast/lightweight for on-screen display; the
+// composition itself, proportions included, is identical either way) --
+// rather than a separate lighter-weight approximation that could end up
+// looking different from what actually downloads.
+async function gridDownloadPreview(){
+  const selected = window._gridDownloadSelected;
+  if(!selected || !selected.size){
+    alert('Select at least one token first.');
+    return;
+  }
+  const gridSize = parseInt(document.getElementById('gridDownloadSize')?.value || '4', 10);
+  const format = document.getElementById('gridDownloadFormat')?.value || 'svg';
+  const transparentBg = !!document.getElementById('gridDownloadTransparent')?.checked;
+  const addGap = !!document.getElementById('gridDownloadGap')?.checked;
+  const rounded = !!document.getElementById('gridDownloadRounded')?.checked;
+  const capacity = gridSize * gridSize;
+  let ids = [...selected];
+  if(ids.length > capacity) ids = ids.slice(0, capacity);
+  ids = _sortGridDownloadIds(ids, document.getElementById('gridDownloadOrder')?.value || 'selected');
+
+  const wrap = document.getElementById('gridDownloadPreviewWrap');
+  const host = document.getElementById('gridDownloadPreviewHost');
+  const btn = document.getElementById('gridDownloadPreviewBtn');
+  if(!wrap || !host) return;
+  if(btn){ btn.disabled = true; btn.textContent = 'Building preview…'; }
+  wrap.style.display = 'block';
+  host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Building preview…</div>';
+
+  try{
+    const cellSize = 200; // preview only -- same composition, lower resolution for speed
+    const gap = Math.round(cellSize * (addGap ? 0.04 : 0));
+    const cornerRadius = Math.round(cellSize * (rounded ? 0.06 : 0));
+    const capped = ids.slice(0, GRID_DOWNLOAD_MAX_TOKENS);
+    const resolved = [];
+    for(const id of capped){
+      const token = await _resolveGridToken(id, transparentBg);
+      if(token) resolved.push(token);
+    }
+    if(!resolved.length){
+      host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Could not resolve any of the selected tokens\' images.</div>';
+      return;
+    }
+    const actualRows = Math.ceil(resolved.length / gridSize);
+    if(format === 'svg'){
+      host.innerHTML = _buildGridSvg(resolved, actualRows, gridSize, cellSize, gap, cornerRadius);
+      const svgEl = host.querySelector('svg');
+      if(svgEl){ svgEl.style.width = '100%'; svgEl.style.height = 'auto'; svgEl.style.display = 'block'; }
+    }else{
+      const blob = await _buildGridRaster(resolved, actualRows, gridSize, cellSize, format, transparentBg, gap, cornerRadius);
+      if(!blob){
+        host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Something went wrong building the preview.</div>';
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      host.innerHTML = `<img src="${url}" style="width:100%;height:auto;display:block">`;
+    }
+  }catch(e){
+    console.error('[gridDownload] Preview failed:', e);
+    host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Something went wrong building the preview.</div>';
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Preview'; }
+  }
+}
+
 async function gridDownloadGo(){
   const selected = window._gridDownloadSelected;
   if(!selected || !selected.size){
@@ -470,6 +608,10 @@ async function gridDownloadGo(){
   // rather than a fixed pixel value that would look proportionally huge
   // on a small grid and barely visible on a large one.
   const addGap = !!document.getElementById('gridDownloadGap')?.checked;
+  // 6% of cellSize -- roughly matches this same modal's own thumbnail
+  // radius (10px on a 94px card, ~10.6%) without being so large it
+  // clips into the actual art on a tightly-cropped token image.
+  const rounded = !!document.getElementById('gridDownloadRounded')?.checked;
   const capacity = gridSize * gridSize;
   let ids = [...selected];
   if(ids.length > capacity){
@@ -484,7 +626,7 @@ async function gridDownloadGo(){
   if(progressEl) progressEl.style.display = 'block';
 
   try{
-    await downloadTokenGrid(ids, { rows: gridSize, cols: gridSize, format, transparentBg, gap: addGap ? 0.04 : 0 }, (done, total) => {
+    await downloadTokenGrid(ids, { rows: gridSize, cols: gridSize, format, transparentBg, gap: addGap ? 0.04 : 0, cornerRadius: rounded ? 0.06 : 0 }, (done, total) => {
       if(progressEl) progressEl.textContent = `Resolving images: ${done} / ${total}`;
     });
     closeGridDownloadModal();

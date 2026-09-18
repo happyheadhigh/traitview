@@ -4317,15 +4317,16 @@ html[data-theme^="minimal-"] .tt:hover::after{
   outline-offset: -3px;
 }
 .grid-dl-selected::after{
-  content: "✓";
+  content: attr(data-grid-dl-order);
   position: absolute;
   top: 4px;
   right: 4px;
   background: #2dd4bf;
   color: #04201c;
-  width: 18px;
+  min-width: 18px;
   height: 18px;
-  border-radius: 50%;
+  border-radius: 9px;
+  padding: 0 3px;
   font-size: 11px;
   font-weight: 800;
   display: flex;

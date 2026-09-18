@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609209">
+  <link rel="stylesheet" href="./css/styles.css?v=202609210">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -762,11 +762,24 @@
       Add spacing between images
     </label>
 
-    <!-- jv: "is there control on how the order of the photos are in the
-         grid? Or is it random?" -- it was never random (Set insertion
-         order: click order for manual selection, or whatever sort the
-         wallet view currently has for Select All), but there was no
-         explicit way to CHOOSE it either. -->
+    <!-- jv: "is there a way to get rounded corners? Kinda like how they
+         are displayed here" (referring to this same modal's own token
+         picker thumbnails, which already have rounded corners via CSS --
+         the exported file didn't). Percentage-of-cellSize, same reasoning
+         as the gap option right above: a fixed pixel radius would look
+         proportionally huge on a small grid and barely visible on a
+         large one. -->
+    <label id="gridDownloadRoundedRow" style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="gridDownloadRounded">
+      Rounded corners
+    </label>
+
+    <!-- jv: "there needs to be a more clear way to know which order you
+         picked the images. Maybe like a number... that displays as you
+         click?" -- toggleGridDownloadSelection (below) stamps a live
+         position badge onto each selected card in the picker grid above;
+         this checkbox only controls whether that same order is honored
+         in the actual output file (unchanged from before). -->
     <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Order</label>
     <select id="gridDownloadOrder" class="input" style="width:100%;margin-bottom:14px;font-size:13px;padding:8px">
       <option value="selected">As selected</option>
@@ -778,7 +791,20 @@
 
     <div id="gridDownloadProgress" style="display:none;font-size:12px;color:var(--sub);margin-bottom:10px"></div>
 
-    <button class="btn" id="gridDownloadGoBtn" onclick="gridDownloadGo()" style="width:100%;padding:10px;font-weight:700;background:#2dd4bf;color:#04201c;border:none">Download</button>
+    <!-- jv: "before the download could there be an option to display a
+         preview?" -- renders the actual composed grid (same resolution/
+         compositing code the real download uses, just displayed instead
+         of saved) so what's shown here is exactly what downloading
+         produces, not a separate approximation that could drift out of
+         sync with it. -->
+    <div id="gridDownloadPreviewWrap" style="display:none;margin-bottom:14px">
+      <div id="gridDownloadPreviewHost" style="width:100%;border-radius:8px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center"></div>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="gridDownloadPreviewBtn" onclick="gridDownloadPreview()" style="flex:1;padding:10px;font-weight:700">Preview</button>
+      <button class="btn" id="gridDownloadGoBtn" onclick="gridDownloadGo()" style="flex:1;padding:10px;font-weight:700;background:#2dd4bf;color:#04201c;border:none">Download</button>
+    </div>
   </div>
 </div>
 
@@ -1045,32 +1071,32 @@
 
 
 
-<script src="./js/config.js?v=202609209" defer></script>
-<script src="./js/landingPrefs.js?v=202609209" defer></script>
-<script src="./js/landing.js?v=202609209" defer></script>
-<script src="./js/dataConfig.js?v=202609209" defer></script>
-<script src="./js/formatUtils.js?v=202609209" defer></script>
-<script src="./js/imageMap.js?v=202609209" defer></script>
-<script src="./js/state.js?v=202609209" defer></script>
-<script src="./js/appState.js?v=202609209" defer></script>
-<script src="./js/favorites.js?v=202609209" defer></script>
-<script src="./js/wallet.js?v=202609209" defer></script>
-<script src="./js/api.js?v=202609209" defer></script>
-<script src="./js/rankSort.js?v=202609209" defer></script>
-<script src="./js/rankDisplay.js?v=202609209" defer></script>
-<script src="./js/walletConnect.js?v=202609209" defer></script>
-<script src="./js/walletAnalytics.js?v=202609209" defer></script>
-<script src="./js/mispriced.js?v=202609209" defer></script>
-<script src="./js/traitUtils.js?v=202609209" defer></script>
-<script src="./js/listingMeta.js?v=202609209" defer></script>
-<script src="./js/listCards.js?v=202609209" defer></script>
-<script src="./js/chart.js?v=202609209" defer></script>
-<script src="./js/tooltip.js?v=202609209" defer></script>
-<script src="./js/comboInsights.js?v=202609209" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609209" defer></script>
-<script src="./js/downloadLoader.js?v=202609209" defer></script>
-<script src="./js/gridDownload.js?v=202609209" defer></script>
-<script src="./js/app.js?v=202609209" defer></script>
+<script src="./js/config.js?v=202609210" defer></script>
+<script src="./js/landingPrefs.js?v=202609210" defer></script>
+<script src="./js/landing.js?v=202609210" defer></script>
+<script src="./js/dataConfig.js?v=202609210" defer></script>
+<script src="./js/formatUtils.js?v=202609210" defer></script>
+<script src="./js/imageMap.js?v=202609210" defer></script>
+<script src="./js/state.js?v=202609210" defer></script>
+<script src="./js/appState.js?v=202609210" defer></script>
+<script src="./js/favorites.js?v=202609210" defer></script>
+<script src="./js/wallet.js?v=202609210" defer></script>
+<script src="./js/api.js?v=202609210" defer></script>
+<script src="./js/rankSort.js?v=202609210" defer></script>
+<script src="./js/rankDisplay.js?v=202609210" defer></script>
+<script src="./js/walletConnect.js?v=202609210" defer></script>
+<script src="./js/walletAnalytics.js?v=202609210" defer></script>
+<script src="./js/mispriced.js?v=202609210" defer></script>
+<script src="./js/traitUtils.js?v=202609210" defer></script>
+<script src="./js/listingMeta.js?v=202609210" defer></script>
+<script src="./js/listCards.js?v=202609210" defer></script>
+<script src="./js/chart.js?v=202609210" defer></script>
+<script src="./js/tooltip.js?v=202609210" defer></script>
+<script src="./js/comboInsights.js?v=202609210" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609210" defer></script>
+<script src="./js/downloadLoader.js?v=202609210" defer></script>
+<script src="./js/gridDownload.js?v=202609210" defer></script>
+<script src="./js/app.js?v=202609210" defer></script>
 </body>
 </html>
 
