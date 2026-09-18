@@ -3304,6 +3304,7 @@ function _renderMobileWalletGrid(ids, grid){
     // currency; window.LISTINGS now carries the real currency (backend
     // fix alongside listStatsRowHtml/priceBadgeHtml's identical fixes).
     const isWethPrice = (window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase() === 'WETH';
+    const _pgs = priceGlyphAndSuffix(window.LISTINGS?.[id]?.opensea?.currency);
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.dataset.tokenId = id;
@@ -3322,7 +3323,7 @@ function _renderMobileWalletGrid(ids, grid){
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
-      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:${isWethPrice?'#f87171':'#2dd4bf'};font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</div>` : '');
+      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:${isWethPrice?'#f87171':'#2dd4bf'};font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${_pgs.glyph}${priceStr}${_pgs.suffix}</div>` : '');
     card.addEventListener('click', () => {
       if(window._gridSelectMode){ toggleGridDownloadSelection(id, card); return; }
       closeMobileWalletDrawer(); openModal(id);
@@ -3472,6 +3473,7 @@ function _renderDesktopWalletGrid(ids, grid){
     // currency; window.LISTINGS now carries the real currency (backend
     // fix alongside listStatsRowHtml/priceBadgeHtml's identical fixes).
     const isWethPrice = (window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase() === 'WETH';
+    const _pgs = priceGlyphAndSuffix(window.LISTINGS?.[id]?.opensea?.currency);
     const imgSrc = VS._imgSrc ? VS._imgSrc(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
     const card = document.createElement('div');
     card.dataset.tokenId = id;
@@ -3480,7 +3482,7 @@ function _renderDesktopWalletGrid(ids, grid){
       (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden">` : '') +
       `<div style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,.82);font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${displayRankHtml(id)}</div>` +
       `<div style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.82);color:#e6edf7;font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">#${id}</div>` +
-      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:${isWethPrice?'#f87171':'#2dd4bf'};font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</div>` : '');
+      (priceStr ? `<div style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,.82);color:${isWethPrice?'#f87171':'#2dd4bf'};font-size:8px;font-weight:700;padding:2px 4px;border-radius:3px">${_pgs.glyph}${priceStr}${_pgs.suffix}</div>` : '');
     card.addEventListener('click', () => {
       if(window._gridSelectMode){ toggleGridDownloadSelection(id, card); return; }
       openModal(id);
@@ -4756,6 +4758,7 @@ const VS = {
     // currency; window.LISTINGS now carries the real currency (backend
     // fix alongside listStatsRowHtml/priceBadgeHtml's identical fixes).
     const isWethPrice = (window.LISTINGS?.[id]?.opensea?.currency||'ETH').toUpperCase() === 'WETH';
+    const _pgs = priceGlyphAndSuffix(window.LISTINGS?.[id]?.opensea?.currency);
     const imgSrc = this._imgSrc(id);
     const isMinimal = (document.documentElement.getAttribute('data-theme') || '').startsWith('minimal-');
     const d = document.createElement('div');
@@ -4773,7 +4776,7 @@ const VS = {
       // which is what actually serves mobile (and is also just there for
       // anyone on desktop who isn't actively hovering this exact tile).
       d.style.cssText = 'display:flex;flex-direction:column;min-width:0;width:100%;max-width:100%;cursor:pointer;box-sizing:border-box';
-      const hoverDetail = (rank || priceStr) ? `<div class="minimal-tile-hover">${rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : ''}${priceStr ? `<span style="color:${isWethPrice?'#f87171':'#2dd4bf'}">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</span>` : ''}</div>` : '';
+      const hoverDetail = (rank || priceStr) ? `<div class="minimal-tile-hover">${rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : ''}${priceStr ? `<span style="color:${isWethPrice?'#f87171':'#2dd4bf'}">${_pgs.glyph}${priceStr}${_pgs.suffix}</span>` : ''}</div>` : '';
       d.innerHTML =
         `<div class="minimal-tile-image" style="position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--muted)">` +
           (imgSrc ? `<img src="${imgSrc}" loading="eager" decoding="async" fetchpriority="high" style="width:100%;height:100%;object-fit:contain;image-rendering:auto;display:block">` : '') +
@@ -4783,7 +4786,7 @@ const VS = {
         `<div class="minimal-tile-meta">` +
           `<span>#${id}</span>` +
           (rank ? `<span>${rankDiamondHtml(rank,'',rankSys)}</span>` : '') +
-          (priceStr ? `<span class="minimal-tile-price" style="color:${isWethPrice?'#f87171':'#2dd4bf'}!important">${isWethPrice?'':'Ξ'}${priceStr}${isWethPrice?' WETH':''}</span>` : '') +
+          (priceStr ? `<span class="minimal-tile-price" style="color:${isWethPrice?'#f87171':'#2dd4bf'}!important">${_pgs.glyph}${priceStr}${_pgs.suffix}</span>` : '') +
         `</div>`;
       if(connectedWalletOwns(id)) d.insertAdjacentHTML('beforeend', '<span class="vs-owned-badge">Owned</span>');
       d.addEventListener('click', () => openModal(id));

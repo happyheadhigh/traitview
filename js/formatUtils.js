@@ -43,6 +43,23 @@ function formatEth(v){
 function fmt(n){ return n.toLocaleString();
 }
 
+// jv confirmed live on nekoadz (Robinhood Chain, USDG): grid/tile price
+// badges showed the ETH glyph regardless of the token's actual listing
+// currency -- same bug class as the floor pill's own fix (fetchFloor's
+// `${['ETH','WETH'].includes(sym) ? 'Ξ ' : ''}` pattern in app.js), just
+// never applied to these per-token badges, which instead hardcoded "Ξ"
+// for anything that wasn't WETH. Returns the glyph/suffix pieces so each
+// call site can still style them (WETH's red vs everything else's teal,
+// etc.) however it already does, rather than duplicating the same
+// currency check with a different one-off answer at each of the four
+// places this was wrong.
+function priceGlyphAndSuffix(currency){
+  const sym = (currency || 'ETH').toUpperCase();
+  if(sym === 'ETH') return { glyph: 'Ξ', suffix: '' };
+  if(sym === 'WETH') return { glyph: '', suffix: ' WETH' };
+  return { glyph: '', suffix: ' ' + sym };
+}
+
 function comboEsc(s){
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
