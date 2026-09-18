@@ -51,7 +51,7 @@
      MOBILE OVERRIDES — consolidated (max-width:900px only)
      Desktop untouched.
 ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="./css/styles.css?v=202609207">
+  <link rel="stylesheet" href="./css/styles.css?v=202609208">
 </head>
 <body>
 <div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
@@ -319,6 +319,7 @@
           </button>
           <button class="top-tab" data-ttab="pulse" onclick="switchTopTab('pulse')">🔥 Trait Pulse</button>
           <button class="top-tab" data-ttab="burns" id="burnsTabBtn" onclick="switchTopTab('burns')">Burns</button>
+          <button class="top-tab" data-ttab="burned" id="burnedTabBtn" onclick="switchTopTab('burned')" style="display:none">Burned</button>
           <button class="top-tab" data-ttab="chart" onclick="switchTopTab('chart')">Trait Distribution</button>
           <button class="top-tab" data-ttab="scatter" onclick="switchTopTab('scatter')">Price vs Rank</button>
           <button class="top-tab" data-ttab="floor" onclick="switchTopTab('floor')">Floor Trend <span id="floorReadyDot" style="display:none;width:6px;height:6px;border-radius:50%;background:#2dd4bf;display:inline-block;margin-left:3px;vertical-align:middle"></span></button>
@@ -481,10 +482,19 @@
           </div>
         </div>
 
-        <!-- Burns Analytics tab -->
+        <!-- Burns Analytics tab (OCAS's own burn/rebirth game -- points, leaderboard, survivors) -->
         <div class="top-tab-panel" id="ttab-burns">
           <div id="burnsAnalyticsHost" class="burns-analytics">
             <div class="wallet-empty-state">Burn analytics endpoint not connected yet.</div>
+          </div>
+        </div>
+
+        <!-- Burned Tokens tab (general is_burned flag -- any collection, no game mechanic,
+             just "sent to a known dead address". Shown instead of the tab above for
+             collections without hasBurnMechanic; see applyCollectionFeatureGating(). -->
+        <div class="top-tab-panel" id="ttab-burned">
+          <div id="burnedTokensHost" class="burns-analytics">
+            <div class="wallet-empty-state">Loading burned tokens...</div>
           </div>
         </div>
 
@@ -519,6 +529,11 @@
       Live Listings
     </button>
     <input type="checkbox" id="onlyListed" style="display:none">
+    <button id="hideBurnedPill" onclick="toggleHideBurnedMode()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:'Space Grotesk',sans-serif">
+      <span style="width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0" id="hideBurnedDot"></span>
+      Hide Burned
+    </button>
+    <input type="checkbox" id="hideBurned" style="display:none">
     <button id="btnFetch" class="btn">Fetch listings</button>
     <div class="statusline" id="listingsStatus"></div>
   </div>
@@ -1035,32 +1050,32 @@
 
 
 
-<script src="./js/config.js?v=202609207" defer></script>
-<script src="./js/landingPrefs.js?v=202609207" defer></script>
-<script src="./js/landing.js?v=202609207" defer></script>
-<script src="./js/dataConfig.js?v=202609207" defer></script>
-<script src="./js/formatUtils.js?v=202609207" defer></script>
-<script src="./js/imageMap.js?v=202609207" defer></script>
-<script src="./js/state.js?v=202609207" defer></script>
-<script src="./js/appState.js?v=202609207" defer></script>
-<script src="./js/favorites.js?v=202609207" defer></script>
-<script src="./js/wallet.js?v=202609207" defer></script>
-<script src="./js/api.js?v=202609207" defer></script>
-<script src="./js/rankSort.js?v=202609207" defer></script>
-<script src="./js/rankDisplay.js?v=202609207" defer></script>
-<script src="./js/walletConnect.js?v=202609207" defer></script>
-<script src="./js/walletAnalytics.js?v=202609207" defer></script>
-<script src="./js/mispriced.js?v=202609207" defer></script>
-<script src="./js/traitUtils.js?v=202609207" defer></script>
-<script src="./js/listingMeta.js?v=202609207" defer></script>
-<script src="./js/listCards.js?v=202609207" defer></script>
-<script src="./js/chart.js?v=202609207" defer></script>
-<script src="./js/tooltip.js?v=202609207" defer></script>
-<script src="./js/comboInsights.js?v=202609207" defer></script>
-<script src="./js/burnsAnalytics.js?v=202609207" defer></script>
-<script src="./js/downloadLoader.js?v=202609207" defer></script>
-<script src="./js/gridDownload.js?v=202609207" defer></script>
-<script src="./js/app.js?v=202609207" defer></script>
+<script src="./js/config.js?v=202609208" defer></script>
+<script src="./js/landingPrefs.js?v=202609208" defer></script>
+<script src="./js/landing.js?v=202609208" defer></script>
+<script src="./js/dataConfig.js?v=202609208" defer></script>
+<script src="./js/formatUtils.js?v=202609208" defer></script>
+<script src="./js/imageMap.js?v=202609208" defer></script>
+<script src="./js/state.js?v=202609208" defer></script>
+<script src="./js/appState.js?v=202609208" defer></script>
+<script src="./js/favorites.js?v=202609208" defer></script>
+<script src="./js/wallet.js?v=202609208" defer></script>
+<script src="./js/api.js?v=202609208" defer></script>
+<script src="./js/rankSort.js?v=202609208" defer></script>
+<script src="./js/rankDisplay.js?v=202609208" defer></script>
+<script src="./js/walletConnect.js?v=202609208" defer></script>
+<script src="./js/walletAnalytics.js?v=202609208" defer></script>
+<script src="./js/mispriced.js?v=202609208" defer></script>
+<script src="./js/traitUtils.js?v=202609208" defer></script>
+<script src="./js/listingMeta.js?v=202609208" defer></script>
+<script src="./js/listCards.js?v=202609208" defer></script>
+<script src="./js/chart.js?v=202609208" defer></script>
+<script src="./js/tooltip.js?v=202609208" defer></script>
+<script src="./js/comboInsights.js?v=202609208" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609208" defer></script>
+<script src="./js/downloadLoader.js?v=202609208" defer></script>
+<script src="./js/gridDownload.js?v=202609208" defer></script>
+<script src="./js/app.js?v=202609208" defer></script>
 </body>
 </html>
 

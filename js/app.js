@@ -482,6 +482,13 @@ async function renderTokenGrid(ids, opts){
   if (window._BURNED_IDS && window._BURNED_IDS.size > 0) {
     ids = ids.filter(id => !window._BURNED_IDS.has(id));
   }
+  // "Hide Burned" pill (general is_burned flag) -- opt-in, unlike the
+  // exclusion above: these tokens are still real, present entries (see
+  // window._BURNED_TOKEN_SET's own comment), so only actually filtered
+  // out of the main grid when the user turns this on.
+  if (document.getElementById('hideBurned')?.checked && window._BURNED_TOKEN_SET && window._BURNED_TOKEN_SET.size > 0) {
+    ids = ids.filter(id => !window._BURNED_TOKEN_SET.has(+id));
+  }
   const preserveOrder = !!(opts && opts.preserveOrder);
   // jv confirmed live: clicking a Discord sale/listing embed's TraitView
   // link (?jump=ID) landed on an empty grid whenever "Live Listings" was
@@ -1863,6 +1870,16 @@ function toggleLiveListingsMode(forceValue){
   if(typeof renderTokenGridFromState==='function') renderTokenGridFromState();
 }
 
+function toggleHideBurnedMode(forceValue){
+  const cb = document.getElementById('hideBurned');
+  if(!cb) return;
+  const nextChecked = typeof forceValue === 'boolean' ? forceValue : !cb.checked;
+  cb.checked = nextChecked;
+  const pill = document.getElementById('hideBurnedPill');
+  if(pill) pill.classList.toggle('pill-on', nextChecked);
+  if(typeof renderTokenGridFromState==='function') renderTokenGridFromState();
+}
+
 function clearFilters(){
   currentTraitCount=null; activeTraits.clear(); rankMin=null; rankMax=null; OPEN_GROUPS.clear();
   tokenTraitSearchQuery = '';
@@ -2740,6 +2757,7 @@ function switchTopTab(name){
   }
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
+  if(name === 'burned' && typeof renderBurnedTokensTab === 'function') renderBurnedTokensTab();
   if(name === 'pulse' && typeof loadTraitPulse === 'function') loadTraitPulse();
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   // Show/hide view toggles
@@ -2859,10 +2877,12 @@ function openMobileAnalytics(){
 
   // Build lightweight tab UI — no DOM moves, no large elements
   const isMob = window.innerWidth <= 900;
-  const tabs = isMob
-    ? ['chart','sales','burns','mispriced','pulse','floor','holders','wallet']
-    : ['chart','sales','burns','mispriced','pulse','scatter','floor','holders','wallet'];
-  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',pulse:'🔥 Pulse',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet',burns:'Burns'};
+  const _hasBurn = (typeof COLLECTIONS !== 'undefined' && typeof LIVE_SLUG !== 'undefined' && COLLECTIONS[LIVE_SLUG]?.hasBurnMechanic) || false;
+  const tabs = (isMob
+    ? ['chart','sales','burns','burned','mispriced','pulse','floor','holders','wallet']
+    : ['chart','sales','burns','burned','mispriced','pulse','scatter','floor','holders','wallet']
+  ).filter(t => (t !== 'burns' || _hasBurn) && (t !== 'burned' || !_hasBurn));
+  const labels = {chart:'Traits',sales:'Sales',mispriced:'Mispriced',pulse:'🔥 Pulse',scatter:'Price vs Rank',floor:'Floor Trend',holders:'Holders',wallet:'Wallet',burns:'Burns',burned:'Burned'};
   const curActive = document.querySelector('.top-tab.active')?.dataset?.ttab || 'chart';
 
   // Reset inner to just the skeleton — no panel content yet
@@ -2902,7 +2922,7 @@ function switchAnalyticsSheetTab(name){
   const body = document.getElementById('analyticsSheetBody');
   if(!body) return;
 
-  const tabs = ['chart','sales','burns','mispriced','pulse','scatter','floor','holders','wallet'];
+  const tabs = ['chart','sales','burns','burned','mispriced','pulse','scatter','floor','holders','wallet'];
   const topTabPanel = document.getElementById('topTabPanel');
 
   // First: return any currently shown panel back to topTabPanel
@@ -2962,6 +2982,7 @@ function switchAnalyticsSheetTab(name){
   else if(name === 'holders' && window._holdersLoaded) renderHolders();
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
+  if(name === 'burned' && typeof renderBurnedTokensTab === 'function') renderBurnedTokensTab();
   if(name === 'pulse' && typeof loadTraitPulse === 'function') loadTraitPulse();
   if(name === 'sales' && typeof fetchNewest === 'function' && !window.ALL_SALES?.length) fetchNewest(false);
   if(name === 'mispriced'){
@@ -3011,7 +3032,7 @@ function closeMobileAnalytics(){
   const tabPanel = document.getElementById('topTabPanel');
   const body = document.getElementById('analyticsSheetBody');
   if(tabPanel){
-    ['chart','sales','burns','mispriced','pulse','scatter','floor','holders','wallet'].forEach(name => {
+    ['chart','sales','burns','burned','mispriced','pulse','scatter','floor','holders','wallet'].forEach(name => {
       const p = document.getElementById('ttab-' + name);
       if(p && (!tabPanel.contains(p))){
         const inner = tabPanel.querySelector('.c-body-inner');
@@ -3042,6 +3063,7 @@ function switchTopTabInSheet(name){
   if(name === 'holders' && !window._holdersLoaded) loadHolders(false);
   if(name === 'wallet') requestWalletAnalyticsLoad(CONNECTED_WALLET?.address).catch(()=>{});
   if(name === 'burns' && typeof loadBurnsAnalytics === 'function') loadBurnsAnalytics(false).catch(()=>{});
+  if(name === 'burned' && typeof renderBurnedTokensTab === 'function') renderBurnedTokensTab();
   if(name === 'pulse' && typeof loadTraitPulse === 'function') loadTraitPulse();
   if(name === 'scatter'){
     const hasListings = window.LISTINGS && Object.keys(window.LISTINGS).length > 0;

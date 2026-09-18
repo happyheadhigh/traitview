@@ -539,4 +539,11 @@ function applyCollectionFeatureGating(){
   const hasBurn = entry ? entry.hasBurnMechanic : false;
   const burnsBtn = document.getElementById('burnsTabBtn');
   if(burnsBtn) burnsBtn.style.display = hasBurn ? '' : 'none';
+  // Burned Tokens tab (general is_burned flag) is the opposite case's
+  // equivalent -- a collection either has OCAS's specific burn/rebirth
+  // game (the tab above) or, like every other collection, just tracks
+  // plain "sent to a dead address" tokens (this one). Never both, never
+  // neither.
+  const burnedBtn = document.getElementById('burnedTabBtn');
+  if(burnedBtn) burnedBtn.style.display = hasBurn ? 'none' : '';
 }

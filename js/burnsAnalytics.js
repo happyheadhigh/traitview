@@ -584,3 +584,44 @@ async function loadBurnsAnalytics(force=false){
     return null;
   }
 }
+
+/* ── Burned Tokens tab ─────────────────────────────────────────────────────
+   General, contract-agnostic counterpart to the game-specific Burns tab
+   above -- shown instead of it for any collection without hasBurnMechanic
+   (see applyCollectionFeatureGating() in config.js). Sourced entirely from
+   window._BURNED_TOKEN_SET (built once in init() from /db/all-traits'
+   row.burned flag, itself lib/burn-detect.js's is_burned -- a token
+   currently sitting at a known dead address). No network calls of its own:
+   everything it needs is already loaded for the main grid. */
+function renderBurnedTokensTab(){
+  const host = document.getElementById('burnedTokensHost');
+  if(!host) return;
+  const set = window._BURNED_TOKEN_SET;
+  if(!set){
+    host.innerHTML = '<div class="wallet-empty-state">Still loading token data...</div>';
+    return;
+  }
+  const ids = [...set].sort((a,b) => a - b);
+  const total = TOKEN_COUNT || ids.length;
+  const pct = total ? ((ids.length / total) * 100) : 0;
+  const pctTxt = pct ? (pct < 0.1 ? pct.toFixed(3) : pct.toFixed(2)) : '0';
+  if(!ids.length){
+    host.innerHTML = `<div class="burns-analytics-inner">
+      <div class="wallet-empty-state">No burned tokens detected for this collection yet. Checked every ~6 hours against current on-chain ownership.</div>
+    </div>`;
+    return;
+  }
+  const cards = ids.map(id => {
+    const row = (typeof ROW_CACHE !== 'undefined' && ROW_CACHE.get(id)) || (typeof CHUNK_CACHE !== 'undefined' && CHUNK_CACHE.get(chunkIndexFor(id))?.[String(id)]) || { traits:{} };
+    return `<div class="token" style="cursor:pointer" onclick="openModal(${id})">
+      ${typeof gridThumbHtml === 'function' ? gridThumbHtml(id, row) : ''}
+      <div class="tmeta"><div class="idline">#${id}</div></div>
+    </div>`;
+  }).join('');
+  host.innerHTML = `<div class="burns-analytics-inner">
+    <div class="wallet-empty-state" style="border-style:solid">
+      <b>${ids.length.toLocaleString()}</b> of ${total.toLocaleString()} tokens (${pctTxt}%) currently sit at a known dead address (0x000...000 or 0x000...dead).
+    </div>
+    <div id="burnedTokenGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:10px">${cards}</div>
+  </div>`;
+}
