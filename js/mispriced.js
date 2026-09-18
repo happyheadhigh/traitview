@@ -58,7 +58,7 @@ function vsFloorBadgeHtml(saleEth, floorEth){
 // Mispriced filters
 let _mispricedAllScored = [];
 
-function applyMispricedFilters(){
+async function applyMispricedFilters(){
   const grid = document.getElementById('mispricedGrid');
   const summaryRow = document.getElementById('mispricedSummaryRow');
   if(!grid || !_mispricedAllScored.length) return;
@@ -101,17 +101,41 @@ function applyMispricedFilters(){
     summaryRow.style.display='none';
   }
 
+  // jv: switching sort (especially to Best Rank, since traitview's own
+  // rarity ranking often picks an entirely different top-50 than the
+  // default value-based sort) "bugged out" the list -- cards only ever
+  // existed in the DOM for whichever top-50 the FIRST render happened to
+  // build (buildMispricedPanel() only ever builds cards for its own
+  // initial sort's top 50). Re-sorting here picked correctly from the
+  // full _mispricedAllScored, but any token that wasn't in that original
+  // 50 had no card to find at all, so it just silently vanished from the
+  // list -- worse the more a new sort's ranking diverges from the
+  // original one. Building any missing card on demand instead of relying
+  // on it already existing.
+  const view = filtered.slice(0,50);
   const allCards = grid.querySelectorAll('.mispriced-card');
   const cardMap = {};
   allCards.forEach(c=>{ cardMap[c.dataset.id]=c; });
 
-  grid.innerHTML='';
-  const frag = document.createDocumentFragment();
+  const missing = view.filter(x => !cardMap[x.id]);
+  if(missing.length && typeof buildMispricedCardHtml === 'function'){
+    const mode = window._mispricedMode || 'rarity';
+    const built = await Promise.all(missing.map(x => buildMispricedCardHtml(x, _mispricedAllScored, mode)));
+    missing.forEach((x, i) => {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = built[i];
+      const el = wrap.firstElementChild;
+      if(el){ cardMap[x.id] = el; grid.appendChild(el); }
+    });
+    if(typeof window._reattachHovers === 'function') window._reattachHovers();
+  }
 
-  filtered.slice(0,50).forEach(x=>{
+  const frag = document.createDocumentFragment();
+  view.forEach(x=>{
     const c = cardMap[x.id];
     if(c) frag.appendChild(c);
   });
 
+  grid.innerHTML = '';
   grid.appendChild(frag);
 }

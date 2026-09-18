@@ -6771,6 +6771,47 @@ async function buildMispricedPanel(listedIds){
   const floorText = floorEl ? floorEl.textContent.replace(/[^0-9.]/g,'') : '0';
   const floorPrice = parseFloat(floorText) || 0;
 
+  // jv: "Best Value" called a 69 ETH listing the best deal in the whole
+  // collection, because its old formula (price * (rank/10000)) rewards
+  // ANY price on a top-ranked token -- a tiny rank divisor crushes the
+  // score toward zero regardless of how high the price actually is, so a
+  // rank #3 token at 69 ETH scored lower (= "better") than a rank #8000
+  // token at 0.5 ETH. That's measuring rarity, not mispricing.
+  //
+  // A real mispriced/best-deal signal has to compare a token's actual
+  // price against what similarly-ranked tokens are actually asking --
+  // exactly what the Price vs Rank scatter chart's own trend line
+  // already does correctly (renderScatter() above: a simple rank/price
+  // linear regression, "Undervalued" = priced >=7% below that line).
+  // Reusing that same model and threshold here instead of a separate,
+  // inconsistent definition of "good deal".
+  let trendSlope = null, trendIntercept = null;
+  {
+    const trendPts = [];
+    for(const id of listedIds){
+      const r = rankMap.get(id);
+      const p = (typeof getListingEth === 'function') ? getListingEth(id) : (window.LISTINGS?.[id]?.opensea?.price_eth ?? null);
+      if(r == null || p == null) continue;
+      trendPts.push({ rank: r, price: +p });
+    }
+    // Same reasoning as renderScatter(): a line fit to only a handful of
+    // points is noise, not a trend -- fall back to the old rank-weighted
+    // formula (still imperfect, but better than an unstable regression)
+    // when there simply isn't enough listed data to fit one meaningfully.
+    if(trendPts.length >= 8){
+      const n = trendPts.length;
+      const sumX = trendPts.reduce((s,p)=>s+p.rank,0);
+      const sumY = trendPts.reduce((s,p)=>s+p.price,0);
+      const sumXY = trendPts.reduce((s,p)=>s+p.rank*p.price,0);
+      const sumX2 = trendPts.reduce((s,p)=>s+p.rank*p.rank,0);
+      const denom = (n*sumX2 - sumX*sumX);
+      if(denom !== 0){
+        trendSlope = (n*sumXY - sumX*sumY) / denom;
+        trendIntercept = (sumY - trendSlope*sumX) / n;
+      }
+    }
+  }
+
   // Pre-compute per-trait rarity scores for all modes
   // traitRarityScore[traitName][value] = -log(count/total) — higher = rarer
   const traitRarityScores = {};
@@ -6858,8 +6899,18 @@ async function buildMispricedPanel(listedIds){
       traitInsight = rareTraitNames.slice(0,3).join(' · ') || null;
       score = price_eth != null ? price_eth : Infinity;
     } else {
-      // Best Value: price * (rank/10000)
-      score = price_eth != null ? (price_eth * (rank / 10000)) : Infinity;
+      // Best Value: how far below the rank/price trend line this token's
+      // actual price sits -- negative = underpriced relative to what
+      // similarly-ranked tokens are asking (a real deal), positive =
+      // priced above trend (not a deal, regardless of how rare it is).
+      // Falls back to the old rank-weighted approximation only when the
+      // trend line itself couldn't be fit (too few live listings).
+      if(trendSlope != null && price_eth != null){
+        const expected = Math.max(0, trendSlope * rank + trendIntercept);
+        score = expected > 0 ? (price_eth - expected) / expected : Infinity;
+      } else {
+        score = price_eth != null ? (price_eth * (rank / 10000)) : Infinity;
+      }
     }
 
     // ── Get trait insight for ALL modes ──────────────────────────────────────
@@ -6897,62 +6948,76 @@ async function buildMispricedPanel(listedIds){
 
   // Build cards (show top 50)
   const top = scored.slice(0, 50);
-  const cards = await Promise.all(top.map(async ({id, price_eth, rank, score, url, traitInsight}) => {
-    // get image
-    let imgHtml = '<div style="color:var(--muted);font-size:10px">…</div>';
-    try{
-      const src = await _getTokenImgSrcAsync(id);
-      if(src){
-        const s = String(src).trim();
-        if(s.startsWith('<svg')) imgHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${s}</div>`;
-        else imgHtml = `<img src="${(typeof ipfsToHttp==='function'?ipfsToHttp(s):s)}" alt="#${id}" loading="lazy" style="width:100%;height:100%;object-fit:contain">`;
-      }
-    }catch(e){}
-
-    const ethFmt   = price_eth >= 1 ? price_eth.toFixed(3) : price_eth.toFixed(4);
-    // Score label: top 10% = "🔥 Hot Deal", rest = value score
-    const topIdx   = Math.max(0, Math.floor(scored.length * 0.1) - 1);
-    const hotThreshold = scored[topIdx]?.score ?? 0;
-    const isHot    = score <= hotThreshold;
-    const modeLabels = {
-      rarity:     isHot ? 'Best Deal' : 'Good Value',
-      undervalued: isHot ? 'Undervalued' : 'Trait Value',
-      traits:     isHot ? 'Rare & Cheap' : 'Rare Trait',
-    };
-    const scoreTxt = isHot ? (modeLabels[mode]||'Best Deal') : (modeLabels[mode] || 'Value');
-    const scoreClass = isHot ? 'mispriced-score score-hot' : 'mispriced-score';
-
-    // Show only the rarest 3 traits that make this token stand out
-    let traitsSection = '';
-    try{
-      if(typeof getTopRareTraits === 'function' && Object.keys(TRAIT_FREQ||{}).length > 0){
-        const rarest = await getTopRareTraits(id, 3);
-        if(rarest.length){
-          traitsSection = `<div class="mp-traits">${rareTraitRowsHtml(rarest)}</div>`;
-        }
-      }
-    }catch(e){ console.warn('traitSection err',e); }
-
-    return `<div class="mispriced-card" data-id="${id}" onclick="openModal(${id})">
-      <div class="mispriced-thumb">${imgHtml}</div>
-      <div class="mispriced-body">
-        <div class="mispriced-head">
-          <span class="mispriced-id">#${id} <span style="font-size:10.5px;font-weight:500">${displayRankHtml(id)}</span></span>
-          <span class="mispriced-price">Ξ ${ethFmt}</span>
-        </div>
-        <span class="${scoreClass}">${scoreTxt}</span>
-        ${traitsSection}
-        ${url ? `<a class="mp-opensea" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OpenSea ↗</a>` : ''}
-      </div>
-    </div>`;
-  }));
+  const cards = await Promise.all(top.map(x => buildMispricedCardHtml(x, scored, mode)));
 
   grid.innerHTML = cards.join('');
   // Store all scored for filter/sort re-use
   if(typeof _mispricedAllScored !== 'undefined') _mispricedAllScored = scored;
+  window._mispricedMode = mode;
   // Populate summary row after render
   if(typeof applyMispricedFilters === 'function') applyMispricedFilters();
   if(typeof window._reattachHovers === 'function') window._reattachHovers();
+}
+
+// Extracted from buildMispricedPanel() so applyMispricedFilters() (below)
+// can build a card for any token that a different sort/filter brings into
+// view but that wasn't part of the very first top-50-by-value pass --
+// same reasoning documented on applyMispricedFilters() itself.
+async function buildMispricedCardHtml({id, price_eth, rank, score, url, traitInsight}, scored, mode){
+  let imgHtml = '<div style="color:var(--muted);font-size:10px">…</div>';
+  try{
+    const src = await _getTokenImgSrcAsync(id);
+    if(src){
+      const s = String(src).trim();
+      if(s.startsWith('<svg')) imgHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${s}</div>`;
+      else imgHtml = `<img src="${(typeof ipfsToHttp==='function'?ipfsToHttp(s):s)}" alt="#${id}" loading="lazy" style="width:100%;height:100%;object-fit:contain">`;
+    }
+  }catch(e){}
+
+  const ethFmt   = price_eth >= 1 ? price_eth.toFixed(3) : price_eth.toFixed(4);
+  // Score label: top 10% = "🔥 Hot Deal", rest = value score
+  const topIdx   = Math.max(0, Math.floor(scored.length * 0.1) - 1);
+  const hotThreshold = scored[topIdx]?.score ?? 0;
+  // For "Best Value" specifically, score is now (price - expected) /
+  // expected relative to the rank/price trend line -- being in the top
+  // 10% of THIS listing set isn't enough on its own to call something a
+  // deal if every current listing happens to be overpriced; also
+  // requires an actual discount vs trend (same -7% "Undervalued"
+  // threshold the Price vs Rank chart itself uses), so "Best Deal"
+  // never gets stamped on a token that's merely the least-overpriced
+  // one currently listed.
+  const isHot    = mode === 'rarity' ? (score <= hotThreshold && score <= -0.07) : (score <= hotThreshold);
+  const modeLabels = {
+    rarity:     isHot ? 'Best Deal' : 'Good Value',
+    undervalued: isHot ? 'Undervalued' : 'Trait Value',
+    traits:     isHot ? 'Rare & Cheap' : 'Rare Trait',
+  };
+  const scoreTxt = isHot ? (modeLabels[mode]||'Best Deal') : (modeLabels[mode] || 'Value');
+  const scoreClass = isHot ? 'mispriced-score score-hot' : 'mispriced-score';
+
+  // Show only the rarest 3 traits that make this token stand out
+  let traitsSection = '';
+  try{
+    if(typeof getTopRareTraits === 'function' && Object.keys(TRAIT_FREQ||{}).length > 0){
+      const rarest = await getTopRareTraits(id, 3);
+      if(rarest.length){
+        traitsSection = `<div class="mp-traits">${rareTraitRowsHtml(rarest)}</div>`;
+      }
+    }
+  }catch(e){ console.warn('traitSection err',e); }
+
+  return `<div class="mispriced-card" data-id="${id}" onclick="openModal(${id})">
+    <div class="mispriced-thumb">${imgHtml}</div>
+    <div class="mispriced-body">
+      <div class="mispriced-head">
+        <span class="mispriced-id">#${id} <span style="font-size:10.5px;font-weight:500">${displayRankHtml(id)}</span></span>
+        <span class="mispriced-price">Ξ ${ethFmt}</span>
+      </div>
+      <span class="${scoreClass}">${scoreTxt}</span>
+      ${traitsSection}
+      ${url ? `<a class="mp-opensea" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OpenSea ↗</a>` : ''}
+    </div>
+  </div>`;
 }
 
 // ---- extracted script block ----
@@ -7859,6 +7924,19 @@ function renderFloorTrend(){
   // drawOrUpdateChart, burnsAnalytics.js's drawBurnActivityChart) --
   // retry shortly instead of throwing.
   if(typeof Plotly === 'undefined'){ setTimeout(renderFloorTrend, 80); return; }
+
+  // jv: floor trend still wasn't showing up until clicking a timeframe
+  // button (which just re-runs this same function -- setFloorRange()
+  // above does nothing but set the day cutoff and call renderFloorTrend()
+  // again). Root cause: this runs synchronously in the same tick as
+  // switchTopTab() giving this tab panel its .active class -- the browser
+  // hasn't actually applied that display change and re-flowed the layout
+  // yet, so Plotly.newPlot() below measures a zero-width/zero-height
+  // container and draws nothing visible into it. A later call (e.g. the
+  // range button) works purely because the layout has settled by then.
+  // Deferring one animation frame lets the browser actually apply the
+  // panel's visibility first.
+  if(host.offsetWidth === 0){ requestAnimationFrame(renderFloorTrend); return; }
 
   const events = window._floorEvents;
   if(!events.length){
