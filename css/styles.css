@@ -4356,6 +4356,20 @@ html[data-theme^="minimal-"] .tt:hover::after{
   background-size: cover;
   background-position: center;
   background-color: var(--soft);
+  position: relative;
+}
+/* jv: OpenSea's own banner fades into the page background at the bottom
+   edge rather than cutting off sharply -- a gradient overlay sitting on
+   top of the banner image itself, not a separate element, so it works
+   regardless of what image is behind it. var(--bg) matches whatever the
+   current theme's page background actually is, light or dark. */
+#collectionBannerImg::after{
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(to bottom, transparent 55%, var(--bg) 100%);
+  pointer-events: none;
 }
 #collectionHeaderAvatarImg{
   position: absolute;
