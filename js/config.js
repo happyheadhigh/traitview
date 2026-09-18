@@ -140,6 +140,20 @@ async function loadDynamicCollections(){
         // page load picks it up here.
         COLLECTIONS[slug].avatarImageUrl = row.avatar_image_url || null;
         COLLECTIONS[slug].bannerImageUrl = row.banner_image_url || null;
+        // jv: "just to make sure, the trait counts for each collection
+        // match traitview trait counts correct?" -- prompted moving this
+        // out of being hardcoded here at all, into the shared
+        // collections.non_worn_trait_categories column the bot's own
+        // trait-count alert matching now also reads (lib/poll.js), so
+        // both stay in sync from one source instead of two copies that
+        // could quietly drift apart. Only overrides the hardcoded
+        // baseline above when the DB actually has a non-empty value --
+        // an empty/missing column value keeps whatever this file's own
+        // COLLECTIONS entry already had, rather than blanking out a
+        // hardcoded baseline before this column existed everywhere.
+        if(Array.isArray(row.non_worn_trait_categories) && row.non_worn_trait_categories.length){
+          COLLECTIONS[slug].nonWornTraitCategories = row.non_worn_trait_categories;
+        }
         continue;
       }
       COLLECTIONS[slug] = {
@@ -166,6 +180,7 @@ async function loadDynamicCollections(){
         twitterUrl: row.twitter_url || null,
         avatarImageUrl: row.avatar_image_url || null,
         bannerImageUrl: row.banner_image_url || null,
+        nonWornTraitCategories: row.non_worn_trait_categories || [],
       };
       newlyAdded.push(slug);
     }

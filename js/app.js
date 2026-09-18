@@ -2951,12 +2951,19 @@ function switchAnalyticsSheetTab(name){
     // into the smaller box without Plotly ever re-laying out its own axes/
     // labels to match, producing exactly this overlapping, unreadable
     // result.
+    //
+    // jv: that same explicit resize() 300ms later then turned out to be
+    // exactly what caused "flashes on then vanishes" -- renderFloorTrend()
+    // now reads this container's own actual height directly into
+    // Plotly's layout (see height:host.clientHeight above it), so it
+    // renders in agreement with the 240px set two lines up from the very
+    // first paint and never needs a second, independently-timed
+    // corrective resize pass at all.
     if(!window._floorLoaded || !window._floorEvents?.length){
       loadFloorTrend(false);
     } else {
       setTimeout(renderFloorTrend, 80);
     }
-    setTimeout(()=>{ try{ Plotly.Plots.resize('floorTrendHost'); }catch(e){} }, 300);
   }
   if(name === 'scatter'){
     const sh = document.getElementById('scatterHost');
@@ -8086,7 +8093,18 @@ function renderFloorTrend(){
   if(fhTrace) traces.push(fhTrace);
 
   const layout = {
-    height:300, margin:{l:56,r:16,t:10,b:48},
+    // jv: chart was flashing on then vanishing on mobile. Root cause of
+    // that specific symptom: switchAnalyticsSheetTab() (mobile bottom
+    // sheet) constrains this container to a fixed 240px via a raw inline
+    // style, but this layout hardcoded height:300 regardless -- Plotly
+    // laid itself out at 300px, then a separate, independently-timed
+    // Plotly.Plots.resize() call 300ms later forcibly reconciled the
+    // mismatch, producing a second, jarring re-layout right after the
+    // first render. Reading the container's own actual current height
+    // (already set by whichever caller constrained it, mobile sheet or
+    // otherwise) keeps Plotly's own layout in agreement with it from the
+    // very first render, instead of rendering wrong and correcting later.
+    height: host.clientHeight > 50 ? host.clientHeight : 300, margin:{l:56,r:16,t:10,b:48},
     paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
     font:{color:textColor, size:11},
     xaxis:{color:subColor, gridcolor:'rgba(255,255,255,.06)', zeroline:false},
