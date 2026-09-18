@@ -85,8 +85,18 @@ function updateWalletConnectButtons(status){
     if(id === 'mobileWalletConnectBtn'){
       const text = btn.querySelector('.mobile-menu-label');
       const arrow = btn.querySelector('.mobile-menu-arrow');
-      if(text) text.textContent = connected ? `Wallet ${label}` : 'Connect Wallet';
-      if(arrow) arrow.textContent = connected ? 'connected' : 'read only';
+      // jv: reconnecting a saved wallet on page load briefly calls this
+      // with a `status` (the address, already known from localStorage)
+      // while the actual token lookup is still in flight -- but this
+      // always showed "Connect Wallet" here regardless, ignoring the
+      // address it was just given, purely because CONNECTED_WALLET.address
+      // itself isn't set until that lookup finishes. Not just cosmetic:
+      // combined with a since-fixed bug where that lookup could silently
+      // fail and never finish at all, this interim "Connect Wallet" text
+      // was the ONLY thing ever shown, indistinguishable from a real
+      // disconnected state.
+      if(text) text.textContent = connected ? `Wallet ${label}` : (status ? `Wallet ${status}` : 'Connect Wallet');
+      if(arrow) arrow.textContent = connected ? 'connected' : (status ? 'connecting…' : 'read only');
     } else {
       btn.innerHTML = `<span>${connected ? label : label}</span>`;
     }

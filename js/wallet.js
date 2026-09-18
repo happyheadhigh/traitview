@@ -81,27 +81,51 @@ async function fetchWalletTokenIdsForAddress(addr, useCache=true){
   const slug = typeof LIVE_SLUG !== 'undefined' ? LIVE_SLUG : 'on-chain-all-stars';
   const chain = typeof LIVE_CHAIN !== 'undefined' ? LIVE_CHAIN : 'ethereum';
   let tokenIds = [];
-  const alchemyUrl = `${worker}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(contract)}&chain=${encodeURIComponent(chain)}`;
-  const r = await fetch(alchemyUrl, { cache:'no-store' });
-  const j = r.ok ? await r.json() : null;
-  if(j?.ok && Array.isArray(j.tokenIds)) tokenIds = j.tokenIds;
-  if(!tokenIds.length){
-    let allNfts = [], cursor = null;
-    for(let page = 0; page < 3; page++){
-      const qs = new URLSearchParams({ address:addr, slug, contract, chain });
-      if(cursor) qs.set('cursor', cursor);
-      const rr = await fetch(`${worker}/os/wallet?${qs}`, { cache:'no-store' });
-      if(!rr.ok) break;
-      const jj = await rr.json();
-      if(!jj.ok) break;
-      allNfts = allNfts.concat(jj.nfts || []);
-      cursor = jj.next || null;
-      if(!cursor) break;
-      await new Promise(resolve => setTimeout(resolve, 80));
-    }
-    tokenIds = allNfts.map(n => +n.identifier);
+  // jv: "Nekoadz collection page isn't reading that my wallet is already
+  // connected" -- shown as "Connect Wallet" outright, not just missing a
+  // verified badge, meaning the whole restore chain was aborting. Neither
+  // lookup below had a try/catch: an uncaught exception from either one
+  // (this chain's own lookup failing in whatever way -- Alchemy likely
+  // doesn't index Robinhood Chain at all, being a standard-EVM indexing
+  // service) rejected this function's entire promise, which the restore
+  // code in walletConnect.js catches with a silent .catch(()=>{}) --
+  // aborting before setConnectedWallet() ever runs, leaving the button
+  // stuck on "Connect Wallet" instead of the actual address. Wrapping
+  // each lookup so a failure on either one degrades to an empty token
+  // list instead of aborting the restore.
+  try{
+    const alchemyUrl = `${worker}/nft/wallet?address=${encodeURIComponent(addr)}&contract=${encodeURIComponent(contract)}&chain=${encodeURIComponent(chain)}`;
+    const r = await fetch(alchemyUrl, { cache:'no-store' });
+    const j = r.ok ? await r.json() : null;
+    if(j?.ok && Array.isArray(j.tokenIds)) tokenIds = j.tokenIds;
+  }catch(e){
+    console.warn('[wallet] Alchemy-based token lookup failed, falling back to OpenSea:', e.message);
   }
-  tokenIds = [...new Set(tokenIds.map(Number).filter(id => id >= 1 && id <= 10000))];
+  if(!tokenIds.length){
+    try{
+      let allNfts = [], cursor = null;
+      for(let page = 0; page < 3; page++){
+        const qs = new URLSearchParams({ address:addr, slug, contract, chain });
+        if(cursor) qs.set('cursor', cursor);
+        const rr = await fetch(`${worker}/os/wallet?${qs}`, { cache:'no-store' });
+        if(!rr.ok) break;
+        const jj = await rr.json();
+        if(!jj.ok) break;
+        allNfts = allNfts.concat(jj.nfts || []);
+        cursor = jj.next || null;
+        if(!cursor) break;
+        await new Promise(resolve => setTimeout(resolve, 80));
+      }
+      tokenIds = allNfts.map(n => +n.identifier);
+    }catch(e){
+      console.warn('[wallet] OpenSea-based token lookup fallback also failed:', e.message);
+    }
+  }
+  // Generous, collection-agnostic sanity bound (was hardcoded to 10000 --
+  // an OCAS/CryptoPunks-coincidental number, not a real business rule,
+  // and would silently drop legitimate token ids for any collection with
+  // a larger supply or different id numbering).
+  tokenIds = [...new Set(tokenIds.map(Number).filter(id => id >= 1 && id <= 10_000_000))];
   writeConnectedWalletTokenCache(addr, tokenIds);
   return tokenIds;
 }
