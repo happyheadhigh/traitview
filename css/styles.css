@@ -4352,7 +4352,12 @@ html[data-theme^="minimal-"] .tt:hover::after{
   width: 100%;
   height: 100%;
   background-size: cover;
-  background-position: center;
+  /* jv: the top of the banner image was getting cropped off -- centered
+     cover-fit crops evenly from both top and bottom when the box's own
+     aspect ratio doesn't match the source image's; anchoring to the top
+     instead crops only from the bottom, keeping the top of the image
+     (and the top of the page it sits flush against) intact. */
+  background-position: center top;
   background-color: var(--soft);
   position: relative;
 }
