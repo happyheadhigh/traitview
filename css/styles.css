@@ -428,7 +428,19 @@ a{color:var(--accent)!important}
   /* ── Filter drawer (left column) ── */
   #filtersColumn{
     position:fixed!important;top:0!important;left:0!important;bottom:0!important;padding-top:72px!important;
-    width:min(320px,86vw)!important;z-index:1001!important;
+    width:min(320px,86vw)!important;
+    /* jv: "the banner still sits on top of the traits panel" -- this was
+       already at z-index:1001, well above every z-index this whole
+       stylesheet applies to the banner or any of its ancestors (checked
+       exhaustively: #collectionBannerHeader itself, .wrap, #mainApp,
+       .bar, body.drawer-active -- none of them set one, and none create
+       a transform/filter/isolation stacking context that would trap
+       this element's own z-index from applying normally either). Since
+       raising it clearly still wasn't winning in practice regardless,
+       going all the way to the top of every z-index value used
+       anywhere in this file rather than guess at another number that
+       might also not be high enough. */
+    z-index:2147483001!important;
     /* Transparent so ::before blur shows through */
     background:rgba(13,17,25,.98)!important;
     backdrop-filter:none!important;
@@ -462,7 +474,13 @@ a{color:var(--accent)!important}
   /* ── Filter drawer overlay ── */
   #filterDrawerOverlay{
     position:fixed!important;inset:0!important;display:none!important;
-    background:rgba(6,10,16,.30)!important;z-index:1000!important;
+    background:rgba(6,10,16,.30)!important;
+    /* Same reasoning as #filtersColumn just above -- this specific
+       mobile-scoped rule is what actually governs the backdrop paired
+       with #filtersColumn (an earlier, desktop-scoped edit to this same
+       selector gets fully overridden by this one, later in the file
+       with !important, at mobile widths). */
+    z-index:2147483000!important;
     pointer-events:auto!important
   }
   #filterDrawerOverlay.open{display:block!important;left:min(320px,86vw)!important}

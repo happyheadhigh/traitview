@@ -359,6 +359,7 @@ function _applyHoldersTraitFilter(){
 }
 
 let _lastFilteredTotal = null; // set by updateChartAndList(); total tokens matching the current filter combination, shown next to the active-filter pills
+let _lastFilteredBuckets = null; // temporary debug aid, see renderActiveChips()'s own comment
 async function updateChartAndList(){
   // jv: multiple attempts at preserving scroll position through this
   // rebuild (raw pixel restore, anchoring to the clicked row, anchoring to
@@ -387,6 +388,7 @@ async function updateChartAndList(){
   // it gives the total token count that combination matches, which
   // renderActiveChips() displays next to the pills themselves.
   _lastFilteredTotal = Object.values(buckets).reduce((a,b)=>a+b,0);
+  _lastFilteredBuckets = buckets;
   drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
 }
 
@@ -787,6 +789,20 @@ function renderActiveChips(){
     totalEl.style.opacity = '.75';
     totalEl.style.marginLeft = '4px';
     host.appendChild(totalEl);
+  }
+  // jv: "when i have the '1 trait' selected and another trait it gets
+  // rid of the '0 trait'... No it does not come back. It stays gone."
+  // Reviewed computeFilteredState()/renderTraitChips() thoroughly and
+  // couldn't find the actual mutation/persistence bug through code
+  // reading alone -- everything traced should correctly rebuild a
+  // fresh bucket count on every call. Temporary, visible diagnostic
+  // instead of guessing further: shows exactly what activeTraits,
+  // currentTraitCount, and the live bucket counts actually are at the
+  // moment this runs, so a screenshot after reproducing the bug gives
+  // real data to work from. Remove once this is settled.
+  if(typeof _lastFilteredBuckets !== 'undefined'){
+    const dbg = el('div', null, `<pre style="font-size:9px;color:#f87171;white-space:pre-wrap;margin-top:6px;opacity:.8">DEBUG activeTraits=${JSON.stringify([...activeTraits.entries()].map(([g,s])=>[g,[...s]]))} currentTraitCount=${currentTraitCount} buckets=${JSON.stringify(_lastFilteredBuckets)}</pre>`);
+    host.appendChild(dbg);
   }
 }
 function renderTraitChips(b){
