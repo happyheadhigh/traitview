@@ -358,6 +358,7 @@ function _applyHoldersTraitFilter(){
   }
 }
 
+let _lastFilteredTotal = null; // set by updateChartAndList(); total tokens matching the current filter combination, shown next to the active-filter pills
 async function updateChartAndList(){
   // jv: multiple attempts at preserving scroll position through this
   // rebuild (raw pixel restore, anchoring to the clicked row, anchoring to
@@ -377,7 +378,16 @@ async function updateChartAndList(){
   // scroll preservation at all, until this can be revisited with a way to
   // actually see what's happening in the real environment rather than only
   // in local simulation.
-  const {buckets, idByCount, avail}=await computeFilteredState(); CHART_ID_MAP=idByCount; AVAILABLE_DOMAIN=avail; drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
+  const {buckets, idByCount, avail}=await computeFilteredState(); CHART_ID_MAP=idByCount; AVAILABLE_DOMAIN=avail;
+  // jv: "when I click on either a combo of traits or even a trait count
+  // and trait combo can we add a total number of that combo somewhere
+  // maybe beside the pills above the grid?" -- buckets is already the
+  // exact per-count breakdown of every token matching the CURRENT
+  // filter combination (trait values + trait count together); summing
+  // it gives the total token count that combination matches, which
+  // renderActiveChips() displays next to the pills themselves.
+  _lastFilteredTotal = Object.values(buckets).reduce((a,b)=>a+b,0);
+  drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
 }
 
 /* grid */
@@ -766,6 +776,18 @@ function renderActiveChips(){
     host.appendChild(chip);
   }
   for(const {group,value} of entries){ const chip=el('div','chip',`<b>${group}</b>: ${value} &nbsp;×`); chip.title='Remove this filter'; chip.onclick=async()=>{ const s=activeTraits.get(group); if(!s) return; s.delete(value); if(s.size===0) activeTraits.delete(group); await updateChartAndList(); }; host.appendChild(chip);}
+  // jv: "when I click on either a combo of traits or even a trait count
+  // and trait combo can we add a total number of that combo somewhere
+  // maybe beside the pills above the grid?" -- _lastFilteredTotal (set
+  // by updateChartAndList(), right before this function runs) is exactly
+  // how many tokens match everything currently selected together, not
+  // just one piece of it.
+  if(typeof _lastFilteredTotal === 'number'){
+    const totalEl = el('span', 'section', `${_lastFilteredTotal.toLocaleString()} match${_lastFilteredTotal===1?'':'es'}`);
+    totalEl.style.opacity = '.75';
+    totalEl.style.marginLeft = '4px';
+    host.appendChild(totalEl);
+  }
 }
 function renderTraitChips(b){
   const host=$('#traitChips'); host.innerHTML='';

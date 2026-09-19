@@ -2261,7 +2261,7 @@ html[data-theme="ink"] body::before {
   inset: 0;
   background: rgba(0,0,0,0.5);
   /* NO backdrop-filter — causes scroll jank on iOS */
-  z-index: 200;
+  z-index: 500;
 }
 #filterDrawerOverlay.open { display: block; }
 
@@ -2274,7 +2274,13 @@ html[data-theme="ink"] body::before {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-right: 1px solid rgba(255,255,255,0.09);
-  z-index: 201;
+  /* jv: "the banner sits on top of the trait panel" -- couldn't pin
+     down the exact stacking-context interaction causing it (every
+     relevant z-index checked out fine on paper: drawer 201 vs. topbar
+     20 vs. banner/avatar with none set at all), so rather than keep
+     guessing, giving this a decisively high value that's guaranteed to
+     win regardless of whatever subtlety was actually at play. */
+  z-index: 501;
   transform: translateX(-100%);
   transition: transform .28s cubic-bezier(.4,0,.2,1);
   overflow-y: auto;
@@ -4357,6 +4363,7 @@ html[data-theme^="minimal-"] .tt:hover::after{
    rather than just floating on top). */
 #collectionBannerHeader{
   position: relative;
+  z-index: 0;
   width: 100%;
   height: 200px;
   margin: 0 0 40px; /* room for the avatar hanging below the banner */
