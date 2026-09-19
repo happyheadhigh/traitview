@@ -300,7 +300,36 @@ function applyTokenIdSearchToIds(ids, opts){
 async function fetchRow(id){ if(ROW_CACHE.has(id)) return ROW_CACHE.get(id); const idx=chunkIndexFor(id); const ch=await ensureChunk(idx); const row=ch[String(id)]||{traits:{}}; ROW_CACHE.set(id,row); return row; }
 
 /* recompute */
-async function computeFilteredState(){ const buckets={}, idByCount={}, avail={}; for(const idx of indices()){ const ch=await ensureChunk(idx); for(const [sid,row] of Object.entries(ch)){ const id=+sid; if(!passesRankFilter(id)) continue; if(!rowMatchesActiveTraitsOnly(row)) continue; const n=getTraitCount(row); buckets[n]=(buckets[n]||0)+1; (idByCount[n] ||= []).push(id); for(const [k,v] of keepEntries(row.traits)){ (avail[k] ||= new Map()).set(v, ((avail[k].get(v)||0)+1)); } } } return {buckets, idByCount, avail}; }
+// jv: "I click the x on purp hat to close it and the 0 trait
+// disappears and is no longer there. Why? I never clicked 0 trait."
+// Confirmed real, reproducible: removing the trait value that was
+// blocking a count from appearing doesn't bring it back. Rather than
+// keep asking for a single, perfectly-timed screenshot right after the
+// removal click (already missed catching the actual post-removal
+// state twice), logging every call automatically instead -- do the
+// whole sequence (pick a count, pick a trait value, remove the trait
+// value) and one screenshot of the debug panel at the end shows the
+// entire history, no precise timing needed.
+window._filterCallLog = window._filterCallLog || [];
+async function computeFilteredState(){
+  const buckets={}, idByCount={}, avail={};
+  for(const idx of indices()){
+    const ch=await ensureChunk(idx);
+    for(const [sid,row] of Object.entries(ch)){
+      const id=+sid; if(!passesRankFilter(id)) continue; if(!rowMatchesActiveTraitsOnly(row)) continue;
+      const n=getTraitCount(row); buckets[n]=(buckets[n]||0)+1; (idByCount[n] ||= []).push(id);
+      for(const [k,v] of keepEntries(row.traits)){ (avail[k] ||= new Map()).set(v, ((avail[k].get(v)||0)+1)); }
+    }
+  }
+  window._filterCallLog.push({
+    t: new Date().toISOString().slice(11,19),
+    activeTraits: [...activeTraits.entries()].map(([g,s])=>[g,[...s]]),
+    currentTraitCount,
+    buckets: {...buckets},
+  });
+  if(window._filterCallLog.length > 8) window._filterCallLog.shift();
+  return {buckets, idByCount, avail};
+}
 function updateTraitFloor(){
   const bar = document.getElementById('traitFloorBar');
   if(!bar) return;
@@ -359,7 +388,6 @@ function _applyHoldersTraitFilter(){
 }
 
 let _lastFilteredTotal = null; // set by updateChartAndList(); total tokens matching the current filter combination, shown next to the active-filter pills
-let _lastFilteredBuckets = null; // temporary debug aid, see renderActiveChips()'s own comment
 async function updateChartAndList(){
   // jv: multiple attempts at preserving scroll position through this
   // rebuild (raw pixel restore, anchoring to the clicked row, anchoring to
@@ -388,7 +416,6 @@ async function updateChartAndList(){
   // it gives the total token count that combination matches, which
   // renderActiveChips() displays next to the pills themselves.
   _lastFilteredTotal = Object.values(buckets).reduce((a,b)=>a+b,0);
-  _lastFilteredBuckets = buckets;
   drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
 }
 
@@ -790,18 +817,19 @@ function renderActiveChips(){
     totalEl.style.marginLeft = '4px';
     host.appendChild(totalEl);
   }
-  // jv: "when i have the '1 trait' selected and another trait it gets
-  // rid of the '0 trait'... No it does not come back. It stays gone."
-  // Reviewed computeFilteredState()/renderTraitChips() thoroughly and
-  // couldn't find the actual mutation/persistence bug through code
-  // reading alone -- everything traced should correctly rebuild a
-  // fresh bucket count on every call. Temporary, visible diagnostic
-  // instead of guessing further: shows exactly what activeTraits,
-  // currentTraitCount, and the live bucket counts actually are at the
-  // moment this runs, so a screenshot after reproducing the bug gives
-  // real data to work from. Remove once this is settled.
-  if(typeof _lastFilteredBuckets !== 'undefined'){
-    const dbg = el('div', null, `<pre style="font-size:9px;color:#f87171;white-space:pre-wrap;margin-top:6px;opacity:.8">DEBUG activeTraits=${JSON.stringify([...activeTraits.entries()].map(([g,s])=>[g,[...s]]))} currentTraitCount=${currentTraitCount} buckets=${JSON.stringify(_lastFilteredBuckets)}</pre>`);
+  // jv: "I click the x on purp hat to close it and the 0 trait
+  // disappears and is no longer there. Why? I never clicked 0 trait."
+  // Confirmed real -- showing the full call history now (see
+  // computeFilteredState()'s own comment) instead of just the current
+  // state, so one screenshot after doing the whole sequence (pick a
+  // count, pick a trait value, remove the trait value) shows exactly
+  // what changed between each step, with no precise timing needed.
+  // Remove once this is settled.
+  if(Array.isArray(window._filterCallLog) && window._filterCallLog.length){
+    const rows = window._filterCallLog.map((e,i) =>
+      `#${i} @${e.t} activeTraits=${JSON.stringify(e.activeTraits)} currentTraitCount=${e.currentTraitCount} buckets=${JSON.stringify(e.buckets)}`
+    ).join('\n');
+    const dbg = el('div', null, `<pre style="font-size:9px;color:#f87171;white-space:pre-wrap;margin-top:6px;opacity:.8">DEBUG HISTORY (oldest to newest)\n${rows}</pre>`);
     host.appendChild(dbg);
   }
 }
