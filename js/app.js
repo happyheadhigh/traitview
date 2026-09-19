@@ -168,6 +168,20 @@ async function loadProbabilities(){ try{ const r=await fetch(PROB_URL,{cache:'no
 
 /* stats + ranks */
 async function buildStatsAndRanks(){
+  // jv: "Ocas traits are coming through for nekoadz." Confirmed the
+  // exact same race already fixed once for ensureComboRows()
+  // (comboInsights.js) and _getTokenImgSrcAsync() (this file): this
+  // iterates ensureChunk() directly with no guard against CHUNK_CACHE
+  // not being warmed yet for the current collection. If this ran
+  // before the bulk /db/all-traits fetch finished, ensureChunk() would
+  // silently fall through to OCAS's own static chunk files -- building
+  // TRAIT_DOMAIN/TRAIT_FREQ (and therefore the whole trait accordion,
+  // Combo Intelligence's underlying data, and rank) from OCAS's wrong
+  // categories entirely, exactly matching what showed up for nekoadz
+  // (Accessory I/II, Body, Clothes, Eyes, Head, Mouth -- OCAS's own
+  // categories, not nekoadz's). Awaiting the same promise those two
+  // fixes already use before ever touching a chunk.
+  if(window._allTraitsPromise) await window._allTraitsPromise;
   // Build into temp objects so TRAIT_DOMAIN stays readable during loading
   const _freq={}, _domain={};
   let _max=0;
