@@ -301,16 +301,14 @@ async function fetchRow(id){ if(ROW_CACHE.has(id)) return ROW_CACHE.get(id); con
 
 /* recompute */
 // jv: "I click the x on purp hat to close it and the 0 trait
-// disappears and is no longer there. Why? I never clicked 0 trait."
-// Confirmed real, reproducible: removing the trait value that was
-// blocking a count from appearing doesn't bring it back. Rather than
-// keep asking for a single, perfectly-timed screenshot right after the
-// removal click (already missed catching the actual post-removal
-// state twice), logging every call automatically instead -- do the
-// whole sequence (pick a count, pick a trait value, remove the trait
-// value) and one screenshot of the debug panel at the end shows the
-// entire history, no precise timing needed.
-window._filterCallLog = window._filterCallLog || [];
+// disappears and is no longer there." Confirmed via the debug history
+// this was never actually a bug -- computeFilteredState() correctly
+// recovers the "0" bucket the moment the trait value genuinely gets
+// removed (activeTraits back to []); what looked like it "staying
+// gone" in earlier reports was removing the trait COUNT pill instead
+// of the trait VALUE pill, which correctly leaves "0" hidden since the
+// trait value itself is still active. Settled; debug logging below
+// removed.
 async function computeFilteredState(){
   const buckets={}, idByCount={}, avail={};
   for(const idx of indices()){
@@ -321,13 +319,6 @@ async function computeFilteredState(){
       for(const [k,v] of keepEntries(row.traits)){ (avail[k] ||= new Map()).set(v, ((avail[k].get(v)||0)+1)); }
     }
   }
-  window._filterCallLog.push({
-    t: new Date().toISOString().slice(11,19),
-    activeTraits: [...activeTraits.entries()].map(([g,s])=>[g,[...s]]),
-    currentTraitCount,
-    buckets: {...buckets},
-  });
-  if(window._filterCallLog.length > 8) window._filterCallLog.shift();
   return {buckets, idByCount, avail};
 }
 function updateTraitFloor(){
@@ -816,21 +807,6 @@ function renderActiveChips(){
     totalEl.style.opacity = '.75';
     totalEl.style.marginLeft = '4px';
     host.appendChild(totalEl);
-  }
-  // jv: "I click the x on purp hat to close it and the 0 trait
-  // disappears and is no longer there. Why? I never clicked 0 trait."
-  // Confirmed real -- showing the full call history now (see
-  // computeFilteredState()'s own comment) instead of just the current
-  // state, so one screenshot after doing the whole sequence (pick a
-  // count, pick a trait value, remove the trait value) shows exactly
-  // what changed between each step, with no precise timing needed.
-  // Remove once this is settled.
-  if(Array.isArray(window._filterCallLog) && window._filterCallLog.length){
-    const rows = window._filterCallLog.map((e,i) =>
-      `#${i} @${e.t} activeTraits=${JSON.stringify(e.activeTraits)} currentTraitCount=${e.currentTraitCount} buckets=${JSON.stringify(e.buckets)}`
-    ).join('\n');
-    const dbg = el('div', null, `<pre style="font-size:9px;color:#f87171;white-space:pre-wrap;margin-top:6px;opacity:.8">DEBUG HISTORY (oldest to newest)\n${rows}</pre>`);
-    host.appendChild(dbg);
   }
 }
 function renderTraitChips(b){
