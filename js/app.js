@@ -6508,16 +6508,26 @@ async function loadManifest(){
   // can close out of it if I want" -- clears only currentTraitCount,
   // same scope as the dropdown's own Any option, so any trait-value
   // filters or search text stay exactly as they were.
-  window.clearSalesTraitCountFilter = function(){
+  //
+  // jv: "when a trait count is selected and a trait is selected and i
+  // click the trait count pill to close it, it removed [the value
+  // pill] in the trait filters panel" -- confirmed: this called
+  // renderTokenGridFromState() alone instead of updateChartAndList(),
+  // the actual full, coordinated refresh the Traits tab's own
+  // (working, proven) equivalent pill uses -- computeFilteredState(),
+  // a fresh renderTraitChips(), renderTraitAccordion(), and
+  // renderActiveChips() all in the right order, not just the grid.
+  // Skipping that chain was what let activeTraits (Crown: Purphat, in
+  // this report) end up cleared alongside the trait count, since
+  // whatever kept it correctly in sync depended on this full sequence
+  // running, not just the grid re-rendering. Matching that proven
+  // sequence exactly now, plus the one thing specific to being on the
+  // Sales tab (_runSalesSearch(), to refresh the actual sales list).
+  window.clearSalesTraitCountFilter = async function(){
     currentTraitCount = null;
     document.querySelectorAll('#traitChips .chip').forEach(n => n.classList.remove('active'));
-    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
-    if(typeof LAST_XS !== 'undefined' && typeof colorsFor === 'function' && typeof Plotly !== 'undefined'){
-      const cols2 = colorsFor(LAST_XS);
-      Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]);
-    }
     syncSalesFilterUI();
-    if(typeof renderActiveChips === 'function') renderActiveChips();
+    await updateChartAndList();
     _runSalesSearch();
   };
 
