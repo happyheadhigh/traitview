@@ -2741,6 +2741,18 @@ if (sortSel){
 // Check onlyListed checkbox and activate pill immediately,
 // but only re-render (with price-asc sort) once DB listings are ready.
 (function initLiveListingsDefault(){
+  // jv: "clicking on a the traitview link from the bot takes me to
+  // traitview for that token but switches over to live listings." This
+  // ran unconditionally on every page load, including one landing on a
+  // specific token via ?jump=/?token= (every bot embed's "View on
+  // TraitView" link) -- skipListedFilter (see renderTokenGrid's own
+  // ?jump= handling) already makes sure the token itself still shows
+  // correctly either way, but the pill still visibly flipped to its "on"
+  // state the instant the page loaded, which reads as the page having
+  // switched modes on you even though the single token you followed the
+  // link to see was never actually hidden by it.
+  const urlParams = new URLSearchParams(window.location.search);
+  if(urlParams.get('jump') || urlParams.get('token')) return;
   const cb   = document.getElementById('onlyListed');
   const pill = document.getElementById('onlyListedPill');
   if(!cb || cb.checked) return;
@@ -6492,6 +6504,23 @@ async function loadManifest(){
     _runSalesSearch();
   };
 
+  // jv: "can there be a pill for trait counts when it's selected so I
+  // can close out of it if I want" -- clears only currentTraitCount,
+  // same scope as the dropdown's own Any option, so any trait-value
+  // filters or search text stay exactly as they were.
+  window.clearSalesTraitCountFilter = function(){
+    currentTraitCount = null;
+    document.querySelectorAll('#traitChips .chip').forEach(n => n.classList.remove('active'));
+    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+    if(typeof LAST_XS !== 'undefined' && typeof colorsFor === 'function' && typeof Plotly !== 'undefined'){
+      const cols2 = colorsFor(LAST_XS);
+      Plotly.restyle('chartHost', {'marker.color':[cols2.fill], 'marker.line.color':[cols2.line]}, [0]);
+    }
+    syncSalesFilterUI();
+    if(typeof renderActiveChips === 'function') renderActiveChips();
+    _runSalesSearch();
+  };
+
   window.clearSalesFilters = function(){
     currentTraitCount = null;
     if(typeof activeTraits !== 'undefined' && activeTraits.clear) activeTraits.clear();
@@ -6531,6 +6560,22 @@ async function loadManifest(){
   function syncSalesFilterUI(){
     const sel = document.getElementById('salesTraitCountFilter');
     if(sel) sel.value = (currentTraitCount == null) ? '' : String(currentTraitCount);
+    // jv: "can there be a pill for trait counts when it's selected so I
+    // can close out of it if I want just like how traits does it" --
+    // the Traits tab's own currentTraitCount pill (renderActiveChips())
+    // only ever rendered into #activeChips there, so it was invisible
+    // while actually on the Sales tab even though the filter was fully
+    // in effect there too (currentTraitCount is the same shared global
+    // state both tabs read). This is that same pill's Sales-tab
+    // equivalent -- clears just this one filter, same as the Traits
+    // tab's version does, leaving any trait-value filters or search
+    // text alone.
+    const countPill = document.getElementById('salesTraitCountPill');
+    if(countPill){
+      countPill.style.display = (currentTraitCount == null) ? 'none' : '';
+      const val = document.getElementById('salesTraitCountPillVal');
+      if(val) val.textContent = currentTraitCount == null ? '' : String(currentTraitCount);
+    }
     const hasTraitValues = typeof getActiveTraitMap === 'function' && getActiveTraitMap().size > 0;
     const searchInput = document.getElementById('salesTraitSearch');
     const hasSearchText = !!(searchInput && searchInput.value.trim());
