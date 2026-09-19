@@ -96,12 +96,21 @@ if(window.__TV_LANDING__){
     // separately alongside it -- always visible, not tied to the
     // expanded state at all, so you can see exactly what you've picked
     // without needing to open the picker.
+    //
+    // jv: "clicking on an emoji that has already been selected should
+    // count as either a +1 for a new tap or a removal of a like if i
+    // was the one to tap it so i don't have to open up the '+' again"
+    // -- these "your picks" pills are actual .landing-reaction-btn
+    // buttons now (were plain, inert <span>s), reusing the exact same
+    // click handler and toggle-off logic the expanded picker's own
+    // buttons already use. Tapping one directly removes that reaction
+    // without ever needing to open the picker at all.
     return `<div class="landing-reactions" data-slug="${slug}" data-expanded="${expanded ? 'true' : 'false'}">
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
         <button type="button" class="landing-reaction-toggle" data-slug="${slug}" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.4);color:#fff;font-size:14px;font-weight:700;cursor:pointer;line-height:1">${expanded ? '−' : '+'}</button>
-        ${mine.map(e => `<span class="landing-reaction-mine-pill" style="display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;border:1px solid rgba(45,212,191,.7);background:rgba(45,212,191,.18);color:#fff;font-size:11px;line-height:1">
+        ${mine.map(e => `<button type="button" class="landing-reaction-btn" data-slug="${slug}" data-emoji="${e}" style="display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;border:1px solid rgba(45,212,191,.7);background:rgba(45,212,191,.18);color:#fff;font-size:11px;cursor:pointer;line-height:1">
           <span>${e}</span><span style="font-weight:700">${counts[e] || 0}</span>
-        </span>`).join('')}
+        </button>`).join('')}
       </div>
       <div class="landing-reaction-options" style="display:${expanded ? 'flex' : 'none'};gap:4px;margin-top:4px">
         ${REACTION_EMOJI.map(e => {
