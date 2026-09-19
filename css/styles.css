@@ -337,17 +337,6 @@ a{color:var(--accent)!important}
   body.drawer-active #filtersColumn,
   body.drawer-active #filtersColumn *,
   body.drawer-active #floatFilterBtn{pointer-events:auto!important}
-  /* jv: "Trait panel still hidden behind banner" -- not actually a
-     z-index/stacking bug after all: #filtersColumn's own background
-     (rgba(13,17,25,.98) plus a frosted ::before layer at rgba(11,15,
-     23,.82), by design, for the blur effect) is genuinely translucent,
-     so whatever sits behind it -- correctly, per z-index -- still
-     shows through, blurred. The banner has no reason to be visible at
-     all while this full-height overlay covers the page, so hiding it
-     outright while the drawer's open removes the bleed-through
-     regardless of any transparency.
-  */
-  body.drawer-active #collectionBannerHeader{display:none!important}
 
   /* ── Topbar ── */
   .topbar{
@@ -4398,6 +4387,14 @@ html[data-theme^="minimal-"] .tt:hover::after{
   margin: 0 0 40px; /* room for the avatar hanging below the banner */
   overflow: visible;
 }
+/* jv: "the banner is sitting on top of the analytics and trait filter
+   panels... it needs to sit behind everything." Toggled by
+   bannerOcclusionGuard() (app.js), which watches every overlay panel
+   in the app (filter drawer, mobile analytics sheet, wallet/holder
+   drawers, the main token modal) directly and forces this whenever
+   any one of them is open, regardless of which specific one or how it
+   was triggered. */
+#collectionBannerHeader.force-hidden{ display: none !important; }
 #collectionBannerImg{
   width: 100%;
   height: 100%;

@@ -2778,6 +2778,43 @@ if (sortSel){
 // ── Auto-enable live listings on page load ────────────────────────────────────
 // Check onlyListed checkbox and activate pill immediately,
 // but only re-render (with price-asc sort) once DB listings are ready.
+// ── Keep the collection banner from ever bleeding through an open overlay ──
+// jv: "the banner is sitting on top of the analytics and trait filter
+// panels... it needs to sit behind everything." Both of those overlays
+// (#filtersColumn, #mobileAnalyticsSheet) -- and the wallet/holder
+// drawers, and the main token modal -- have their own translucent,
+// blurred backgrounds by design, so anything positioned behind them,
+// correctly per z-index, still shows through blurred. Chasing this one
+// overlay-open trigger at a time (body.drawer-active for the filter
+// drawer specifically) is exactly how the analytics sheet -- a
+// completely separate element with its own separate open/close
+// mechanism -- got missed entirely. Rather than instrument every
+// individual open/close call site (several of the close paths are
+// inline onclick handlers scattered across index.html, not even a
+// single named function each), this watches all of them directly and
+// reacts to their actual state: if ANY of them is open, the banner is
+// forced hidden, full stop, regardless of which one it is or how it
+// got triggered.
+(function bannerOcclusionGuard(){
+  const banner = document.getElementById('collectionBannerHeader');
+  if(!banner) return;
+  const classBased = ['filtersColumn', 'mobileAnalyticsSheet', 'mobileWalletDrawer', 'mobileHolderDrawer']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  const modal = document.getElementById('modal');
+  function anyOverlayOpen(){
+    if(classBased.some(el => el.classList.contains('open') || el.classList.contains('drawer-open'))) return true;
+    if(modal && getComputedStyle(modal).display !== 'none') return true;
+    return false;
+  }
+  function recheck(){
+    banner.classList.toggle('force-hidden', anyOverlayOpen());
+  }
+  const targets = modal ? [...classBased, modal] : classBased;
+  const mo = new MutationObserver(recheck);
+  targets.forEach(t => mo.observe(t, { attributes:true, attributeFilter:['class','style'] }));
+  recheck();
+})();
+
 (function initLiveListingsDefault(){
   // jv: "clicking on a the traitview link from the bot takes me to
   // traitview for that token but switches over to live listings." This
