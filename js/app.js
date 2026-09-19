@@ -407,6 +407,23 @@ async function updateChartAndList(){
   // it gives the total token count that combination matches, which
   // renderActiveChips() displays next to the pills themselves.
   _lastFilteredTotal = Object.values(buckets).reduce((a,b)=>a+b,0);
+  // jv: "I think i understand now... Can that number be presented
+  // somewhere on the main grid so it's visible without having to open
+  // the drawer?" -- _lastFilteredTotal already reflects exactly how
+  // many tokens match the current trait/trait-count selection
+  // together; the active-filters panel's own version of this only
+  // ever showed inside the drawer itself. This mirrors it on the main
+  // grid's own control row (#gridMatchCount, next to Live Listings/
+  // sort -- visible on both desktop and mobile, unlike the desktop-
+  // only token-trait-search bar), so it's visible without opening
+  // anything. Only shown once a real filter narrows things down, same
+  // as the drawer's own version -- the full collection count isn't
+  // useful info on its own.
+  const gridMatchEl = document.getElementById('gridMatchCount');
+  if(gridMatchEl){
+    const hasFilter = (activeTraits && activeTraits.size > 0) || (typeof currentTraitCount !== 'undefined' && currentTraitCount !== null);
+    gridMatchEl.textContent = hasFilter ? `${_lastFilteredTotal.toLocaleString()} match${_lastFilteredTotal===1?'':'es'}` : '';
+  }
   drawOrUpdateChart(buckets); renderTraitChips(buckets); await renderTokenGridFromState(); renderTraitAccordion($('#traitSearch').value); renderActiveChips(); if(typeof window.renderSalesForCurrentTraits==='function') window.renderSalesForCurrentTraits(); if(typeof updateTraitFloor==='function') updateTraitFloor(); _applyHoldersTraitFilter();
 }
 
