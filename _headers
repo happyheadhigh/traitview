@@ -1,0 +1,4 @@
+# OCAS per-token images (data/img/<id>.svg, generated from token_images_*.json).
+# Change only on deploy; cache a day, serve stale while refreshing for a week.
+/data/img/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800

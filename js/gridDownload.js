@@ -1,0 +1,660 @@
+/* Grid download feature (jv: "get a download of a high quality full set of
+   your tokens... 4x4 grid... fully zoomable").
+   Composites N selected wallet tokens into one downloadable grid file.
+   Reuses the existing per-token image-resolution pipeline
+   (_getRawSvgForDownload, _getTokenImgSrcAsync) rather than duplicating it
+   -- this module only adds the new part: compositing multiple already-
+   resolvable tokens into one file. Classic script, shares the app's global
+   scope like every other js/ file here. */
+
+const GRID_DOWNLOAD_MAX_TOKENS = 100; // sane ceiling (10x10) -- no product requirement, just guards against a user selecting an absurd number and hanging their own browser tab
+
+// Same regex-based heuristic as the bot's makeSvgTransparent()
+// (commands/download.js) -- duplicated here since the frontend and bot
+// are separate codebases, but kept byte-for-byte behaviorally identical
+// on purpose so "no background" produces the same result whether it's
+// downloaded from Discord or from the website.
+// Known limitation, carried over unchanged: this strips the FIRST
+// full-canvas rect with a fill, assumed to be a background layer --
+// correct for OCAS specifically, but for a collection whose actual
+// character art IS built from a full-canvas rect/path (not a separate
+// background layer), this would strip the art itself. Same caveat, same
+// fix scope as the bot's version -- flagging here rather than silently
+// carrying a subtle multi-collection bug forward.
+function _gridStripSvgBackground(svgText){
+  let out = String(svgText || '');
+  out = out.replace(/<rect\b(?=[^>]*(?:width=['"]?100%|width=['"]?\d+))(?=[^>]*(?:height=['"]?100%|height=['"]?\d+))[^>]*(?:fill=['"][^'"]+['"])[^>]*>\s*<\/rect>/i, '');
+  out = out.replace(/<rect\b(?=[^>]*(?:width=['"]?100%|width=['"]?\d+))(?=[^>]*(?:height=['"]?100%|height=['"]?\d+))[^>]*\/?>/i, '');
+  return out;
+}
+
+function _isSvgSource(src){
+  if(!src) return false;
+  const s = String(src).trim().toLowerCase();
+  return s.startsWith('<svg') || s.startsWith('data:image/svg') || s.includes('image/svg');
+}
+
+// Resolves one token down to either { kind:'svg', text } or
+// { kind:'raster', url } -- whichever the existing pipeline can actually
+// give us. Never throws; a token that can't be resolved at all comes
+// back null and the caller skips it (with a visible warning) rather than
+// silently corrupting the whole grid.
+async function _resolveGridToken(id, stripBackground){
+  // _getRawSvgForDownload lives in js/downloads.js, which is lazy-loaded
+  // on demand (js/downloadLoader.js) rather than loaded upfront -- it may
+  // genuinely not exist yet the first time this runs. Ensuring it's
+  // actually loaded before relying on it, same as every other download
+  // entry point in this app already does.
+  if(typeof window.ensureTraitViewDownloadsLoaded === 'function'){
+    try{ await window.ensureTraitViewDownloadsLoaded(); }catch(_){ /* falls through to the raster path below */ }
+  }
+  try{
+    if(typeof _getRawSvgForDownload === 'function'){
+      const rawSvg = await _getRawSvgForDownload(id);
+      if(rawSvg){
+        return { kind:'svg', text: stripBackground ? _gridStripSvgBackground(rawSvg) : rawSvg };
+      }
+    }
+  }catch(_){ /* fall through to raster */ }
+  try{
+    const src = typeof _getTokenImgSrcAsync === 'function' ? await _getTokenImgSrcAsync(id) : (typeof _getTokenImgSrc === 'function' ? _getTokenImgSrc(id) : null);
+    if(!src) return null;
+    if(_isSvgSource(src)){
+      return { kind:'svg', text: stripBackground ? _gridStripSvgBackground(src) : src };
+    }
+    return { kind:'raster', url: src };
+  }catch(_){ return null; }
+}
+
+// Picks the smallest square-ish grid (rows == cols, or cols == rows+1)
+// that fits `count` cells -- used to auto-suggest a default before the
+// user overrides it.
+function suggestGridDimensions(count){
+  const side = Math.ceil(Math.sqrt(count));
+  return { rows: side, cols: side };
+}
+
+// Builds one combined SVG document: a grid of cells, each holding either
+// the token's real (still-editable, still-vector) SVG markup inlined
+// directly -- not rasterized, not embedded as an <image> -- or, for a
+// token this pipeline could only resolve to a raster image, an <image>
+// element in that one cell. A mixed-source grid still comes out as one
+// valid SVG file either way; only the truly-SVG cells get the "fully
+// zoomable at any scale" property jv asked for.
+function _buildGridSvg(resolvedTokens, rows, cols, cellSize, gap = 0, cornerRadius = 0, bgColor = null){
+  const width = cols * cellSize + (cols - 1) * gap;
+  const height = rows * cellSize + (rows - 1) * gap;
+  const parser = new DOMParser();
+  let defsMarkup = '';
+  // jv: PNG/JPEG's gap fill is user-choosable now (white/black) -- same
+  // choice applies here so a gapped SVG grid doesn't look inconsistent
+  // with the raster export of the same selection. null/omitted means
+  // "no background" (the SVG's own natural transparency), same meaning
+  // as the raster path's transparentBg.
+  let cellsMarkup = bgColor ? `<rect x="0" y="0" width="${width}" height="${height}" fill="${bgColor}"/>` : '';
+
+  resolvedTokens.forEach((token, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const x = col * (cellSize + gap);
+    const y = row * (cellSize + gap);
+    // Rounded corners: a per-cell clipPath (a plain rounded <rect> at this
+    // cell's own x/y) wrapping whatever this cell renders, SVG or raster
+    // alike -- clip-path works the same way regardless of what's inside
+    // it, so this one addition covers both content kinds without
+    // touching the per-kind code below.
+    const clipId = `gdlClip${i}`;
+    let cellOpen = '', cellClose = '';
+    if(cornerRadius > 0){
+      defsMarkup += `<clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="${cornerRadius}" ry="${cornerRadius}"/></clipPath>`;
+      cellOpen = `<g clip-path="url(#${clipId})">`;
+      cellClose = `</g>`;
+    }
+
+    if(token.kind === 'svg'){
+      try{
+        const doc = parser.parseFromString(token.text, 'image/svg+xml');
+        const svgEl = doc.documentElement;
+        if(doc.querySelector('parsererror')) throw new Error('parse error');
+        const viewBox = svgEl.getAttribute('viewBox');
+        let vbW = cellSize, vbH = cellSize;
+        if(viewBox){
+          const parts = viewBox.split(/\s+/).map(Number);
+          if(parts.length === 4){ vbW = parts[2] || cellSize; vbH = parts[3] || cellSize; }
+        }
+        const scale = Math.min(cellSize / vbW, cellSize / vbH);
+        const offsetX = (cellSize - vbW * scale) / 2;
+        const offsetY = (cellSize - vbH * scale) / 2;
+        const inner = svgEl.innerHTML;
+        cellsMarkup += `${cellOpen}<g transform="translate(${x + offsetX}, ${y + offsetY}) scale(${scale})">${inner}</g>${cellClose}`;
+      }catch(_){
+        // Malformed SVG somehow slipped through -- skip this cell rather
+        // than let one bad token corrupt the whole combined file.
+      }
+    } else if(token.kind === 'raster'){
+      cellsMarkup += `${cellOpen}<image x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" preserveAspectRatio="xMidYMid meet" href="${token.url}"/>${cellClose}`;
+    }
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${defsMarkup ? `<defs>${defsMarkup}</defs>` : ''}${cellsMarkup}</svg>`;
+}
+
+// Rasterizes one token (SVG markup or a raster URL) onto an offscreen
+// canvas at its grid cell position. Used for the PNG/JPEG output paths --
+// SVG output (_buildGridSvg above) never touches a canvas at all, which
+// is exactly what keeps it genuinely zoomable rather than resolution-
+// limited.
+// Small helper: traces a rounded-rect path on the given context. Not
+// relying on the native ctx.roundRect (Safari only shipped it fairly
+// recently) -- this works identically everywhere _buildGridRaster runs.
+function _roundRectPath(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function _drawTokenOnCanvas(ctx, token, x, y, cellSize, cornerRadius = 0){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const scale = Math.min(cellSize / img.naturalWidth, cellSize / img.naturalHeight);
+      const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+      const offsetX = x + (cellSize - w) / 2, offsetY = y + (cellSize - h) / 2;
+      // Rounded corners: clip to a rounded-rect covering the whole cell
+      // (not just the drawn image) before drawing, same visual result as
+      // the SVG path's per-cell clipPath -- corners of the cell itself
+      // are rounded, not just whatever image happens to land inside it.
+      if(cornerRadius > 0){
+        ctx.save();
+        _roundRectPath(ctx, x, y, cellSize, cellSize, cornerRadius);
+        ctx.clip();
+      }
+      try{ ctx.drawImage(img, offsetX, offsetY, w, h); }catch(_){}
+      if(cornerRadius > 0) ctx.restore();
+      resolve();
+    };
+    img.onerror = () => resolve(); // skip this cell rather than fail the whole grid
+    if(token.kind === 'svg'){
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(token.text)));
+    }else{
+      img.src = token.url;
+    }
+  });
+}
+
+async function _buildGridRaster(resolvedTokens, rows, cols, cellSize, format, transparentBg, gap = 0, cornerRadius = 0, bgColor = '#ffffff'){
+  const canvas = document.createElement('canvas');
+  canvas.width = cols * cellSize + (cols - 1) * gap;
+  canvas.height = rows * cellSize + (rows - 1) * gap;
+  const ctx = canvas.getContext('2d');
+  // jv: PNG's gap color was hardcoded white -- JPEG has no alpha channel
+  // at all, so it still always needs some fill (was and still is white by
+  // default there since bgColor's own default is white), but PNG's
+  // "otherwise fill white" was never meant to preclude a real choice, just
+  // to avoid unrequested transparency. bgColor is user-chosen now for
+  // either format, transparentBg (the "No background" checkbox) still
+  // wins outright for PNG when it's checked.
+  if(format === 'jpeg' || !transparentBg){
+    ctx.fillStyle = bgColor || '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  for(let i = 0; i < resolvedTokens.length; i++){
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    await _drawTokenOnCanvas(ctx, resolvedTokens[i], col * (cellSize + gap), row * (cellSize + gap), cellSize, cornerRadius);
+  }
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), format === 'jpeg' ? 'image/jpeg' : 'image/png', 0.92);
+  });
+}
+
+// Main entry point. ids: array of token IDs already selected by the user.
+// options: { rows, cols, format: 'svg'|'png'|'jpeg', transparentBg, cellSize }
+// Returns nothing -- triggers a browser download directly, same UX as
+// every other download function in js/downloads.js.
+async function downloadTokenGrid(ids, options, onProgress){
+  const { rows, cols, format, transparentBg } = options;
+  const cellSize = options.cellSize || 1000;
+  // gap is a fraction of cellSize (e.g. 0.04 = 4%), converted to an actual
+  // pixel value here so both composition paths below just deal in pixels.
+  const gap = Math.round(cellSize * (options.gap || 0));
+  // Same fraction-of-cellSize approach as gap, for the same reason.
+  const cornerRadius = Math.round(cellSize * (options.cornerRadius || 0));
+  const capped = ids.slice(0, GRID_DOWNLOAD_MAX_TOKENS);
+  const resolved = [];
+  for(let i = 0; i < capped.length; i++){
+    if(onProgress) onProgress(i + 1, capped.length);
+    const token = await _resolveGridToken(capped[i], transparentBg);
+    if(token) resolved.push(token);
+    else console.warn(`[gridDownload] Could not resolve an image for token #${capped[i]} -- skipped`);
+  }
+  if(!resolved.length){
+    alert('Could not resolve any of the selected tokens\' images. Please try again.');
+    return;
+  }
+
+  // jv confirmed live: downloaded grid had a big blank strip below the
+  // actual content. Root cause -- rows/cols here are just the user's
+  // dropdown pick (e.g. "4 x 4" = 16 cells), passed straight through to
+  // _buildGridSvg/_buildGridRaster as the OUTPUT canvas/viewBox
+  // dimensions, with no relationship at all to how many tokens actually
+  // got selected and resolved. 8 tokens in a 4-column layout only fills
+  // 2 rows; the fixed 4-row canvas left the other 2 rows entirely blank.
+  // cols stays as the user's deliberate per-row layout choice; rows is
+  // recomputed from what's actually being drawn, so the output image is
+  // always exactly as tall as its real content and never taller.
+  const actualRows = Math.ceil(resolved.length / cols);
+
+  const slugPart = (typeof LIVE_SLUG !== 'undefined' && LIVE_SLUG) ? LIVE_SLUG : 'traitview';
+  const filename = `${slugPart}-grid-${actualRows}x${cols}`;
+
+  if(format === 'svg'){
+    const svgText = _buildGridSvg(resolved, actualRows, cols, cellSize, gap, cornerRadius, transparentBg ? null : (options.bgColor || '#ffffff'));
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    _triggerBlobDownload(blob, `${filename}.svg`);
+  }else{
+    const blob = await _buildGridRaster(resolved, actualRows, cols, cellSize, format, transparentBg, gap, cornerRadius, options.bgColor || '#ffffff');
+    if(!blob){
+      alert('Something went wrong building the image. Please try again.');
+      return;
+    }
+    _triggerBlobDownload(blob, `${filename}.${format === 'jpeg' ? 'jpg' : 'png'}`);
+  }
+}
+
+function _triggerBlobDownload(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ---------- Modal / selection-mode wiring ----------
+// window._gridSelectMode is checked by _renderDesktopWalletGrid and
+// _renderMobileWalletGrid (js/app.js) -- when truthy, a card click toggles
+// selection instead of opening the token modal / closing the wallet
+// drawer. window._gridDownloadSelected holds the actual selected IDs.
+
+// jv confirmed live: tapping "Download Grid" from inside the wallet-view
+// drawer itself meant having to manually close the drawer before the
+// modal became reachable -- opening the modal on top isn't enough on its
+// own (z-index alone should put it there, but the drawer is a full-height,
+// near-full-width panel that stays interactive underneath). Closing the
+// drawer first, then opening the modal, guarantees it's never in the way
+// regardless of the exact stacking cause -- same approach already taken
+// for the Connected Holder entry point, which now never visibly opens the
+// drawer in the first place.
+function openGridDownloadFromWalletView(view){
+  if(view === 'mobile'){
+    if(typeof closeMobileWalletDrawer === 'function') closeMobileWalletDrawer();
+  }else{
+    if(typeof toggleWalletDrawer === 'function') toggleWalletDrawer(false);
+  }
+  openGridDownloadModal(view);
+}
+
+function openGridDownloadModal(view){
+  window._gridSelectMode = true;
+  window._gridDownloadView = view; // 'desktop' | 'mobile'
+  window._gridDownloadSelected = new Set();
+  const overlay = document.getElementById('gridDownloadOverlay');
+  if(overlay) overlay.style.display = 'flex';
+  gridDownloadOnFormatChange();
+  _updateGridDownloadCount();
+  _populateGridDownloadTokenGrid(view);
+}
+
+// jv confirmed live: modal had no tokens to actually tap. Populate the
+// in-modal grid, reusing whichever wallet-view render function already
+// built the cards for this wallet -- same ids the drawer itself is
+// showing, just rendered a second time into a container the user can
+// actually reach through this modal. Split out from openGridDownloadModal
+// so openGridDownloadFromConnectedHolder below can open the modal
+// immediately (with a loading placeholder, since ids aren't ready yet)
+// and re-call just this part once the lookup actually finishes, rather
+// than the whole modal only ever opening after the wait was already over.
+function _populateGridDownloadTokenGrid(view){
+  const tokenGrid = document.getElementById('gridDownloadTokenGrid');
+  if(!tokenGrid) return;
+  const ids = view === 'mobile'
+    ? (window._mobileWalletIds || [])
+    : (window._desktopWalletIdsFiltered || window._desktopWalletIds || []);
+  if(!ids.length){
+    tokenGrid.innerHTML = '<div style="grid-column:1/-1;color:var(--sub);font-size:12px;padding:10px 0;text-align:center">Loading tokens…</div>';
+    return;
+  }
+  if(view === 'mobile' && typeof _renderMobileWalletGrid === 'function') _renderMobileWalletGrid(ids, tokenGrid);
+  else if(typeof _renderDesktopWalletGrid === 'function') _renderDesktopWalletGrid(ids, tokenGrid);
+}
+
+// jv confirmed live: expected the Download Grid button in "Connected
+// Holder" (the stats-only panel for a connected wallet), not "Wallet
+// View" (the separate manual-lookup drawer, which is the only one that
+// actually has a token grid to select from). Rather than build a second,
+// separate selection UI for Connected Holder, this reuses the existing
+// Wallet View drawer -- opens it pre-filled with the connected wallet's
+// own address.
+//
+// jv confirmed live (again): this used to await the wallet lookup BEFORE
+// opening the modal, so the user watched the drawer itself open and
+// populate first, then the modal appeared on top afterward -- not the
+// instant modal the button implies. Now opens the modal immediately (it
+// shows its own "Loading tokens…" placeholder via
+// _populateGridDownloadTokenGrid, since ids aren't ready yet), runs the
+// drawer lookup in the background (still needed -- it's where the actual
+// data-fetching logic lives, and gridDownloadOverlay's z-index now
+// correctly keeps it hidden behind the modal instead of the drawer
+// visually winning, a separate z-index bug fixed alongside this), then
+// re-populates just the modal's token grid once that finishes.
+async function openGridDownloadFromConnectedHolder(){
+  if(!CONNECTED_WALLET?.address){
+    alert('Connect a wallet first.');
+    return;
+  }
+  const addr = CONNECTED_WALLET.address;
+  const isMobile = window.innerWidth <= 1100;
+  const view = isMobile ? 'mobile' : 'desktop';
+
+  const others = (TV_DISCORD_LINK?.linkedWallets || []).filter(w => String(w).toLowerCase() !== String(addr).toLowerCase());
+  const useCombined = others.length > 0 && (CONNECTED_WALLET.tokenIds || []).length;
+
+  // Open the modal right away, before anything has loaded.
+  openGridDownloadModal(view);
+
+  // jv confirmed live (a third time): even with the modal opening
+  // immediately and on top (z-index), visibly sliding the wallet drawer
+  // open behind it -- full-width on a narrow phone screen, its own
+  // near-opaque background -- reads as "the wallet view" appearing, not
+  // the download grid. The drawer's DOM elements are only needed here to
+  // drive mobileWalletLookup()/desktopWalletLookup() (confirmed neither
+  // function depends on the drawer's own open/visible state, just reads
+  // its input field and writes to its status/grid elements) -- so this
+  // stops adding the .open class at all for this specific flow. The
+  // lookup still runs, still populates those elements, the modal's own
+  // token grid still gets built from the result; the user just never
+  // sees the drawer itself slide into view for what is, from their
+  // perspective, a single action with a single visible result.
+  if(isMobile){
+    const drawer = document.getElementById('mobileWalletDrawer');
+    if(!drawer) return;
+    const inp = document.getElementById('mobileWalletInput');
+    if(inp) inp.value = addr;
+    const status = document.getElementById('mobileWalletStatus');
+    if(status) status.textContent = 'Loading…';
+    if(typeof mobileWalletLookup === 'function') await mobileWalletLookup();
+    if(useCombined){
+      window._mobileWalletIds = CONNECTED_WALLET.tokenIds;
+      const grid = document.getElementById('mobileWalletGrid');
+      if(grid && typeof _renderMobileWalletGrid === 'function') _renderMobileWalletGrid(CONNECTED_WALLET.tokenIds, grid);
+    }
+  }else{
+    const input = document.getElementById('desktopWalletInput');
+    if(input) input.value = addr;
+    const status = document.getElementById('desktopWalletStatus');
+    if(status) status.textContent = 'Loading…';
+    if(typeof desktopWalletLookup === 'function') await desktopWalletLookup();
+    if(useCombined){
+      window._desktopWalletIds = CONNECTED_WALLET.tokenIds;
+      window._desktopWalletIdsFiltered = CONNECTED_WALLET.tokenIds;
+      const grid = document.getElementById('desktopWalletGrid');
+      if(grid && typeof _renderDesktopWalletGrid === 'function') _renderDesktopWalletGrid(CONNECTED_WALLET.tokenIds, grid);
+    }
+  }
+
+  // Modal is already open (and may have shown its loading placeholder) --
+  // now that the lookup has actually finished, fill it in with the real
+  // tokens.
+  _populateGridDownloadTokenGrid(view);
+}
+
+function closeGridDownloadModal(){
+  window._gridSelectMode = false;
+  const overlay = document.getElementById('gridDownloadOverlay');
+  if(overlay) overlay.style.display = 'none';
+  // Clear the visual "selected" state from any cards still in the DOM.
+  document.querySelectorAll('[data-token-id].grid-dl-selected').forEach(el => el.classList.remove('grid-dl-selected'));
+  const previewWrap = document.getElementById('gridDownloadPreviewWrap');
+  const previewHost = document.getElementById('gridDownloadPreviewHost');
+  if(previewWrap) previewWrap.style.display = 'none';
+  if(previewHost) previewHost.innerHTML = '';
+}
+
+function _invalidateGridDownloadPreview(){
+  const wrap = document.getElementById('gridDownloadPreviewWrap');
+  const host = document.getElementById('gridDownloadPreviewHost');
+  if(wrap) wrap.style.display = 'none';
+  if(host) host.innerHTML = '';
+}
+
+function toggleGridDownloadSelection(id, cardEl){
+  const set = window._gridDownloadSelected || (window._gridDownloadSelected = new Set());
+  if(set.has(id)){
+    set.delete(id);
+    if(cardEl) cardEl.classList.remove('grid-dl-selected');
+  }else{
+    if(set.size >= GRID_DOWNLOAD_MAX_TOKENS){
+      alert(`You can select up to ${GRID_DOWNLOAD_MAX_TOKENS} tokens at once.`);
+      return;
+    }
+    set.add(id);
+    if(cardEl) cardEl.classList.add('grid-dl-selected');
+  }
+  // jv: a clear way to see which order tokens were picked in. Set
+  // insertion order already IS the actual selection order (see
+  // _sortGridDownloadIds's 'selected' comment below) -- this just makes
+  // that order visible, restamping every still-selected card's badge
+  // number each time, since removing one from the middle shifts every
+  // later position down by one.
+  _renumberGridDownloadOrderBadges();
+  _updateGridDownloadCount();
+  _invalidateGridDownloadPreview();
+}
+
+function _renumberGridDownloadOrderBadges(){
+  const grid = document.getElementById('gridDownloadTokenGrid');
+  if(!grid) return;
+  const ids = [...(window._gridDownloadSelected || [])];
+  ids.forEach((id, i) => {
+    const card = grid.querySelector(`[data-token-id="${id}"]`);
+    if(card) card.dataset.gridDlOrder = String(i + 1);
+  });
+}
+
+function _updateGridDownloadCount(){
+  const el = document.getElementById('gridDownloadSelectedCount');
+  const n = window._gridDownloadSelected ? window._gridDownloadSelected.size : 0;
+  if(el) el.textContent = `${n} selected`;
+}
+
+function gridDownloadSelectAll(){
+  const view = window._gridDownloadView;
+  const ids = view === 'mobile' ? window._mobileWalletIds : (window._desktopWalletIdsFiltered || window._desktopWalletIds);
+  if(!ids) return;
+  const capped = ids.slice(0, GRID_DOWNLOAD_MAX_TOKENS);
+  window._gridDownloadSelected = new Set(capped);
+  document.querySelectorAll('[data-token-id]').forEach(el => {
+    const id = Number(el.dataset.tokenId);
+    el.classList.toggle('grid-dl-selected', window._gridDownloadSelected.has(id));
+  });
+  if(ids.length > GRID_DOWNLOAD_MAX_TOKENS){
+    alert(`Selected the first ${GRID_DOWNLOAD_MAX_TOKENS} tokens (the max for one grid).`);
+  }
+  _renumberGridDownloadOrderBadges();
+  _updateGridDownloadCount();
+  _invalidateGridDownloadPreview();
+}
+
+function gridDownloadClearAll(){
+  window._gridDownloadSelected = new Set();
+  document.querySelectorAll('[data-token-id].grid-dl-selected').forEach(el => el.classList.remove('grid-dl-selected'));
+  _updateGridDownloadCount();
+  _invalidateGridDownloadPreview();
+}
+
+function gridDownloadOnFormatChange(){
+  const format = document.getElementById('gridDownloadFormat')?.value;
+  const row = document.getElementById('gridDownloadTransparentRow');
+  const checkbox = document.getElementById('gridDownloadTransparent');
+  // JPEG has no alpha channel -- a "no background" option would be
+  // meaningless (and misleading) for it, so disable rather than let
+  // someone pick a combination that can't actually do what it says.
+  const disabled = format === 'jpeg';
+  if(checkbox) checkbox.disabled = disabled;
+  if(row) row.style.opacity = disabled ? '0.45' : '1';
+  if(disabled && checkbox) checkbox.checked = false;
+  // Background color only means anything when there IS a background:
+  // JPEG always has one (no transparency at all), PNG/SVG only when
+  // "No background" is left unchecked.
+  const bgLabel = document.getElementById('gridDownloadBgColorLabel');
+  const bgSelect = document.getElementById('gridDownloadBgColor');
+  const showBgColor = format === 'jpeg' || !checkbox?.checked;
+  if(bgLabel) bgLabel.style.display = showBgColor ? '' : 'none';
+  if(bgSelect) bgSelect.style.display = showBgColor ? '' : 'none';
+  _invalidateGridDownloadPreview();
+}
+
+// jv: "if it's random can there be an option to select the order in
+// which the photos are" -- it was never actually random (Set insertion
+// order the whole time), but there was no explicit way to choose it.
+// 'selected' is a no-op (preserves whatever order the caller already
+// built, i.e. click order or the wallet view's own current sort);
+// everything else re-sorts by an actual, checkable criterion. Falls back
+// to the original order for any ID missing a rank (RARITY_OBS_RANK not
+// yet populated, or a burned/edge-case token) rather than clumping
+// unranked tokens at one end arbitrarily.
+function _sortGridDownloadIds(ids, order){
+  if(order === 'id_asc') return [...ids].sort((a,b) => a - b);
+  if(order === 'id_desc') return [...ids].sort((a,b) => b - a);
+  if(order === 'rank_asc' || order === 'rank_desc'){
+    const withRank = ids.map((id, i) => ({ id, i, rank: RARITY_OBS_RANK?.get(id) }));
+    const known = withRank.filter(t => t.rank != null);
+    const unknown = withRank.filter(t => t.rank == null).sort((a,b) => a.i - b.i);
+    known.sort((a,b) => order === 'rank_asc' ? a.rank - b.rank : b.rank - a.rank);
+    return [...known, ...unknown].map(t => t.id);
+  }
+  return ids; // 'selected' (default) -- as-is
+}
+
+// jv: "before the download could there be an option to display a
+// preview?" Deliberately calls the exact same _resolveGridToken /
+// _buildGridSvg / _buildGridRaster functions the real download uses --
+// at a smaller cellSize (fast/lightweight for on-screen display; the
+// composition itself, proportions included, is identical either way) --
+// rather than a separate lighter-weight approximation that could end up
+// looking different from what actually downloads.
+async function gridDownloadPreview(){
+  const selected = window._gridDownloadSelected;
+  if(!selected || !selected.size){
+    alert('Select at least one token first.');
+    return;
+  }
+  const gridSize = parseInt(document.getElementById('gridDownloadSize')?.value || '4', 10);
+  const format = document.getElementById('gridDownloadFormat')?.value || 'svg';
+  const transparentBg = !!document.getElementById('gridDownloadTransparent')?.checked;
+  const addGap = !!document.getElementById('gridDownloadGap')?.checked;
+  const rounded = !!document.getElementById('gridDownloadRounded')?.checked;
+  const bgColor = document.getElementById('gridDownloadBgColor')?.value || '#ffffff';
+  const capacity = gridSize * gridSize;
+  let ids = [...selected];
+  if(ids.length > capacity) ids = ids.slice(0, capacity);
+  ids = _sortGridDownloadIds(ids, document.getElementById('gridDownloadOrder')?.value || 'selected');
+
+  const wrap = document.getElementById('gridDownloadPreviewWrap');
+  const host = document.getElementById('gridDownloadPreviewHost');
+  const btn = document.getElementById('gridDownloadPreviewBtn');
+  if(!wrap || !host) return;
+  if(btn){ btn.disabled = true; btn.textContent = 'Building preview…'; }
+  wrap.style.display = 'block';
+  host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Building preview…</div>';
+
+  try{
+    const cellSize = 200; // preview only -- same composition, lower resolution for speed
+    const gap = Math.round(cellSize * (addGap ? 0.04 : 0));
+    const cornerRadius = Math.round(cellSize * (rounded ? 0.06 : 0));
+    const capped = ids.slice(0, GRID_DOWNLOAD_MAX_TOKENS);
+    const resolved = [];
+    for(const id of capped){
+      const token = await _resolveGridToken(id, transparentBg);
+      if(token) resolved.push(token);
+    }
+    if(!resolved.length){
+      host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Could not resolve any of the selected tokens\' images.</div>';
+      return;
+    }
+    const actualRows = Math.ceil(resolved.length / gridSize);
+    if(format === 'svg'){
+      host.innerHTML = _buildGridSvg(resolved, actualRows, gridSize, cellSize, gap, cornerRadius, transparentBg ? null : bgColor);
+      const svgEl = host.querySelector('svg');
+      if(svgEl){ svgEl.style.width = '100%'; svgEl.style.height = 'auto'; svgEl.style.display = 'block'; }
+    }else{
+      const blob = await _buildGridRaster(resolved, actualRows, gridSize, cellSize, format, transparentBg, gap, cornerRadius, bgColor);
+      if(!blob){
+        host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Something went wrong building the preview.</div>';
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      host.innerHTML = `<img src="${url}" style="width:100%;height:auto;display:block">`;
+    }
+  }catch(e){
+    console.error('[gridDownload] Preview failed:', e);
+    host.innerHTML = '<div style="color:var(--sub);font-size:12px;padding:20px">Something went wrong building the preview.</div>';
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Preview'; }
+  }
+}
+
+async function gridDownloadGo(){
+  const selected = window._gridDownloadSelected;
+  if(!selected || !selected.size){
+    alert('Select at least one token first.');
+    return;
+  }
+  const gridSize = parseInt(document.getElementById('gridDownloadSize')?.value || '4', 10);
+  const format = document.getElementById('gridDownloadFormat')?.value || 'svg';
+  const transparentBg = !!document.getElementById('gridDownloadTransparent')?.checked;
+  // jv: "is it possible to create a small gapping between images" -- 4% of
+  // the cell size scales sensibly across every grid size/cellSize combo
+  // rather than a fixed pixel value that would look proportionally huge
+  // on a small grid and barely visible on a large one.
+  const addGap = !!document.getElementById('gridDownloadGap')?.checked;
+  // 6% of cellSize -- roughly matches this same modal's own thumbnail
+  // radius (10px on a 94px card, ~10.6%) without being so large it
+  // clips into the actual art on a tightly-cropped token image.
+  const rounded = !!document.getElementById('gridDownloadRounded')?.checked;
+  const bgColor = document.getElementById('gridDownloadBgColor')?.value || '#ffffff';
+  const capacity = gridSize * gridSize;
+  let ids = [...selected];
+  if(ids.length > capacity){
+    alert(`You selected ${ids.length} tokens but a ${gridSize}×${gridSize} grid only fits ${capacity}. Using the first ${capacity}.`);
+    ids = ids.slice(0, capacity);
+  }
+  ids = _sortGridDownloadIds(ids, document.getElementById('gridDownloadOrder')?.value || 'selected');
+
+  const btn = document.getElementById('gridDownloadGoBtn');
+  const progressEl = document.getElementById('gridDownloadProgress');
+  if(btn){ btn.disabled = true; btn.textContent = 'Building…'; }
+  if(progressEl) progressEl.style.display = 'block';
+
+  try{
+    await downloadTokenGrid(ids, { rows: gridSize, cols: gridSize, format, transparentBg, gap: addGap ? 0.04 : 0, cornerRadius: rounded ? 0.06 : 0, bgColor }, (done, total) => {
+      if(progressEl) progressEl.textContent = `Resolving images: ${done} / ${total}`;
+    });
+    closeGridDownloadModal();
+  }catch(e){
+    console.error('[gridDownload] Failed:', e);
+    alert('Something went wrong building the grid. Please try again.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Download'; }
+    if(progressEl) progressEl.style.display = 'none';
+  }
+}

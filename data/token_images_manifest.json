@@ -1,0 +1,39 @@
+{
+  "chunks": [
+    {
+      "file": "token_images_1.json",
+      "startId": "1",
+      "endId": "2000",
+      "count": 2000,
+      "bytes": 11071310
+    },
+    {
+      "file": "token_images_2.json",
+      "startId": "2001",
+      "endId": "4000",
+      "count": 2000,
+      "bytes": 11009529
+    },
+    {
+      "file": "token_images_3.json",
+      "startId": "4001",
+      "endId": "6000",
+      "count": 2000,
+      "bytes": 11120989
+    },
+    {
+      "file": "token_images_4.json",
+      "startId": "6001",
+      "endId": "8000",
+      "count": 2000,
+      "bytes": 11102913
+    },
+    {
+      "file": "token_images_5.json",
+      "startId": "8001",
+      "endId": "10000",
+      "count": 2000,
+      "bytes": 11111942
+    }
+  ]
+}

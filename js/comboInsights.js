@@ -1,0 +1,369 @@
+/* TraitView comboInsights helpers.
+   Classic script on purpose so existing globals and inline handlers keep working. */
+
+const COMBO_ROWS_CACHE = { ready:false, promise:null, rows:[] };
+const COMBO_COUNT_CACHE = new Map();
+const COMBO_INSIGHT_CACHE = new Map();
+
+function comboNorm(s){ return String(s || '').trim().toLowerCase(); }
+function comboPartTrait(part){ return part?.trait || part?.name || ''; }
+function comboPartKey(part){ return `${comboNorm(comboPartTrait(part))}=${comboNorm(part.value)}`; }
+function comboHasPart(row, part){
+  const wantTrait = comboNorm(comboPartTrait(part));
+  const wantValue = comboNorm(part.value);
+  return row.entries.some(([k,v]) => comboNorm(k) === wantTrait && comboNorm(v) === wantValue);
+}
+function comboTraitCountLabel(count){
+  return count === 1 ? '1 of 1' : `Only ${count}`;
+}
+function comboPct(count){
+  const total = TOKEN_COUNT || 10000;
+  const pct = total ? (count / total) * 100 : 0;
+  return pct < 0.1 ? pct.toFixed(3) : pct.toFixed(2);
+}
+function comboTraitPhrase(entry){
+  if(!entry) return '';
+  return `${entry.value}`;
+}
+function comboPartName(entry){
+  return entry ? entry.name : '';
+}
+function comboPluralType(typeValue){
+  const s = String(typeValue || 'tokens').trim();
+  if(!s) return 'tokens';
+  if(/s$/i.test(s)) return s;
+  return `${s}s`;
+}
+function comboFindTrait(entries, patterns){
+  return entries.find(([k,v]) => patterns.some(re => re.test(k) || re.test(v)))
+    ? (() => {
+        const hit = entries.find(([k,v]) => patterns.some(re => re.test(k) || re.test(v)));
+        return { name: hit[0], value: hit[1] };
+      })()
+    : null;
+}
+function comboUniqueParts(parts){
+  const seen = new Set();
+  return parts.filter(Boolean).filter(part => {
+    const key = comboPartKey(part);
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+async function ensureComboRows(){
+  if(COMBO_ROWS_CACHE.ready) return COMBO_ROWS_CACHE.rows;
+  if(COMBO_ROWS_CACHE.promise) return COMBO_ROWS_CACHE.promise;
+  COMBO_ROWS_CACHE.promise = (async()=>{
+    // jv: "the combo intelligence for argonauts is showing up as OCAS
+    // combo intelligence" -- traced to the exact same race already fixed
+    // for _getTokenImgSrcAsync() (app.js): ensureChunk() falls through to
+    // OCAS's own static chunk files whenever CHUNK_CACHE isn't warmed for
+    // a given index yet, and this ran with no guard against that at all.
+    // If a token's Combo Intelligence got opened before the bulk
+    // /db/all-traits fetch finished warming CHUNK_CACHE for the current
+    // collection, ensureChunk() would silently pull OCAS's own wrong
+    // chunk data -- and since this cache's own .ready flag then stays
+    // true for the rest of the session (only a real collection switch
+    // resets it), that one bad snapshot poisoned every combo lookup after
+    // it, even once CHUNK_CACHE itself later got correctly overwritten by
+    // the real fetch. Awaiting the same promise _getTokenImgSrcAsync()
+    // already exposes for this purpose before ever touching a chunk.
+    if(window._allTraitsPromise) await window._allTraitsPromise;
+    const rows = [];
+    for(const idx of indices()){
+      const ch = await ensureChunk(idx);
+      for(const [sid,data] of Object.entries(ch || {})){
+        const id = +sid;
+        if(!Number.isFinite(id) || id < 1 || id > (TOKEN_COUNT || 10000)) continue;
+        // jv: "the burned tokens still have a rarity rank and combo
+        // intelligence. It shouldn't have either... they're removed
+        // from the collection permanently." Same reasoning as
+        // buildStatsAndRanks()'s own burned-token exclusion (app.js) --
+        // a burned token's trait combo shouldn't count toward any OTHER
+        // token's "how many share this combo" comparison, since it's
+        // gone for good.
+        if(data.burned) continue;
+        const entries = keepEntries(data.traits);
+        if(entries.length) rows.push({ id, entries });
+      }
+    }
+    COMBO_ROWS_CACHE.rows = rows;
+    COMBO_ROWS_CACHE.ready = true;
+    console.log(`[ComboInsights] ensureComboRows built ${rows.length} row(s) for slug=${typeof LIVE_SLUG!=='undefined'?LIVE_SLUG:'?'}`);
+    return rows;
+  })();
+  return COMBO_ROWS_CACHE.promise;
+}
+async function comboCount(parts, notParts){
+  const yes = comboUniqueParts(parts || []);
+  const no = comboUniqueParts(notParts || []);
+  if(!yes.length) return 0;
+  const key = yes.map(comboPartKey).sort().join('|') + (no.length ? `!${no.map(comboPartKey).sort().join('|')}` : '');
+  if(COMBO_COUNT_CACHE.has(key)) return COMBO_COUNT_CACHE.get(key);
+  const rows = await ensureComboRows();
+  let count = 0;
+  for(const row of rows){
+    if(yes.every(part => comboHasPart(row, part)) && no.every(part => !comboHasPart(row, part))) count++;
+  }
+  COMBO_COUNT_CACHE.set(key, count);
+  return count;
+}
+function comboVisualTraits(entries){
+  // Anchor category for the type-based scoring paths below (7 of 9
+  // comboDefs, the type+rare-trait loop, and the trait-exception loop all
+  // key off this). Collections with a literal Type/Base/Species-style
+  // category get it automatically via the pattern match; a collection
+  // without one (confirmed for argonauts: Artifact/Bones/Cloak/Crown/
+  // Fate/Palette/Print/Relic/Sight -- none match) previously left `type`
+  // permanently null, silently disabling most of this file's scoring for
+  // every one of its tokens. comboAnchorCategory (config.js, per
+  // collection) lets a collection designate its own best stand-in
+  // category explicitly instead.
+  const anchorOverride = (typeof COLLECTIONS !== 'undefined' && typeof LIVE_SLUG !== 'undefined' && COLLECTIONS[LIVE_SLUG]?.comboAnchorCategory) || null;
+  const type = anchorOverride
+    ? comboFindTrait(entries, [new RegExp(`^${anchorOverride.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')])
+    : comboFindTrait(entries, [/^type$/i, /base/i, /skin/i, /body/i, /species/i]);
+  const eyes = comboFindTrait(entries, [/eyes?/i]);
+  const teeth = comboFindTrait(entries, [/teeth/i, /mouth/i, /grill/i]);
+  const hair = comboFindTrait(entries, [/^hair$/i, /hair/i]);
+  const facialHair = comboFindTrait(entries, [/facial/i, /beard/i, /mustache/i, /moustache/i]);
+  const headwear = comboFindTrait(entries, [/headwear/i, /\bhat\b/i, /\bcap\b/i, /crown/i, /helmet/i]);
+  const jewellery = comboFindTrait(entries, [/jewellery/i, /jewelry/i, /chain/i, /earring/i, /bracelet/i, /necklace/i, /ring/i, /watch/i, /grill/i]);
+  return { type, eyes, teeth, hair, facialHair, headwear, jewellery };
+}
+function comboInsightSort(a,b){
+  if(a.count !== b.count) return a.count - b.count;
+  return b.weight - a.weight;
+}
+function pushComboInsight(list, insight){
+  if(!insight || !insight.text || !insight.count) return;
+  const key = insight.text.toLowerCase();
+  if(list.some(i => i.text.toLowerCase() === key)) return;
+  list.push(insight);
+}
+async function buildComboInsights(id, row){
+  id = +id;
+  if(COMBO_INSIGHT_CACHE.has(id)) return COMBO_INSIGHT_CACHE.get(id);
+  const entries = keepEntries(row.traits);
+  const total = TOKEN_COUNT || 10000;
+  const visual = comboVisualTraits(entries);
+  const type = visual.type;
+  const traitStats = entries.map(([name,value]) => {
+    const count = (TRAIT_FREQ[name]?.[value]) || 1;
+    const pct = total ? (count / total) * 100 : 0;
+    return { name, value, count, pct };
+  }).sort((a,b) => a.count - b.count);
+  const insights = [];
+  const rareLimit = Math.max(4, Math.floor(total * 0.01));
+
+  for(const t of traitStats.slice(0, 5)){
+    if(t.count <= rareLimit){
+      pushComboInsight(insights, {
+        count: t.count,
+        weight: 70 - t.count,
+        label: comboTraitCountLabel(t.count),
+        text: `${comboTraitPhrase(t)} appears on only ${t.count} tokens.`,
+        meta: `${traitDisplayLabel(t.name)} - ${comboPct(t.count)}% of collection`
+      });
+    }
+  }
+
+  if(type){
+    for(const t of traitStats){
+      if(comboPartKey(t) === comboPartKey(type)) continue;
+      const count = await comboCount([type, t]);
+      if(count > 0 && count <= Math.max(5, Math.floor(total * 0.005))){
+        pushComboInsight(insights, {
+          count,
+          weight: 92 - count,
+          label: count === 1 ? 'Type match' : 'Type combo',
+          text: count === 1
+            ? `This is the only ${type.value} with ${t.value}.`
+            : `Only ${count} ${comboPluralType(type.value)} have ${t.value}.`,
+          meta: `${traitDisplayLabel(type.name)} + ${traitDisplayLabel(t.name)}`
+        });
+      }
+    }
+  }
+
+  const allTraitParts = traitStats.map(t => ({ name:t.name, value:t.value, count:t.count }));
+  // jv: "even if the token isn't rare it should show at least some info
+  // about trait combos about that token and take into account all of
+  // the traits" -- this loop already computes every pair's real combo
+  // count, but only ever kept the ones rare enough to cross the
+  // threshold below, discarding the rest entirely. Capturing all of
+  // them here too so there's always something concrete to show about
+  // this token's actual trait pairs, even when none of them are
+  // individually striking.
+  const allPairs = [];
+  for(let a = 0; a < allTraitParts.length; a++){
+    for(let b = a + 1; b < allTraitParts.length; b++){
+      const p1 = allTraitParts[a], p2 = allTraitParts[b];
+      if(comboPartKey(p1) === comboPartKey(p2)) continue;
+      const count = await comboCount([p1, p2]);
+      allPairs.push({ p1, p2, count });
+      if(count > 0 && count <= Math.max(4, Math.floor(total * 0.004))){
+        pushComboInsight(insights, {
+          count,
+          weight: 84 - count,
+          label: count === 1 ? '1 of 1' : 'Rare combo',
+          text: count === 1
+            ? `No other token shares this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`
+            : `Only ${count} tokens share this ${traitDisplayLabel(p1.name)} + ${traitDisplayLabel(p2.name)} combo.`,
+          meta: `${traitDisplayLabel(p1.name)}: ${p1.value} + ${traitDisplayLabel(p2.name)}: ${p2.value}`
+        });
+      }
+    }
+  }
+
+  const comboDefs = [
+    { label:'Rare combo', parts:[visual.type, visual.eyes], name:'Type + Eyes', weight:86 },
+    { label:'Rare combo', parts:[visual.type, visual.teeth], name:'Type + Teeth', weight:86 },
+    { label:'Rare combo', parts:[visual.type, visual.hair], name:'Type + Hair', weight:82 },
+    { label:'Rare combo', parts:[visual.type, visual.headwear], name:'Type + Headwear', weight:80 },
+    { label:'Rare combo', parts:[visual.type, visual.jewellery], name:'Type + Jewellery', weight:76 },
+    { label:'Face combo', parts:[visual.eyes, visual.teeth], name:'Eyes + Teeth', weight:78 },
+    { label:'Style combo', parts:[visual.hair, visual.headwear], name:'Hair + Headwear', weight:72 },
+    { label:'Face combo', parts:[visual.type, visual.eyes, visual.teeth], name:'Type + Eyes + Teeth', weight:94 },
+    { label:'Face combo', parts:[visual.type, visual.eyes, visual.teeth, visual.hair], name:'Type + Eyes + Teeth + Hair', weight:96 }
+  ];
+
+  for(const def of comboDefs){
+    const parts = comboUniqueParts(def.parts);
+    if(parts.length < 2 || parts.length !== def.parts.filter(Boolean).length) continue;
+    const count = await comboCount(parts);
+    if(count > 0 && count <= Math.max(8, Math.floor(total * 0.008))){
+      pushComboInsight(insights, {
+        count,
+        weight: def.weight - count,
+        label: count === 1 ? '1 of 1' : def.label,
+        text: count === 1
+          ? `No other token shares this ${def.name} combo.`
+          : `Only ${count} tokens share this ${def.name} combo.`,
+        meta: parts.map(p => `${traitDisplayLabel(p.name)}: ${p.value}`).join(' + ')
+      });
+    }
+  }
+
+  const faceParts = comboUniqueParts([visual.type, visual.eyes, visual.teeth, visual.hair, visual.facialHair, visual.headwear]);
+  if(faceParts.length >= 3){
+    const count = await comboCount(faceParts);
+    if(count > 0 && count <= 4){
+      pushComboInsight(insights, {
+        count,
+        weight: 110 - count,
+        label: count === 1 ? '1 of 1' : 'Closest face',
+        text: count === 1
+          ? 'No other token shares this high-impact face combo.'
+          : `Only ${count} tokens share this high-impact face combo.`,
+        meta: faceParts.map(p => traitDisplayLabel(p.name)).join(' + ')
+      });
+    }
+  }
+
+  if(type){
+    for(const t of traitStats.slice(0, 8)){
+      if(comboPartKey(t) === comboPartKey(type) || t.count > 30) continue;
+      const domain = TRAIT_DOMAIN[type.name] || [];
+      const values = domain instanceof Set ? [...domain] : (Array.isArray(domain) ? domain : Object.keys(domain));
+      let top = null;
+      for(const typeValue of values.slice(0, 24)){
+        const candidate = { name:type.name, value:typeValue };
+        const count = await comboCount([t, candidate]);
+        if(!top || count > top.count) top = { value:typeValue, count };
+      }
+      const exceptionCount = top ? t.count - top.count : 0;
+      if(top && top.value !== type.value && exceptionCount > 0 && exceptionCount <= 4){
+        pushComboInsight(insights, {
+          count: exceptionCount,
+          weight: 68 - exceptionCount,
+          label: 'Trait exception',
+          text: `Only ${exceptionCount} ${t.value} tokens are not ${top.value}.`,
+          meta: `${traitDisplayLabel(t.name)} exception within ${traitDisplayLabel(type.name)}`
+        });
+        break;
+      }
+    }
+  }
+
+  const best = insights.sort(comboInsightSort).slice(0, 6);
+  // Rarest pairs first -- most useful ordering for the no-extreme-insights
+  // fallback below, and harmless extra data otherwise.
+  allPairs.sort((a,b) => a.count - b.count);
+  const result = { insights: best, rarest: traitStats.slice(0, 4), allPairs };
+  COMBO_INSIGHT_CACHE.set(id, result);
+  // jv: "I'm still not getting any combo intelligence info" -- even with
+  // zero qualifying insights, renderComboInsights() below is designed to
+  // still show a fallback listing the token's rarest traits, never a
+  // blank panel -- so "nothing at all" points at an exception being
+  // thrown somewhere in this function instead (caught by
+  // hydrateComboInsights's own try/catch, which already logs it, but
+  // this confirms whether execution even reached this far).
+  console.log(`[ComboInsights] token #${id}: ${entries.length} traits, ${insights.length} insight(s) found, ${traitStats.length} traitStats, rareLimit=${rareLimit}`);
+  return result;
+}
+function renderComboInsights(data){
+  if(!data.insights.length){
+    const rare = data.rarest.map(t => `${comboEsc(t.value)} (${t.count})`).join(', ');
+    // jv: "even if the token isn't rare it should show at least some
+    // info about trait combos... and take into account all of the
+    // traits" -- previously stopped at individual trait rarity here,
+    // never showing anything about how this token's traits actually
+    // combine. Every one of its trait pairs (not just ones rare enough
+    // to earn a headline "insight" above) gets listed here instead,
+    // rarest first, so there's always genuine combo-level information
+    // regardless of whether anything about this token is individually
+    // striking.
+    const pairsHtml = (data.allPairs && data.allPairs.length)
+      ? `<div class="combo-pairs-list">${data.allPairs.map(({p1,p2,count}) => `
+          <div class="combo-pair-row">
+            <span>${traitDisplayLabel(p1.name)}: ${comboEsc(p1.value)} + ${traitDisplayLabel(p2.name)}: ${comboEsc(p2.value)}</span>
+            <span class="combo-pair-count">${count === 1 ? '1 of 1' : `${count} tokens`} - ${comboPct(count)}%</span>
+          </div>`).join('')}</div>`
+      : '';
+    return `<div class="combo-insights-fallback">No extreme combo insights found, but this token's rarest traits are: ${rare || 'not available'}.</div>${pairsHtml}`;
+  }
+  return `<div class="combo-insights-list">${data.insights.map(i => `
+    <div class="combo-insight-card">
+      <div class="combo-insight-label">${comboEsc(i.label)}</div>
+      <div class="combo-insight-text">
+        ${comboEsc(i.text)}
+        <div class="combo-insight-meta">${comboEsc(i.meta)} - ${comboPct(i.count)}%</div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+async function hydrateComboInsights(id, row){
+  const body = document.getElementById('comboInsightsBody');
+  if(!body) return;
+  const tokenId = +id;
+  // jv: "the burned tokens still have a rarity rank and combo
+  // intelligence. It shouldn't have either... they're removed from the
+  // collection permanently." A burned token's own combo intelligence is
+  // just as meaningless as its rank would be -- there's no longer a
+  // real "how does this compare to the rest of the collection" for a
+  // token that's gone for good, and ensureComboRows() (above) has
+  // already stopped counting it toward anyone ELSE's combo comparisons
+  // for the same reason.
+  if(row?.burned){
+    body.innerHTML = '<div class="combo-insights-fallback">Combo Intelligence isn\'t shown for burned tokens.</div>';
+    return;
+  }
+  body.innerHTML = '<div class="combo-insights-fallback">Analyzing local trait combos...</div>';
+  try{
+    const data = await buildComboInsights(tokenId, row);
+    if(window._modalCurrentId !== tokenId) return;
+    body.innerHTML = renderComboInsights(data);
+  }catch(e){
+    console.warn('[ComboInsights] failed:', e);
+    if(window._modalCurrentId !== tokenId) return;
+    body.innerHTML = '<div class="combo-insights-fallback">Combo insights could not be generated for this token.</div>';
+  }
+}
+function toggleComboInsights(){
+  const panel = document.getElementById('comboInsightsPanel');
+  const btn = document.getElementById('comboInsightsToggle');
+  if(!panel) return;
+  const collapsed = panel.classList.toggle('is-collapsed');
+  if(btn) btn.textContent = collapsed ? 'Show' : 'Hide';
+}

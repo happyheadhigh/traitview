@@ -1,0 +1,682 @@
+/* TraitView connected wallet controller.
+   Loaded after wallet.js and before app.js.
+   Keep this as a classic script, not an ES module. */
+
+   /* live settings */
+window.addEventListener?.('eip6963:announceProvider', (event) => {
+  const provider = event?.detail?.provider;
+  if(provider && !TV_WALLET_PROVIDERS.includes(provider)) TV_WALLET_PROVIDERS.push(provider);
+});
+try{ window.dispatchEvent(new Event('eip6963:requestProvider')); }catch(_){}
+async function buildConnectedWalletStats(addr, ids){
+  // jv: "inside the 'wallet' analytics tab... the 'Your rarest traits'
+  // data is displaying data/traits from a different collection."
+  // Confirmed the same race already fixed for buildStatsAndRanks()
+  // (app.js), ensureComboRows() (comboInsights.js), and
+  // _getTokenImgSrcAsync(): this reads TRAIT_FREQ and calls fetchRow()
+  // directly with no guard against CHUNK_CACHE not being warmed yet for
+  // the current collection. If this ran before the bulk /db/all-traits
+  // fetch finished, it would silently fall through to OCAS's own static
+  // chunk files -- exactly matching what showed up (Type: Human,
+  // Clothes0, Lip Gloss -- OCAS's own categories, not argonauts').
+  // Awaiting the same promise those other fixes already use before ever
+  // touching a chunk or reading TRAIT_FREQ.
+  if(window._allTraitsPromise) await window._allTraitsPromise;
+  const cleanIds = [...new Set((ids || []).map(Number).filter(Boolean))];
+  // Never mix OS and TV ranks in one comparison — they're different ranking
+  // systems and aren't comparable to each other. Compute "best" purely from
+  // real OS ranks when any exist (OS is always the preferred default), only
+  // falling back to a pure TV-based computation if none of the owned tokens
+  // have an OS rank at all.
+  const osRanks = cleanIds.map(id => Number(OS_RANK_MAP?.get(id) || 0)).filter(Boolean);
+  const tvRanks = cleanIds.map(id => Number(RARITY_OBS_RANK?.get(id) || 0)).filter(Boolean);
+  const bestRank = osRanks.length ? Math.min(...osRanks) : (tvRanks.length ? Math.min(...tvRanks) : null);
+  const bestRankSys = osRanks.length ? 'os' : 'tv';
+  const typeCounts = new Map();
+  const categoryRareHits = new Map();
+  let rarestOwned = null;
+  for(const id of cleanIds.slice(0, 240)){
+    let row = null;
+    try{ row = (ROW_CACHE && ROW_CACHE.get(id)) || await fetchRow(id); }catch(_){}
+    const entries = keepEntries(row?.traits || {});
+    const visual = comboVisualTraits(entries);
+    if(visual.type?.value) typeCounts.set(visual.type.value, (typeCounts.get(visual.type.value) || 0) + 1);
+    for(const [name,value] of entries){
+      const count = (TRAIT_FREQ[name]?.[value]) || TOKEN_COUNT || 10000;
+      if(count <= Math.max(80, (TOKEN_COUNT || 10000) * 0.008)){
+        categoryRareHits.set(name, (categoryRareHits.get(name) || 0) + 1);
+        if(!rarestOwned || count < rarestOwned.count) rarestOwned = { id, name, value, count };
+      }
+    }
+  }
+  const dominantType = [...typeCounts.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+  const strongestCategory = [...categoryRareHits.entries()].sort((a,b)=>b[1]-a[1])[0] || null;
+  const tags = await computeHolderTags(addr, cleanIds);
+  const personality = tags[0]?.label || (dominantType ? `${dominantType[0]} Collector` : (cleanIds.length ? `${(typeof COLLECTIONS !== 'undefined' && COLLECTIONS[LIVE_SLUG]?.name) || 'Collection'} Holder` : 'Visitor'));
+  return { total:cleanIds.length, bestRank, bestRankSys, dominantType, strongestCategory, rarestOwned, tags, personality };
+}
+function renderConnectedHolderPanel(host, stats){
+  if(!host || !stats) return;
+  const rank = stats.bestRank ? rankDiamondHtml(stats.bestRank, 'font-size:13px;font-weight:900;', stats.bestRankSys) : '—';
+  const type = stats.dominantType ? `${stats.dominantType[0]} (${stats.dominantType[1]})` : '—';
+  // jv: "Should it show both wallets?" -- combined stats alone would be
+  // confusing without something indicating why the count is higher than
+  // this one address holds by itself.
+  // jv: "I would like to be able to see what wallets are connected. Not
+  // just 0x... +1 more." -- this only ever showed a bare count, with no
+  // way to actually see which other wallet(s) that count referred to.
+  // Now a small, tappable toggle instead: shows the count as before by
+  // default (compact, doesn't clutter the panel), but tapping it
+  // reveals each other linked wallet's own short address underneath.
+  // Same renderConnectedHolderPanel() call handles both the desktop and
+  // mobile panel, so this fix covers both automatically.
+  const otherWallets = (TV_DISCORD_LINK?.linkedWallets || []).filter(w => String(w).toLowerCase() !== String(CONNECTED_WALLET.address).toLowerCase());
+  const otherCount = otherWallets.length;
+  const addrLabel = otherCount
+    ? `<span id="connectedHolderAddrText">${shortAddr(CONNECTED_WALLET.address)}</span> <a id="connectedHolderXLink" href="#" target="_blank" rel="noopener" style="display:none;margin-left:2px;color:var(--text);vertical-align:middle" title="View on X"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:11px;height:11px;display:block"><path d="M18.9 2H22l-6.77 7.74L23.2 22h-6.25l-4.9-6.84L6.06 22H3l7.24-8.28L.8 2h6.4l4.43 6.2L18.9 2Zm-1.1 18h1.73L6.26 3.9H4.4L17.8 20Z" fill="currentColor"></path></svg></a> <span class="connected-holder-more-toggle" style="opacity:.7;font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" onclick="this.closest('.connected-holder-inner').querySelector('.connected-holder-other-wallets').style.display = this.closest('.connected-holder-inner').querySelector('.connected-holder-other-wallets').style.display === 'none' ? 'block' : 'none'">+${otherCount} more linked</span>`
+    : `<span id="connectedHolderAddrText">${shortAddr(CONNECTED_WALLET.address)}</span> <a id="connectedHolderXLink" href="#" target="_blank" rel="noopener" style="display:none;margin-left:2px;color:var(--text);vertical-align:middle" title="View on X"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:11px;height:11px;display:block"><path d="M18.9 2H22l-6.77 7.74L23.2 22h-6.25l-4.9-6.84L6.06 22H3l7.24-8.28L.8 2h6.4l4.43 6.2L18.9 2Zm-1.1 18h1.73L6.26 3.9H4.4L17.8 20Z" fill="currentColor"></path></svg></a>`;
+  const otherWalletsHtml = otherCount
+    ? `<div class="connected-holder-other-wallets" style="display:none;font-size:11px;opacity:.75;margin-top:2px">${otherWallets.map(w => shortAddr(w)).join(', ')}</div>`
+    : '';
+  host.innerHTML = `
+    <div class="connected-holder-inner">
+      <div class="connected-holder-top">
+        <div class="connected-holder-title">Connected holder</div>
+        <div class="connected-holder-addr">${addrLabel}</div>
+        ${otherWalletsHtml}
+      </div>
+      <div class="connected-holder-stats">
+        <div class="connected-holder-stat"><span>Owned</span><b>${stats.total}</b></div>
+        <div class="connected-holder-stat"><span>Best</span><b>${rank}</b></div>
+        <div class="connected-holder-stat"><span>Type</span><b>${comboEsc(type)}</b></div>
+      </div>
+      <div class="holder-tags">${renderHolderTags(stats.tags)}</div>
+      <div class="connected-holder-actions">
+        <button type="button" class="mispriced-mode-btn ${CONNECTED_WALLET_OWNED_ONLY ? 'active' : ''}" onclick="toggleConnectedOwnedOnly()">Owned only</button>
+        <button type="button" class="mispriced-mode-btn" onclick="if(typeof openGridDownloadFromConnectedHolder==='function') openGridDownloadFromConnectedHolder()">📥 Download Grid</button>
+        <button type="button" class="mispriced-mode-btn" onclick="disconnectTraitViewWallet()">Disconnect</button>
+      </div>
+    </div>`;
+  host.classList.add('is-visible');
+  const empty = document.getElementById('mobileHolderEmpty');
+  // jv: while investigating the multi-wallet issue above, noticed this
+  // showed the exact same "Connect a wallet from the menu..." copy
+  // whenever stats.total was 0 -- whether that's because no wallet is
+  // connected at all, or because a wallet genuinely is connected but
+  // owns zero tokens for this specific collection. This function only
+  // ever runs once a wallet IS connected (renderConnectedHolderPanel is
+  // only called from setConnectedWallet/refreshConnectedWalletForCollectionSwitch),
+  // so the "connect a wallet" copy was always wrong here -- now says
+  // there just aren't any tokens for this collection in that case.
+  if(empty && host.id === 'mobileConnectedHolderPanel'){
+    if(stats.total){
+      empty.style.display = 'none';
+    }else{
+      empty.textContent = 'This wallet doesn\'t own any tokens from this collection.';
+      empty.style.display = 'block';
+    }
+  }
+  // jv: "If a wallet address has a .eth address would it be possible to
+  // show that on traitview and if that wallet/profile has an x account
+  // linked to it, would it be possible to link that x account on
+  // traitview in the wallet view and modal?" Same fetchOwnerIdentity()
+  // (formatUtils.js) the token modal's owner pill uses.
+  const _addrTextEl = host.querySelector('#connectedHolderAddrText');
+  const _xLinkEl = host.querySelector('#connectedHolderXLink');
+  if(_addrTextEl && CONNECTED_WALLET?.address){
+    const _thisAddr = CONNECTED_WALLET.address;
+    fetchOwnerIdentity(_thisAddr).then(identity => {
+      // Only apply if this panel is still showing the same wallet (a
+      // fast disconnect/reconnect shouldn't let a slow, stale lookup
+      // overwrite it).
+      if(CONNECTED_WALLET?.address?.toLowerCase() !== _thisAddr.toLowerCase()) return;
+      if(identity.name) _addrTextEl.textContent = identity.name;
+      if(_xLinkEl && identity.twitter){
+        _xLinkEl.href = `https://x.com/${identity.twitter}`;
+        _xLinkEl.style.display = 'inline-block';
+      }
+    });
+  }
+}
+function updateWalletConnectButtons(status){
+  const connected = !!CONNECTED_WALLET?.address;
+  const label = connected ? shortAddr(CONNECTED_WALLET.address) : (status || 'Connect');
+  ['walletConnectBtn','mobileWalletConnectBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    btn.classList.toggle('connected', connected);
+    if(id === 'mobileWalletConnectBtn'){
+      const text = btn.querySelector('.mobile-menu-label');
+      const arrow = btn.querySelector('.mobile-menu-arrow');
+      // jv: reconnecting a saved wallet on page load briefly calls this
+      // with a `status` (the address, already known from localStorage)
+      // while the actual token lookup is still in flight -- but this
+      // always showed "Connect Wallet" here regardless, ignoring the
+      // address it was just given, purely because CONNECTED_WALLET.address
+      // itself isn't set until that lookup finishes. Not just cosmetic:
+      // combined with a since-fixed bug where that lookup could silently
+      // fail and never finish at all, this interim "Connect Wallet" text
+      // was the ONLY thing ever shown, indistinguishable from a real
+      // disconnected state.
+      if(text) text.textContent = connected ? `Wallet ${label}` : (status ? `Wallet ${status}` : 'Connect Wallet');
+      if(arrow) arrow.textContent = connected ? 'connected' : (status ? 'connecting…' : 'read only');
+    } else {
+      btn.innerHTML = `<span>${connected ? label : label}</span>`;
+    }
+  });
+}
+function closeWalletConnectMenu(){
+  document.getElementById('walletConnectMenu')?.classList.remove('open');
+}
+function _ensureWalletMenu() {
+  let menu = document.getElementById('walletConnectMenu');
+  if(!menu) {
+    // Create menu as direct body child to escape topbar stacking context
+    menu = document.createElement('div');
+    menu.id = 'walletConnectMenu';
+    menu.innerHTML = `
+      <div id="walletConnectMenuConnect" style="display:none">
+        <button type="button" onclick="connectTraitViewWallet();closeWalletConnectMenu()">Connect Wallet</button>
+        <button type="button" onclick="tvShowDiscordVerifyModal();closeWalletConnectMenu()">Discord Verify</button>
+      </div>
+      <div id="walletConnectMenuConnected" style="display:none">
+        <button type="button" onclick="openConnectedWalletView();closeWalletConnectMenu()">Wallet View</button>
+        <button type="button" onclick="tvShowDiscordVerifyModal();closeWalletConnectMenu()">Discord Verify</button>
+        <button type="button" onclick="disconnectTraitViewWallet();closeWalletConnectMenu()">Disconnect</button>
+      </div>`;
+    document.body.appendChild(menu);
+    // Close on outside click
+    document.addEventListener('click', e => {
+      if(menu.classList.contains('open') && !menu.contains(e.target) && e.target.id !== 'walletConnectBtn') {
+        closeWalletConnectMenu();
+      }
+    });
+  }
+  return menu;
+}
+
+function handleWalletConnectButton(event){
+  event?.stopPropagation?.();
+  const menu = _ensureWalletMenu();
+  const btn = document.getElementById('walletConnectBtn');
+  const connectDiv = document.getElementById('walletConnectMenuConnect');
+  const connectedDiv = document.getElementById('walletConnectMenuConnected');
+  const isConnected = !!CONNECTED_WALLET?.address;
+  if(connectDiv) connectDiv.style.display = isConnected ? 'none' : 'block';
+  if(connectedDiv) connectedDiv.style.display = isConnected ? 'block' : 'none';
+
+  // Position relative to button — fixed so it escapes all stacking contexts
+  if(btn) {
+    const rect = btn.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = (rect.bottom + 6) + 'px';
+    menu.style.left = 'auto';
+    menu.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+    menu.style.zIndex = '99999';
+  }
+  menu.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('walletConnectMenu');
+  const wrap = document.getElementById('desktopJumpWallet');
+  if(menu?.classList.contains('open') && wrap && !wrap.contains(e.target)) closeWalletConnectMenu();
+});
+async function setConnectedWallet(addr, chainId, tokenIds, opts={}){
+  const ids = [...new Set((tokenIds || []).map(Number).filter(Boolean))];
+  CONNECTED_WALLET = { address:addr, chainId, tokenIds:ids, tokenSet:new Set(ids), stats:null };
+  window.CONNECTED_WALLET = CONNECTED_WALLET;
+  window._walletTokenIds = ids;
+  window._mobileWalletIds = ids;
+  try{ localStorage.setItem(CONNECTED_WALLET_KEY, JSON.stringify({ address:addr, chainId })); }catch(_){}
+  updateWalletConnectButtons();
+  if(typeof syncFavoritesWithWallet === 'function') syncFavoritesWithWallet(addr).catch(()=>{});
+  const desktopInput = document.getElementById('walletInput');
+  const mobileInput = document.getElementById('mobileWalletInput');
+  if(desktopInput) desktopInput.value = addr;
+  if(mobileInput) mobileInput.value = addr;
+
+  // jv: "reconnected my wallets to traitview after our multi wallet
+  // verification and it's only showing the wallet connected that's
+  // holding argonauts. Should it show both wallets?" Answer: yes -- this
+  // now checks link status FIRST (was previously fire-and-forget after
+  // stats were already computed, so linkedWallets could never have been
+  // used in time even if it existed) and, when this address is Discord-
+  // verified with other wallets linked to the same account, fetches and
+  // combines each of their token ids into the one CONNECTED_WALLET.tokenIds
+  // set everything downstream (stats, the token grid, analytics) already
+  // reads from -- rather than touching every one of those call sites
+  // individually to be multi-wallet-aware.
+  let combinedIds = ids;
+  if(typeof tvCheckLinkStatus === 'function'){
+    try{
+      await tvCheckLinkStatus(addr);
+      const others = (TV_DISCORD_LINK?.linkedWallets || [])
+        .filter(w => String(w).toLowerCase() !== String(addr).toLowerCase());
+      if(others.length){
+        const extraIdLists = await Promise.all(
+          others.map(w => fetchWalletTokenIdsForAddress(w, false).catch(() => []))
+        );
+        combinedIds = [...new Set([...ids, ...extraIdLists.flat()])];
+      }
+    }catch(e){ console.warn('[ConnectedWallet] linked-wallet aggregation failed:', e.message); }
+  }
+  if(combinedIds.length !== ids.length){
+    CONNECTED_WALLET.tokenIds = combinedIds;
+    CONNECTED_WALLET.tokenSet = new Set(combinedIds);
+    window._walletTokenIds = combinedIds;
+    window._mobileWalletIds = combinedIds;
+  }
+
+  const stats = await buildConnectedWalletStats(addr, combinedIds);
+  CONNECTED_WALLET.stats = stats;
+  renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
+  renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
+  if(typeof requestWalletAnalyticsLoad === 'function'){
+    requestWalletAnalyticsLoad(addr, { allowHiddenFetch: !!opts.allowHiddenAnalyticsFetch }).catch(e => console.warn('[WalletAnalytics]', e.message));
+  }
+  if(VS?._nodeCache) VS._nodeCache.clear();
+  if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+}
+
+// jv confirmed live: connecting a wallet, then switching collections,
+// left "Connected Holder" showing the FIRST collection's owned-token
+// count, badges, and rank stats completely unchanged -- OCAS's "Type
+// Human 3" badge still showing on Argonauts, a trait category Argonauts
+// doesn't even have. CONNECTED_WALLET's address is deliberately kept
+// across a switch (see resetCollectionState()'s own comment -- wallet
+// connection is a user-level fact, not collection-scoped), but its
+// tokenIds/tokenSet/stats sub-fields are entirely collection-specific and
+// were never refreshed when the address itself didn't change. Called
+// from _applyCollectionSwitch() after init() so LIVE_CONTRACT/LIVE_CHAIN/
+// TOKEN_COUNT already reflect the new collection before this fetches.
+async function refreshConnectedWalletForCollectionSwitch(){
+  if(!CONNECTED_WALLET?.address) return;
+  try{
+    const ids = await fetchWalletTokenIdsForAddress(CONNECTED_WALLET.address, false);
+    // Same combined-wallet logic as setConnectedWallet -- TV_DISCORD_LINK
+    // persists across a collection switch (it's tied to the connected
+    // address, not the collection), so this must also re-combine or a
+    // multi-wallet user would silently lose their other wallet's tokens
+    // on every switch, even though the initial connection got it right.
+    let combinedIds = ids;
+    const others = (TV_DISCORD_LINK?.linkedWallets || [])
+      .filter(w => String(w).toLowerCase() !== String(CONNECTED_WALLET.address).toLowerCase());
+    if(others.length){
+      const extraIdLists = await Promise.all(
+        others.map(w => fetchWalletTokenIdsForAddress(w, false).catch(() => []))
+      );
+      combinedIds = [...new Set([...ids, ...extraIdLists.flat()])];
+    }
+    CONNECTED_WALLET.tokenIds = combinedIds;
+    CONNECTED_WALLET.tokenSet = new Set(combinedIds);
+    window._walletTokenIds = combinedIds;
+    window._mobileWalletIds = combinedIds;
+    const stats = await buildConnectedWalletStats(CONNECTED_WALLET.address, combinedIds);
+    CONNECTED_WALLET.stats = stats;
+    renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), stats);
+    renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), stats);
+    if(typeof requestWalletAnalyticsLoad === 'function'){
+      requestWalletAnalyticsLoad(CONNECTED_WALLET.address, { allowHiddenFetch:true }).catch(()=>{});
+    }
+    if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+  }catch(e){
+    console.warn('[ConnectedWallet] refresh on collection switch failed:', e.message);
+  }
+}
+
+async function connectTraitViewWallet(){
+  const provider = getTraitViewProvider();
+  if(!provider){
+    if(isMobileWalletContext()){
+      openWalletLaunchModal();
+      return;
+    }
+    alert('No wallet found. Install MetaMask, Coinbase Wallet, Rainbow, or open TraitView in a wallet browser.');
+    return;
+  }
+  updateWalletConnectButtons('Connecting...');
+  try{
+    const accounts = await provider.request({ method:'eth_requestAccounts' });
+    const address = accounts?.[0];
+    if(!address) throw new Error('No wallet address returned.');
+    const chainId = await provider.request({ method:'eth_chainId' }).catch(()=>null);
+    updateWalletConnectButtons('Loading...');
+    const tokenIds = await fetchWalletTokenIdsForAddress(address, true);
+    await setConnectedWallet(address, chainId, tokenIds, { allowHiddenAnalyticsFetch:true });
+  }catch(e){
+    console.warn('[WalletConnect]', e);
+    updateWalletConnectButtons();
+    if(e?.code !== 4001) alert(e?.message || 'Wallet connection failed.');
+  }
+}
+// ── Mobile wallet action sheet ──────────────────────────────────────────────
+// Desktop's #walletConnectMenu is a dropdown anchored to a topbar button that
+// doesn't exist in the mobile layout. Crucially, desktop's menu offers BOTH
+// "Connect Wallet" and "Discord Verify" together even BEFORE a wallet is
+// connected — the first version of this mobile fix only showed a menu once
+// already connected, so tapping "Connect Wallet" while unconnected skipped
+// straight into the connection flow and never surfaced Discord Verify at
+// all. This now mirrors desktop's two-state menu exactly.
+function handleMobileWalletConnectButton(){
+  document.getElementById('mobileWalletActionModal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'mobileWalletActionModal';
+  modal.className = 'wallet-launch-modal open';
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+  const addr = CONNECTED_WALLET?.address;
+  const closeAttr = "document.getElementById('mobileWalletActionModal').remove();";
+  const actions = addr
+    ? `<button type="button" onclick="${closeAttr}if(typeof openMobileWalletDrawer==='function') openMobileWalletDrawer('${comboEsc(addr)}')">Wallet View</button>
+       <button type="button" onclick="${closeAttr}if(typeof tvShowDiscordVerifyModal==='function') tvShowDiscordVerifyModal()">🔗 Discord Verify</button>
+       <button type="button" onclick="${closeAttr}disconnectTraitViewWallet()">Disconnect</button>`
+    : `<button type="button" onclick="${closeAttr}connectTraitViewWallet()">Connect Wallet</button>
+       <button type="button" onclick="${closeAttr}if(typeof tvShowDiscordVerifyModal==='function') tvShowDiscordVerifyModal()">🔗 Discord Verify</button>`;
+  modal.innerHTML = `
+    <div class="wallet-launch-box">
+      <div class="wallet-launch-head">
+        <div class="wallet-launch-title">${addr ? comboEsc(shortAddr(addr)) : 'Wallet'}</div>
+        <button type="button" onclick="document.getElementById('mobileWalletActionModal').remove()" style="background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer;padding:0;line-height:1">×</button>
+      </div>
+      <div class="wallet-launch-actions">${actions}</div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function disconnectTraitViewWallet(){
+  CONNECTED_WALLET = { address:null, chainId:null, tokenIds:[], tokenSet:new Set(), stats:null };
+  window.CONNECTED_WALLET = CONNECTED_WALLET;
+  CONNECTED_WALLET_OWNED_ONLY = false;
+  try{ localStorage.removeItem(CONNECTED_WALLET_KEY); }catch(_){}
+  ['connectedHolderPanel','mobileConnectedHolderPanel'].forEach(id => {
+    const host = document.getElementById(id);
+    if(host){ host.innerHTML = ''; host.classList.remove('is-visible'); }
+  });
+  const empty = document.getElementById('mobileHolderEmpty');
+  if(empty){
+    // Reset back to the original copy -- renderConnectedHolderPanel may
+    // have overwritten this with "doesn't own any tokens" while a
+    // wallet was connected.
+    empty.textContent = 'Connect a wallet from the menu to see holder stats and tags here.';
+    empty.style.display = 'block';
+  }
+  WALLET_ANALYTICS_CACHE.clear();
+  ['walletAnalyticsHost','mobileWalletAnalyticsHost'].forEach(id => {
+    const h = document.getElementById(id);
+    if(h) h.innerHTML = '<div class="wallet-empty-state">Connect a wallet to load real wallet analytics from Railway.</div>';
+  });
+  updateWalletConnectButtons();
+  if(VS?._nodeCache) VS._nodeCache.clear();
+  if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+}
+function toggleConnectedOwnedOnly(){
+  CONNECTED_WALLET_OWNED_ONLY = !CONNECTED_WALLET_OWNED_ONLY;
+  if(CONNECTED_WALLET.stats){
+    renderConnectedHolderPanel(document.getElementById('connectedHolderPanel'), CONNECTED_WALLET.stats);
+    renderConnectedHolderPanel(document.getElementById('mobileConnectedHolderPanel'), CONNECTED_WALLET.stats);
+  }
+  if(typeof renderTokenGridFromState === 'function') renderTokenGridFromState();
+}
+function openConnectedWalletView(){
+  const addr = CONNECTED_WALLET?.address;
+  if(!addr) return;
+  if(window._tvIsPhone() && typeof openMobileWalletDrawer === 'function'){
+    openMobileWalletDrawer(addr);
+    return;
+  }
+  const walletInput = document.getElementById('walletInput');
+  const walletBody = document.getElementById('walletPanelBody');
+  const walletPanel = document.getElementById('walletPanel');
+  if(walletInput) walletInput.value = addr;
+  if(walletBody) walletBody.style.display = 'block';
+  if(walletPanel) walletPanel.classList.add('open');
+  document.getElementById('walletLookupBtn')?.click();
+}
+async function initTraitViewWallet(){
+  updateWalletConnectButtons();
+  const provider = getTraitViewProvider();
+  if(provider && !provider._traitViewBound){
+    provider._traitViewBound = true;
+    provider.on?.('accountsChanged', async accounts => {
+      if(!accounts?.length) disconnectTraitViewWallet();
+      else {
+        const chainId = await provider.request({ method:'eth_chainId' }).catch(()=>null);
+        const ids = await fetchWalletTokenIdsForAddress(accounts[0], true).catch(()=>[]);
+        await setConnectedWallet(accounts[0], chainId, ids, { allowHiddenAnalyticsFetch:true });
+      }
+    });
+    provider.on?.('chainChanged', chainId => {
+      if(CONNECTED_WALLET?.address){ CONNECTED_WALLET.chainId = chainId; window.CONNECTED_WALLET = CONNECTED_WALLET; }
+    });
+  }
+  // jv: "The last wallet I connected with is the wallet that hold
+  // argonauts and that is the only wallet be recognized by the site."
+  // Confirmed the actual cause: for a dynamically-discovered collection
+  // (nekoadz), LIVE_CONTRACT/LIVE_CHAIN can still be pointing at the
+  // fallback default (OCAS) at the exact moment this runs, since this
+  // fires on the very early DOMContentLoaded event, before
+  // app.js's own collections-discovery fetch has necessarily resolved.
+  // Every wallet holdings check below -- both the directly-connected
+  // wallet and any linked wallet the combining logic in
+  // setConnectedWallet() pulls in -- reads LIVE_CONTRACT/LIVE_CHAIN at
+  // call time, so running this before the real collection is active
+  // meant it silently checked the wrong contract for every wallet
+  // involved, every time, on a fresh page load of any collection that
+  // isn't in the hardcoded baseline. Waiting for the same promise
+  // app.js exposes for exactly this purpose before touching a single
+  // wallet.
+  if(window._collectionsReadyPromise) await window._collectionsReadyPromise;
+  try{
+    const saved = JSON.parse(localStorage.getItem(CONNECTED_WALLET_KEY) || 'null');
+    if(saved?.address){
+      const cached = readConnectedWalletTokenCache(saved.address);
+      if(cached){
+        setConnectedWallet(saved.address, saved.chainId || null, cached);
+      } else {
+        // Cache is cold (expired after 10min, or first visit this session) —
+        // still fetch fresh and properly reconnect, rather than just showing
+        // the address in the button with CONNECTED_WALLET left unset. Leaving
+        // it unset here meant tvCheckLinkStatus never ran, so "Discord Verify"
+        // always looked unlinked even for an already-linked wallet.
+        updateWalletConnectButtons(shortAddr(saved.address));
+        fetchWalletTokenIdsForAddress(saved.address, false).then(ids => {
+          setConnectedWallet(saved.address, saved.chainId || null, ids);
+        }).catch(()=>{});
+      }
+    }
+  }catch(_){}
+}
+document.addEventListener('DOMContentLoaded', initTraitViewWallet);
+
+
+// ── Discord↔TraitView verification ───────────────────────────────────────────
+// TV_DISCORD_LINK reflects the live server-side link status for the
+// currently connected wallet - checked fresh on every connection via
+// /tv/link-status-by-wallet rather than cached client-side. This means
+// verification persists correctly across browser sessions and even
+// different computers, since it's a straight lookup by wallet address
+// against the server's traitview_links table, not anything stored locally.
+let TV_DISCORD_LINK = null;
+
+// jv: "For some reason it's literally only on the on chain all stars
+// collection page that it's only reading 1 of my wallets" / "There
+// should be 2 wallets connected and it's only seeing 1!" Actual root
+// cause, confirmed via the on-page debug line: this hit RAILWAY_API,
+// which activateCollection() sets per-collection -- and OCAS's own
+// apiBase points at a genuinely separate, older, OCAS-only Railway
+// service (see the COLLECTIONS registry comment in config.js: "no
+// collections table, no multi-collection schema at all -- predates
+// that architecture entirely"). Discord-wallet-linking is a
+// cross-collection, user-level concept, not something scoped to any
+// one collection's own data -- it lives only on the newer
+// tv-bot-api-production service, which is exactly what TV_BOT_API_BASE/
+// TV_BOT_API_KEY already point to (config.js). So on OCAS specifically,
+// this was deterministically asking the wrong backend entirely, every
+// single time -- not a race or a flaky network call, which is exactly
+// why retrying never helped and why this was perfectly consistent
+// rather than intermittent.
+async function tvCheckLinkStatus(wallet, _attempt=1){
+  if(!wallet) { TV_DISCORD_LINK = null; return null; }
+  try{
+    const url = `${TV_BOT_API_BASE}/tv/link-status-by-wallet?wallet=${encodeURIComponent(wallet)}&key=${TV_BOT_API_KEY}`;
+    const r = await fetch(url);
+    const data = await r.json();
+    if(data?.linked){
+      // jv: "Should it show both wallets?" -- linkedWallets (new field
+      // from the API) is every wallet ever linked to this same Discord
+      // account via the bot's own multi-wallet system, not just this one
+      // traitview_links row. Falls back to just this wallet if the API
+      // hasn't deployed the new field yet or returns nothing, so this
+      // never silently narrows to zero wallets.
+      TV_DISCORD_LINK = { discord_id: data.discord_id, wallet, guild_id: data.guild_id, linkedWallets: (data.linkedWallets && data.linkedWallets.length) ? data.linkedWallets : [wallet.toLowerCase()] };
+    } else {
+      TV_DISCORD_LINK = null;
+    }
+  }catch(e){
+    if(_attempt < 3){
+      await new Promise(resolve => setTimeout(resolve, 400 * _attempt));
+      return tvCheckLinkStatus(wallet, _attempt + 1);
+    }
+    console.warn('[TVLinkStatus]', e.message);
+  }
+  return TV_DISCORD_LINK;
+}
+
+async function tvDiscordClaimCode(code) {
+  const clean = (code || '').trim().toUpperCase();
+  if(clean.length !== 6) throw new Error('Code must be 6 characters');
+  // Same fix as tvCheckLinkStatus just above -- Discord-wallet-linking is
+  // cross-collection, so this needs the TV Bot platform's own endpoint,
+  // not whichever collection happens to be active.
+  const url = `${TV_BOT_API_BASE}/tv/claim-code?key=${TV_BOT_API_KEY}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: clean }),
+  });
+  const data = await r.json();
+  if(!r.ok) throw new Error(data.error || 'Claim failed');
+  TV_DISCORD_LINK = { discord_id: data.discord_id, wallet: data.wallet, guild_id: data.guild_id };
+  return TV_DISCORD_LINK;
+}
+
+async function tvShowDiscordVerifyModal(opts={}) {
+  // Remove any existing modal
+  document.getElementById('tv-discord-modal')?.remove();
+
+  // opts.wallet lets a caller check/link a SPECIFIC address instead of
+  // whatever's currently connected in the browser -- used by the ?wallet=
+  // deep-link flow, where there's no actual wallet connection yet (the
+  // point is to get the user there without one).
+  const addr = opts.wallet || CONNECTED_WALLET?.address;
+  if(addr && typeof tvCheckLinkStatus === 'function'){
+    try{ await tvCheckLinkStatus(addr); }catch(_){}
+  }
+  const alreadyLinked = !opts.force && addr && TV_DISCORD_LINK && String(TV_DISCORD_LINK.wallet||'').toLowerCase() === String(addr).toLowerCase();
+
+  const modal = document.createElement('div');
+  modal.id = 'tv-discord-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9999';
+
+  if(alreadyLinked){
+    modal.innerHTML = `
+      <div style="background:var(--surface,#1a1d23);border:1px solid rgba(28,255,175,.25);border-radius:12px;padding:28px;max-width:400px;width:calc(100% - 32px);box-shadow:0 16px 48px rgba(0,0,0,.55);text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <div style="font:700 15px/1 'Space Grotesk',system-ui,sans-serif;color:var(--text,#e6e8eb);margin-bottom:8px">Already Linked</div>
+        <p style="color:var(--sub,#8b8fa8);font-size:13px;margin:0 0 20px;line-height:1.5">This wallet is already linked to your Discord account.</p>
+        <div style="display:flex;gap:8px">
+          <button id="tv-dc-relink" style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--sub,#8b8fa8);font:600 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Link a different code</button>
+          <button id="tv-dc-close" style="padding:9px 14px;border-radius:8px;border:none;background:#1CFFAF;color:#0a0f16;font:700 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Done</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#tv-dc-close').addEventListener('click', () => modal.remove());
+    modal.querySelector('#tv-dc-relink').addEventListener('click', () => { modal.remove(); tvShowDiscordVerifyModal({ force:true }); });
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+    return;
+  }
+
+  modal.innerHTML = `
+    <div style="background:var(--surface,#1a1d23);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:28px 28px 24px;max-width:400px;width:calc(100% - 32px);box-shadow:0 16px 48px rgba(0,0,0,.55)">
+      <div style="font:700 15px/1 'Space Grotesk',system-ui,sans-serif;color:var(--text,#e6e8eb);margin-bottom:8px">Discord Verify</div>
+      <p style="color:var(--sub,#8b8fa8);font-size:13px;margin:0 0 20px;line-height:1.5">
+        In Discord, open <b style="color:var(--text,#e6e8eb)">/me → TraitView → Generate Code</b>, then enter the 6-character code below.
+      </p>
+      <input id="tv-dc-input" maxlength="6" placeholder="Enter code"
+        style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:var(--text,#e6e8eb);font:700 20px/1 'Space Grotesk',monospace;letter-spacing:8px;text-align:center;text-transform:uppercase;outline:none;margin-bottom:10px;transition:border-color .15s">
+      <div id="tv-dc-err" style="color:#ed4245;font-size:12px;min-height:18px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button id="tv-dc-submit" style="flex:1;padding:9px;border-radius:8px;border:none;background:#1CFFAF;color:#0a0f16;font:700 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Verify</button>
+        <button id="tv-dc-cancel" style="padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--sub,#8b8fa8);font:600 13px/1 'Space Grotesk',system-ui,sans-serif;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector('#tv-dc-input');
+  const errEl = modal.querySelector('#tv-dc-err');
+  const submitBtn = modal.querySelector('#tv-dc-submit');
+
+  input.focus();
+  input.addEventListener('input', () => { input.value = input.value.toUpperCase(); errEl.textContent = ''; });
+  modal.querySelector('#tv-dc-cancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+
+  submitBtn.addEventListener('click', async () => {
+    const code = input.value.trim();
+    if(code.length < 6) { errEl.textContent = 'Enter the full 6-character code.'; return; }
+    errEl.textContent = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Verifying...';
+    try {
+      const link = await tvDiscordClaimCode(code);
+      modal.remove();
+      // Clean up URL params if present (?verify=true from the generic verify
+      // flow, ?wallet= from the deep-link flow that opened this modal because
+      // the wallet wasn't linked yet)
+      const url = new URL(window.location.href);
+      if(url.searchParams.has('verify')) { url.searchParams.delete('verify'); window.history.replaceState({}, '', url); }
+      if(url.searchParams.has('wallet')) { url.searchParams.delete('wallet'); window.history.replaceState({}, '', url); }
+      tvShowLinkedBanner(link.wallet);
+      // Auto-load wallet analytics with the verified wallet, and land them on
+      // the Wallet tab so linking actually shows them something instead of
+      // silently loading data in the background.
+      if(link.wallet) {
+        try {
+          const ids = await fetchWalletTokenIdsForAddress(link.wallet);
+          await setConnectedWallet(link.wallet, null, ids, { allowHiddenAnalyticsFetch: true });
+          if(typeof switchTopTab === 'function') switchTopTab('wallet');
+        } catch(e) {
+          console.warn('[TVVerify] auto-load wallet failed:', e.message);
+        }
+      }
+    } catch(e) {
+      const msgs = {
+        invalid_code: 'Invalid code. Check Discord and try again.',
+        code_expired: 'Code expired. Generate a new one in Discord.',
+        code_already_used: 'Code already used. Generate a new one in Discord.',
+      };
+      errEl.textContent = msgs[e.message] || e.message;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Verify';
+    }
+  });
+}
+
+// Auto-open verify modal if ?verify=true in URL
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('verify') === 'true') {
+    // Wait for page to load before showing modal
+    window.addEventListener('load', () => setTimeout(tvShowDiscordVerifyModal, 500));
+  }
+})();
+
+function tvShowLinkedBanner(wallet) {
+  const short = wallet ? wallet.slice(0,6)+'...'+wallet.slice(-4) : '';
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#23a55a;color:#fff;padding:12px 24px;border-radius:10px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+  banner.textContent = `✅ Discord linked! Wallet: ${short}`;
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 5000);
+}
+
+

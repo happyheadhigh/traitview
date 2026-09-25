@@ -1,0 +1,17 @@
+# Cloudflare Workers static assets deployment (npx wrangler deploy) does NOT
+# read .gitignore when scanning the assets directory for files to upload --
+# that's a Pages-only behavior. This is the Workers-specific equivalent.
+# Confirmed from the actual failed build log: node_modules/workerd/bin/workerd
+# (121 MiB, Wrangler's own runtime binary, pulled in fresh on every build
+# since Wrangler isn't a committed dependency) was being uploaded as a site
+# asset, exceeding the 25 MiB per-asset limit and failing every deploy.
+node_modules
+node_modules/**
+.git
+.git/**
+.wrangler
+.wrangler/**
+package.json
+package-lock.json
+wrangler.jsonc
+.assetsignore

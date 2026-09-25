@@ -1,0 +1,27 @@
+{
+  "_scale": 10000,
+  "_notes": "Starter file. Replace with weights from the on-chain Probabilities contract. BodyType values are from the contract; others are placeholders.",
+  "BodyType": {
+    "Alien": 30,
+    "Ape": 70,
+    "Human 1": 1550,
+    "Human 2": 1550,
+    "Human 3": 1550,
+    "Human 4": 1550,
+    "Human 5": 1550,
+    "Human 6": 1550,
+    "Radioactive": 40,
+    "Skeleton": 70,
+    "Zombie": 500,
+    "Demonic": 25
+  },
+  "Clothes": {
+    "Bare Chest": 3800,
+    "Open Shirt White": 500,
+    "Gold Chain": 700
+  },
+  "Teeth": {
+    "Full Teeth": 800,
+    "None": 2759
+  }
+}

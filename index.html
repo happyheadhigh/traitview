@@ -1,0 +1,1335 @@
+<!DOCTYPE html><!-- tv-build-v7 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <!-- Installable app (PWA). jv: "I think I want to build out an app for
+       traitview" -> started as an installable web app: home-screen icon,
+       opens full-screen, updates with every normal deploy (no store). -->
+  <script>
+    // Phone vs desktop, defined ONCE. jv: "Full screen chart view is just
+    // really buggy over all" (iPhone, landscape, installed app). The site
+    // used "wider than 900px = desktop", and an iPhone in landscape is
+    // wider than that -- so it got the desktop layout, desktop modal and
+    // desktop chart behavior on a ~390px-tall touch screen. A phone is a
+    // narrow screen OR a short touch screen (<= 500px tall: every phone in
+    // landscape, no tablets). CSS uses the same rule (see styles.css).
+    // jv: "When opening the loading screen, it wants to load in the original
+    // site themes before the minimal theme options were added. I only want
+    // the loading screen to have the dark and light minimal theme strictly."
+    // The theme was only applied at the end of app.js, so the first paint used
+    // the base (original Slate) styles. Set it here, before anything draws:
+    // Minimal Light if that's the saved theme, otherwise Minimal Dark. The
+    // saved theme is applied as usual once the app has loaded.
+    (function(){
+      // The app stores light/dark as 'minimalTheme' ('off' | 'light' | 'dark').
+      var m = ''; try{ m = (localStorage.getItem('minimalTheme') || '').toLowerCase(); }catch(_){}
+      var early = m === 'light' ? 'minimal-light' : 'minimal-dark';
+      document.documentElement.setAttribute('data-theme', early);
+      document.documentElement.style.backgroundColor = early === 'minimal-light' ? '#e0e0e3' : '#050505';
+      window._tvEarlyTheme = early;
+    })();
+    window._tvIsPhone = function(){
+      if(window.innerWidth <= 900) return true;
+      return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.innerHeight <= 500);
+    };
+  </script>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0a0a0a">
+  <script>(function(){ var m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content', window._tvEarlyTheme === 'minimal-light' ? '#e0e0e3' : '#050505'); })();</script>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="TraitView">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <link rel="apple-touch-icon" href="/images/icons/apple-touch-icon-180.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/icons/favicon-32.png">
+  <base href="./">
+  <!-- jv: bare traitview.com (no ?collection=, no ?jump=/?token=, no /token/:slug/:id
+       path) should show a landing page instead of jumping straight into OCAS.
+       Runs synchronously here, before any CSS paints or the body even exists,
+       specifically to avoid a flash of the app UI before JS elsewhere gets a
+       chance to hide it -- a style tag injected this early applies before the
+       browser's first paint. Deliberately mirrors collectionSlugFromUrl()'s own
+       ?collection= / /token/:slug/:id detection (config.js) rather than
+       duplicating slightly different logic that could disagree with it.
+       jv confirmed live: the mobile bottom nav bar (#mobileBottomBar) still
+       showed on the landing page. Root cause -- it's a sibling of #mainApp in
+       the DOM, not a descendant (so is #jumpSpot and a few other drawer/menu
+       containers), so hiding #mainApp specifically never touched it. Hiding
+       every direct child of <body> except #landingPage instead, rather than
+       chasing each sibling's id individually -- catches this and any other
+       stray top-level element without needing to know about it by name.
+       jv confirmed live AGAIN: #mobileBottomBar still showed even after that
+       fix. Real cause this time -- css/styles.css has its own
+       #mobileBottomBar{display:flex!important} (inside a mobile media
+       query), and an ID selector beats a universal one (body > *) even with
+       !important on both sides, regardless of load order. Same confirmed
+       for #floatFilterBtn. Repeating each id selector twice artificially
+       boosts specificity past a single ID match so this wins regardless of
+       stylesheet load order. js/landing.js carries a JS-based safety net
+       for any other such escapee this missed or that gets added later --
+       this CSS layer handles the two confirmed cases instantly, with no
+       flash, before that JS ever runs. -->
+  <script>
+    (function(){
+      var params = new URLSearchParams(location.search);
+      var hasCollection = params.has('collection') || /^\/token\/[^\/]+\/\d+/.test(location.pathname);
+      var hasJump = params.has('jump') || params.has('token');
+      if(!hasCollection && !hasJump){
+        document.write('<style>body > *{display:none!important}#landingPage{display:block!important}#mobileBottomBar#mobileBottomBar{display:none!important}#floatFilterBtn#floatFilterBtn{display:none!important}</style>');
+        window.__TV_LANDING__ = true;
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://cdn.plot.ly">
+  <!-- jv: "The landing page takes a while to load. Actually takes longer
+       than the collections page." Plotly (~3.6 MB) was a <script defer>
+       listed FIRST, and deferred scripts run strictly in document order --
+       so landing.js, app.js and everything else waited for the entire
+       charting library to download before the landing page could even
+       start fetching its collection cards. The landing page has no charts.
+       Now Plotly loads without blocking anything: immediately on a
+       collection page, after the page has loaded on the landing page (so
+       it doesn't compete with the cards on a slow connection), and on
+       demand the moment any chart needs it (window.ensurePlotly, called
+       from each chart's existing "Plotly not ready yet, retry" guard). -->
+  <script>
+    (function(){
+      var started = false;
+      window.ensurePlotly = function(){
+        if(started || window.Plotly) return;
+        started = true;
+        var s = document.createElement('script');
+        s.src = 'https://cdn.plot.ly/plotly-2.30.0.min.js';
+        s.async = true;
+        s.onerror = function(){ started = false; };
+        document.head.appendChild(s);
+      };
+      if(window.__TV_LANDING__){
+        window.addEventListener('load', function(){ setTimeout(window.ensurePlotly, 1500); });
+      } else {
+        window.ensurePlotly();
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <!-- keep all your original CSS/JS tags after this -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MOBILE OVERRIDES — consolidated (max-width:900px only)
+     Desktop untouched.
+═══════════════════════════════════════════════════════════════ -->
+  <link rel="stylesheet" href="./css/styles.css?v=202609428">
+</head>
+<body>
+<div id="jumpSpot"><div class="title"><span>Quick preview</span><div><span class="note">Not in current filters</span> <button class="close" onclick="document.getElementById('jumpSpot').style.display='none'">Close</button></div></div><div id="jumpSpotBody"></div></div>
+<div id="landingPage" style="display:none">
+
+  <!-- ===== HERO ===== -->
+  <section id="landingHero" style="position:relative;overflow:hidden;text-align:center;padding:52px 20px 40px">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%, rgba(45,212,191,.14), transparent 70%);pointer-events:none"></div>
+    <div id="landingHeroInner" style="position:relative;max-width:640px;margin:0 auto">
+      <div id="landingHeroBrand" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px">
+        <img src="./images/traitview-logo.png" alt="" style="width:38px;height:38px;border-radius:10px" onerror="this.style.display='none'">
+        <span style="font-size:26px;font-weight:800;letter-spacing:.2px">Trait <span style="color:#2dd4bf">View</span></span>
+      </div>
+      <h1 id="landingHeroHeadline" style="font-size:30px;font-weight:800;margin:0 0 10px;line-height:1.2">Your collection. <br>From every angle.</h1>
+      <p id="landingHeroDesc" style="color:var(--sub);font-size:14px;line-height:1.55;margin:0 0 26px;max-width:480px;margin-left:auto;margin-right:auto">
+        Traits, rarity, floors and holders on the web. Sales, alerts and sweeps in Discord.
+      </p>
+      <!-- jv: hero buttons removed. Collections are right below the header,
+           and the Discord bot is the floating button bottom-right. -->
+    </div>
+  </section>
+
+  <!-- ===== COLLECTION HUB ===== -->
+  <section id="landingCollectionsSection" style="max-width:1040px;margin:0 auto;padding:8px 20px 48px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <h2 style="font-size:18px;margin:0;flex-shrink:0">Collections</h2>
+      <input id="landingSearch" type="text" placeholder="Search collections…" style="flex:1;min-width:140px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 12px;border-radius:8px">
+      <button type="button" id="landingCustomizeBtn" class="landing-customize-btn" style="background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;flex-shrink:0">Customize</button>
+    </div>
+    <div id="landingCustomizeBar" style="display:none;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--sub)">
+      <span>⠿ Drag cards to reorder</span>
+      <button type="button" id="landingHiddenBtn" style="background:var(--soft);border:none;color:var(--text);font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;cursor:pointer">Hidden (0)</button>
+      <button type="button" id="landingResetBtn" style="background:none;border:none;color:var(--sub);font-size:12px;text-decoration:underline;cursor:pointer;padding:0">Reset layout</button>
+    </div>
+    <div id="landingCollectionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+      <div style="grid-column:1/-1;color:var(--sub);font-size:13px;padding:20px 0;text-align:center">Loading collections…</div>
+    </div>
+  </section>
+
+  <!-- ===== BOT SHOWCASE ===== -->
+  <section style="max-width:760px;margin:0 auto;padding:8px 20px 48px;text-align:center">
+    <h2 style="font-size:20px;margin:0 0 6px">TraitView lives in Discord, too.</h2>
+    <p style="color:var(--sub);font-size:14px;margin:0 0 24px">Everything your collection needs. Right where your community already is.</p>
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:340px;margin:0 auto 20px">
+      <div id="landingBotDemo" style="min-height:44px;transition:opacity .2s ease"></div>
+    </div>
+    <div id="landingBotPills" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:24px"></div>
+    <a href="#" target="_blank" rel="noopener" class="landing-bot-invite" style="display:inline-block;background:#2dd4bf;color:#000!important;font-weight:800;font-size:14px;padding:11px 24px;border-radius:10px;text-decoration:none">Add TraitView to Discord</a>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer style="max-width:640px;margin:0 auto;text-align:center;color:var(--sub);font-size:13px;line-height:1.7;padding:20px 20px 80px;border-top:1px solid var(--border)">
+    <p style="margin:20px auto 10px">
+      TraitView was built for the <b style="color:var(--text)">On-Chain All Stars</b> community,
+      and has grown from there into a fun side project I hope other collections and their
+      communities can use and get some real value out of.
+    </p>
+    Created by <a href="#" id="landingTwitterLink" target="_blank" rel="noopener" style="color:#2dd4bf!important;text-decoration:none;font-weight:600">@jv</a>
+  </footer>
+
+  <!-- ===== FLOATING HELP CONTROLS ===== -->
+  <!-- jv confirmed live: these scroll with the page -- the comment above
+       wireFloatingControls() already called them "floating controls near
+       the bottom-right", but this container never actually got
+       position:fixed, so they were always just normal, in-flow elements
+       sitting after the footer. Also switched the bot-invite button to
+       Discord's own blurple background (#5865F2) rather than the generic
+       var(--panel) -- the icon's own fill is a light, near-white color
+       (correct per Discord's official light-on-blurple asset, same file
+       used everywhere else on this page), which only reads clearly
+       against a blurple or dark background, not necessarily var(--panel)
+       in every theme. -->
+  <div id="landingFloatingControls" style="position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));right:20px;z-index:50;display:flex;gap:10px">
+    <button type="button" id="landingHelpBtn" title="Help & FAQ" style="width:44px;height:44px;border-radius:50%;background:var(--panel);border:1.5px solid color-mix(in srgb, var(--text) 45%, transparent);color:var(--text);font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3)">?</button>
+    <a href="#" id="landingFloatingBotBtn" target="_blank" rel="noopener" title="Add TraitView Bot" style="width:44px;height:44px;border-radius:50%;background:#5865F2;border:1px solid color-mix(in srgb, var(--text) 12%, transparent);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 4px 16px rgba(88,101,242,.4)"><img src="./assets/discord-symbol-light-blurple.svg" alt="" aria-hidden="true" width="20" height="20"></a>
+  </div>
+
+  <!-- ===== FAQ MODAL ===== -->
+  <div id="landingFaqModal" style="display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;padding:20px">
+    <div class="landing-modal-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.6)"></div>
+    <div style="position:relative;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:24px">
+      <button type="button" id="landingFaqCloseBtn" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer;line-height:1">×</button>
+      <h2 style="font-size:18px;margin:0 0 18px">FAQ</h2>
+      <div id="landingFaq" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- jv: OpenSea-style banner + avatar above the collection stats bar --
+     full-bleed (edge-to-edge, flush against the top of the page), a
+     direct sibling of #mainApp rather than a child of it specifically so
+     it isn't constrained by .wrap's own 14px side padding. Hidden
+     entirely (see applyCollectionBannerHeader in config.js) whenever the
+     current collection has neither image cached yet -- most collections
+     onboarded before this feature won't until
+     /db/collections/backfill-links has been run for them, and a
+     banner-less empty bar would look broken rather than just absent. -->
+<div id="collectionBannerHeader" style="display:none">
+  <div id="collectionBannerClip">
+    <img id="collectionBannerBg" alt="" aria-hidden="true">
+    <img id="collectionBannerImg" alt="">
+  </div>
+  <div id="collectionBannerFade"></div>
+  <img id="collectionHeaderAvatarImg" alt="">
+  <div id="collectionHeaderName"></div>
+</div>
+
+<div class="wrap" id="mainApp">
+
+  <div class="topbar">
+    <div id="mobileHeaderIdentity">
+      <a id="collectionAvatarLink" href="https://traitview.com" rel="noreferrer" aria-label="TraitView home">
+        <img id="collectionAvatar" src="./images/traitview-logo.png" alt="TraitView logo">
+      </a>
+      <div id="mobileHeaderText">
+        <div class="title"><span class="title-chain">Trait</span><span class="title-stars">View</span></div>
+      </div>
+      <button id="mobileAlertsBtn" onclick="openAlerts()" aria-label="Alerts"><svg class="tv-bell" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 3.5.7 5.7 1.6 7.1.4.6 0 1.4-.7 1.4H5.1c-.7 0-1.1-.8-.7-1.4C5.3 14.7 6 12.5 6 9Z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg></button>
+      <button id="mobileMenuBtn" onclick="toggleMobileMenu()" aria-label="Open menu">☰</button>
+    </div>
+    <span id="info" style="margin-left:4px;color:var(--sub);font-size:11px"></span>
+    <div id="mobileTopRow">
+      <span id="floorPill" title="Current floor price from OpenSea">
+        <span class="fp-label">FLOOR</span>
+        <span id="floorPillValue" class="fp-loading" style="color:inherit">…</span>
+      </span>
+      <span id="floorChange" style="display:none;font-size:11px;font-weight:700;white-space:nowrap;margin-left:4px"></span>
+      <div id="mobileStatsRow">
+        <div class="mstat" id="mstatTotVol" title="Total volume"><span class="mstat-label">VOL</span><b id="mstatTotVolVal">…</b></div>
+        <div class="mstat" id="mstatTotSales" title="Total sales"><span class="mstat-label">SALES</span><b id="mstatTotSalesVal">…</b></div>
+        <div class="mstat" id="mstat24Vol" title="24h volume"><span class="mstat-label">24H</span><b id="mstat24VolVal">…</b></div>
+        <div class="mstat" id="mstat24Sales" title="24h sales"><span class="mstat-label">24H#</span><b id="mstat24SalesVal">…</b></div>
+      </div>
+    </div>
+    <div id="mobileMetaRow" aria-label="Collection summary">
+      <div class="mmeta"><span class="mmeta-label">Chain</span><b id="mmetaChainVal">ETH</b></div>
+      <div class="mmeta"><span class="mmeta-label">Items</span><b id="mmetaItemsVal">10k</b></div>
+      <div class="mmeta"><span class="mmeta-label">Owners</span><b id="mmetaOwnersVal">…</b></div>
+
+    </div>
+
+    <div class="spacer"></div>
+    <div id="desktopJumpWallet" class="wallet-action-group">
+  <button type="button" id="desktopAlertsBtn" class="wallet-action-btn tt" data-tip="Alerts: listings, mints, burns" onclick="openAlerts()" aria-label="Alerts"><svg class="tv-bell" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 3.5.7 5.7 1.6 7.1.4.6 0 1.4-.7 1.4H5.1c-.7 0-1.1-.8-.7-1.4C5.3 14.7 6 12.5 6 9Z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg></button>
+  <button type="button" id="viewWalletBtn" class="wallet-action-btn tt" data-tip="View any wallet's tokens" onclick="toggleWalletDrawer()" aria-label="View wallet">
+    <span id="viewWalletBtnLabel">View Wallet</span>
+  </button>
+  <span class="wallet-action-divider">|</span>
+  <button type="button" id="walletConnectBtn" class="wallet-action-btn wallet-connect-btn" onclick="handleWalletConnectButton(event)" aria-label="Connect wallet" title="Connect wallet">
+    <span>Connect</span>
+  </button>
+  <button type="button" id="popoutBtn" class="popout-btn" onclick="openPopOutWindow()" aria-label="Pop out a floating window" title="Pop out a floating window (desktop Chrome/Edge/Firefox only)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+  </button>
+</div>
+
+  <div id="themePicker" style="display:flex;gap:8px;align-items:center;margin-left:12px;">
+    <button type="button" data-theme="slate" class="tbtn">Slate</button>
+    <button type="button" data-theme="midnight" class="tbtn">Midnight</button>
+    <button type="button" data-theme="cyber" class="tbtn">Cyber</button>
+    <button type="button" data-theme="ink" class="tbtn">Ink</button>
+  </div>
+
+  </div>
+
+  <div id="desktopBottomStatusBar" aria-label="TraitView status">
+    <span class="sticky-stat-item sticky-listings" id="stickyListingsStatus">Live listings</span>
+    <span class="sticky-stat-item"><span>Floor</span><b id="stickyFloorVal">…</b></span>
+    <span class="sticky-stat-item sticky-change" id="stickyFloorChange">…</span>
+    <span class="sticky-stat-item"><span>Vol</span><b id="stickyVolVal">…</b></span>
+    <span class="sticky-stat-item"><span>Sales</span><b id="stickySalesVal">…</b></span>
+    <span class="sticky-stat-item"><span>Owners</span><b id="stickyOwnersVal">…</b></span>
+    <div id="desktopLinkRow" aria-label="Collection links">
+      <select id="collectionSwitcher" class="btn ghost" aria-label="Switch collection" title="Switch collection" onchange="switchCollection(this.value)" style="font-size:11px;font-weight:600;letter-spacing:0.03em;padding:4px 8px">
+      </select>
+      <button type="button" id="rankSystemToggle" class="btn ghost" onclick="toggleRankSystem()" aria-label="Toggle rank system" title="Switch between OS and TV rank" style="font-size:11px;font-weight:600;letter-spacing:0.03em;padding:4px 8px;min-width:52px">
+        <span id="rankSystemLabel">◆ OS</span>
+      </button>
+      <button type="button" id="desktopThemeCycle" class="btn ghost" onclick="cycleThemeDesktop(event)" aria-label="Cycle theme" title="Cycle theme">
+        <span class="desktop-theme-swatch" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9a1 1 0 0 1-1 1h-1.5a2.5 2.5 0 0 0 0 5H19a2 2 0 0 0 1.86-2.72A9 9 0 0 0 12 3Zm-4 9a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 8 12Zm4-4a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 8Zm4 4a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 16 12Z" fill="currentColor"></path></svg>
+        </span>
+        <span id="desktopThemeLabel">Slate</span>
+      </button>
+      <button type="button" id="desktopMinimalThemeCycle" class="btn ghost" onclick="cycleMinimalTheme(event)" aria-label="Cycle minimal theme" title="Cycle minimal theme (separate from the theme above)" style="font-size:11px;font-weight:600;letter-spacing:0.03em;padding:4px 8px">
+        <span>Minimal: <span id="desktopMinimalThemeLabel">Off</span></span>
+      </button>
+      <button type="button" id="desktopFavoritesBtn" class="favbtn" aria-label="Toggle favorites view" title="Favorites">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg>
+      </button>
+      <span id="desktopFavoritesCount" title="Favorite count">0</span>
+      <a class="desktop-icon-link os" href="https://opensea.io/collection/on-chain-all-stars" rel="noreferrer" onclick="window.open(this.href,'_blank');return false;" title="OpenSea" aria-label="OpenSea">
+        <img src="https://static.seadn.io/logos/Logomark-Blue.png" alt="OpenSea">
+      </a>
+      <a class="desktop-icon-link web" href="https://onchainallstars.xyz" rel="noreferrer" onclick="window.open(this.href,'_blank');return false;" title="Website" aria-label="Website">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Zm6.92 9h-3.01a15.6 15.6 0 0 0-1.38-5.02A8.02 8.02 0 0 1 18.92 11Zm-6.92 9a13.6 13.6 0 0 1-2.04-5h4.08A13.6 13.6 0 0 1 12 20Zm-2.59-7a13.6 13.6 0 0 1 0-2h5.18a13.6 13.6 0 0 1 0 2H9.41Zm-7.33-2a8.02 8.02 0 0 1 4.39-5.02A15.6 15.6 0 0 0 5.09 11H2.08Zm3.01 2a15.6 15.6 0 0 0 1.38 5.02A8.02 8.02 0 0 1 2.08 13h3.01ZM12 4a13.6 13.6 0 0 1 2.04 5H9.96A13.6 13.6 0 0 1 12 4Zm2.53 14.02A15.6 15.6 0 0 0 15.91 13h3.01a8.02 8.02 0 0 1-4.39 5.02Z" fill="currentColor"></path></svg>
+      </a>
+      <a class="desktop-icon-link twitter" href="https://twitter.com/onchainallstars" rel="noreferrer" onclick="window.open(this.href,'_blank');return false;" title="Twitter / X" aria-label="Twitter / X">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2H22l-6.77 7.74L23.2 22h-6.25l-4.9-6.84L6.06 22H3l7.24-8.28L.8 2h6.4l4.43 6.2L18.9 2Zm-1.1 18h1.73L6.26 3.9H4.4L17.8 20Z" fill="currentColor"></path></svg>
+      </a>
+      <a class="desktop-icon-link etherscan" href="https://etherscan.io/token/0x078be86f3104a32313a47815792230a3808642cc" rel="noreferrer" onclick="window.open(this.href,'_blank');return false;" title="Etherscan" aria-label="Etherscan">
+        <svg viewBox="0 0 122 122" aria-hidden="true"><circle cx="61" cy="61" r="61" fill="#21325B"/><path d="M25.29 57.9139C25.2901 57.2347 25.4244 56.5623 25.6851 55.9352C25.9458 55.308 26.3278 54.7386 26.8092 54.2595C27.2907 53.7804 27.8619 53.4011 28.4903 53.1434C29.1187 52.8858 29.7918 52.7548 30.471 52.7579L39.061 52.7859C40.4305 52.7859 41.744 53.33 42.7124 54.2984C43.6809 55.2669 44.225 56.5803 44.225 57.9499V90.4299C45.192 90.1429 46.434 89.8369 47.793 89.5169C48.737 89.2952 49.5783 88.761 50.1805 88.0009C50.7826 87.2409 51.1102 86.2996 51.11 85.3299V45.0399C51.11 43.6702 51.654 42.3567 52.6224 41.3881C53.5908 40.4195 54.9043 39.8752 56.274 39.8749H64.881C66.2506 39.8752 67.5641 40.4195 68.5325 41.3881C69.5009 42.3567 70.045 43.6702 70.045 45.0399V82.4329C70.045 82.4329 72.2 81.5609 74.299 80.6749C75.0787 80.3452 75.7441 79.7931 76.2122 79.0877C76.6803 78.3822 76.9302 77.5545 76.931 76.7079V32.1299C76.931 30.7605 77.4749 29.4472 78.4431 28.4788C79.4113 27.5103 80.7245 26.9662 82.0939 26.9659H90.701C92.0706 26.9659 93.384 27.51 94.3525 28.4784C95.3209 29.4468 95.865 30.7603 95.865 32.1299V68.8389C103.327 63.4309 110.889 56.9269 116.89 49.1059C117.761 47.9707 118.337 46.6377 118.567 45.2257C118.797 43.8138 118.674 42.3668 118.209 41.0139C115.431 33.0217 111.016 25.6973 105.245 19.5096C99.474 13.3218 92.4749 8.40687 84.6955 5.07934C76.9161 1.75182 68.5277 0.0849617 60.0671 0.185439C51.6065 0.285917 43.2601 2.15152 35.562 5.66286C27.8638 9.17419 20.9834 14.2539 15.3611 20.577C9.73881 26.9001 5.49842 34.3272 2.91131 42.3832C0.324207 50.4391 -0.552649 58.9464 0.336851 67.3607C1.22635 75.775 3.86263 83.911 8.07696 91.2479C8.81111 92.5135 9.89118 93.5434 11.1903 94.2165C12.4894 94.8896 13.9536 95.178 15.411 95.0479C17.039 94.9049 19.066 94.7019 21.476 94.4189C22.5251 94.2998 23.4937 93.7989 24.1972 93.0116C24.9008 92.2244 25.2901 91.2058 25.291 90.1499L25.29 57.9139Z" fill="white"/><path d="M25.104 110.004C34.1766 116.602 44.8975 120.563 56.0807 121.447C67.2638 122.331 78.4738 120.105 88.4702 115.013C98.4665 109.921 106.859 102.164 112.72 92.5988C118.58 83.0334 121.681 72.0332 121.679 60.8148C121.679 59.4156 121.614 58.0312 121.521 56.6549C99.3052 89.7905 58.2848 105.283 25.104 110.004Z" fill="#8B8B8B"/></svg>
+      </a>
+      <a class="desktop-icon-link bot" href="https://discord.gg/bbxreqTaSM" rel="noreferrer" onclick="window.open(this.href,'_blank');return false;" title="Discord" aria-label="Discord">
+        <img src="./assets/discord-symbol-light-blurple.svg" alt="" aria-hidden="true">
+      </a>
+    </div>
+  </div>
+
+
+  <div class="bar" id="mainBarLayout" style="position:relative">
+    <button id="sidebarExpandToggle" onclick="this.closest('.bar').classList.toggle('sidebar-expanded')" title="Expand sidebar" aria-label="Expand sidebar">⟷</button>
+    <div id="filtersColumn" style="display:flex;flex-direction:column;gap:10px">
+      <h3 class="section" style="margin-bottom:4px;padding:0 2px;opacity:.7">Filters</h3>
+<div id="panelRarity" style="margin-bottom:2px;order:5">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px;cursor:pointer;user-select:none" onclick="(function(el){el.classList.toggle('open');const b=document.getElementById('rarityPanelBody');if(b)b.style.display=el.classList.contains('open')?'block':'none';const ch=el.querySelector('.rarity-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
+    <span class="section" style="opacity:.7;margin:0">Rarity Mode &amp; Rank</span>
+    <span class="rarity-chev" style="color:var(--sub);font-size:16px;line-height:1;transition:transform .2s ease;display:inline-block">⌄</span>
+  </div>
+  <div id="rarityPanelBody" style="display:none;padding:0 2px 10px"><div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px">
+          <span class="section" style="margin:0">Mode</span>
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border);border-radius:12px">
+            <input id="rarityObserved" type="radio" name="rarityMode" value="observed" checked> <span class="tt" data-tip="Observed rarity uses real counts in the collection.">Observed</span>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border);border-radius:12px">
+            <input id="rarityTheoretical" type="radio" name="rarityMode" value="theoretical"> <span class="tt" data-tip="Theoretical rarity uses trait probabilities (expected odds).">Theoretical</span>
+          </label>
+          <span id="rarityStatus" class="section" style="margin-left:auto"></span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div><label class="section">Min Rank</label><br><input id="rankMin" class="input" type="number" min="1" step="1" style="width:100px" placeholder="1"></div>
+          <div><label class="section">Max Rank</label><br><input id="rankMax" class="input" type="number" min="1" step="1" style="width:100px" placeholder="10000"></div>
+          <button id="rankApply" class="btn" style="margin-top:16px">Apply</button>
+          <button id="rankClear" class="btn ghost" style="margin-top:16px">Clear</button>
+        </div>
+  </div></div>
+</div>
+
+      <!-- Jump to token — shown in filter drawer on mobile -->
+      <div id="mobileDrawerJump" style="display:none;gap:6px;margin:0 0 10px;align-items:center;order:0">
+        <input id="drawerJumpInput" class="input" type="text" inputmode="numeric" placeholder="Jump to Token ID…" style="flex:1;font-size:16px">
+        <button id="drawerJumpBtn" class="btn" onclick="(function(){const v=document.getElementById('drawerJumpInput').value.trim();if(!v)return;document.getElementById('jump').value=v;closeMobileFilter();document.getElementById('btnJump').click();})()">Go</button>
+      </div>
+
+      <div style="display:flex;gap:6px;align-items:center;margin:8px 0;order:0.5">
+        <input id="traitSearch" class="input" placeholder="Search traits…" style="flex:1;padding:6px 10px;font-size:12px">
+        <button id="onlyPresentToggle" class="btn ghost tt" data-tip="Only show trait values present in current results" onclick="(function(b){const cb=document.getElementById('onlyPresent');cb.checked=!cb.checked;b.classList.toggle('active',cb.checked);cb.dispatchEvent(new Event('change'));})(this)" style="font-size:12px;padding:5px 7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0" aria-label="Only show present values">✓</button>
+        <input type="checkbox" id="onlyPresent" style="display:none">
+        <button id="btnClearFilters" class="btn ghost" style="font-size:11px;padding:5px 8px" title="Clear all filters">✕</button>
+      </div>
+
+      <div id="activeChips" class="chips" style="margin:6px 0 10px;order:4"></div>
+      <div id="accTraits" style="order:1"></div>
+
+      <div id="traitCountPanel" class="sidebar-collapse-panel open" style="order:2;margin-top:14px">
+        <div class="sidebar-collapse-head" onclick="(function(el){el.classList.toggle('open');const ch=el.querySelector('.sidebar-collapse-chev');if(ch)ch.style.transform=el.classList.contains('open')?'rotate(180deg)':'';})(this.parentElement)">
+          <span class="section" style="opacity:.7;margin:0">Trait Count</span>
+          <span class="sidebar-collapse-chev" style="color:var(--sub);font-size:16px;line-height:1;transition:transform .2s ease;display:inline-block;transform:rotate(180deg)">⌄</span>
+        </div>
+        <div id="traitCountPanelBody" class="sidebar-collapse-body">
+          <div id="traitChips" class="chips" style="margin-bottom:8px"></div>
+          <div style="color:var(--sub);font-size:12px">Click a bar or a number to filter to exactly that many traits. Click again to remove.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- ===== TABBED TOP PANEL: Chart / Recent Sales / Mispriced ===== -->
+      <div class="c-panel" id="topTabPanel">
+        <div class="c-header" onclick="cToggle('topTabPanel')" style="padding:10px 16px 0">
+          <span class="c-title">Analytics</span>
+          <span class="c-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </div>
+        <div class="c-body">
+          <div class="c-body-inner" style="padding:4px 14px 12px">
+        <!-- Tab buttons -->
+        <div class="top-tabs" style="display:flex;align-items:center">
+          <button class="top-tab active" data-ttab="sales" onclick="switchTopTab('sales')" style="display:flex;align-items:center;gap:6px">
+            Recent Sales <span class="sales-count-badge" id="salesCountBadge">–</span>
+          </button>
+          <button class="top-tab" data-ttab="mispriced" onclick="switchTopTab('mispriced')" style="display:flex;align-items:center;gap:6px">
+            Mispriced <span class="sales-count-badge" id="mispricedCountBadge">–</span>
+          </button>
+          <button class="top-tab" data-ttab="pulse" onclick="switchTopTab('pulse')">🔥 Trait Pulse</button>
+          <button class="top-tab" data-ttab="burns" id="burnsTabBtn" onclick="switchTopTab('burns')">Burns</button>
+          <button class="top-tab" data-ttab="burned" id="burnedTabBtn" onclick="switchTopTab('burned')" style="display:none">Burned</button>
+          <button class="top-tab" data-ttab="chart" onclick="switchTopTab('chart')">Trait Distribution</button>
+          <button class="top-tab" data-ttab="scatter" onclick="switchTopTab('scatter')">Price vs Rank</button>
+          <button class="top-tab" data-ttab="floor" onclick="switchTopTab('floor')">Floor Trend <span id="floorReadyDot" style="display:none;width:6px;height:6px;border-radius:50%;background:#2dd4bf;display:inline-block;margin-left:3px;vertical-align:middle"></span></button>
+          <button class="top-tab" data-ttab="salechart" onclick="switchTopTab('salechart')">Sale Chart</button>
+          <button class="top-tab" data-ttab="holders" onclick="switchTopTab('holders')">Holders</button>
+          <button class="top-tab" data-ttab="wallet" onclick="switchTopTab('wallet')">Wallet</button>
+          <div class="sales-view-toggle" id="mispricedViewToggle" style="display:none;margin-left:auto">
+            <button class="sales-view-btn active" data-mpview="list" onclick="setMispricedView('list')" title="List view">☰</button>
+            <button class="sales-view-btn" data-mpview="grid" onclick="setMispricedView('grid')" title="Grid view">▦</button>
+          </div>
+          <div class="sales-view-toggle" id="salesViewToggle" style="display:none;margin-left:auto">
+            <button class="sales-view-btn active" data-sview="grid" onclick="setSalesView('grid')" title="Grid view">▦</button>
+            <button class="sales-view-btn" data-sview="grid10" onclick="setSalesView('grid10')" title="Dense grid (10 across)">⊞</button>
+            <button class="sales-view-btn" data-sview="list" onclick="setSalesView('list')" title="List view">☰</button>
+          </div>
+        </div>
+
+        <!-- Chart tab -->
+
+        <div class="top-tab-panel" id="ttab-chart" style="padding-top:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div id="chartInfo" class="section" style="font-weight:500"></div>
+          </div>
+          <div id="chartHost" style="width:100%"></div>
+        </div>
+
+        <!-- Recent Sales tab -->
+        <div class="top-tab-panel active" id="ttab-sales">
+          <div id="salesFilterRow" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <label for="salesSortMode" style="font-size:11px;color:var(--sub);font-weight:600">Sort</label>
+            <select id="salesSortMode" class="btn ghost" style="font-size:12px;padding:5px 10px" onchange="setSalesSortMode(this.value)">
+              <option value="newest">Newest</option>
+              <option value="price-desc">Highest Sale</option>
+              <option value="price-asc">Lowest Sale</option>
+            </select>
+            <label for="salesTraitCountFilter" style="font-size:11px;color:var(--sub);font-weight:600">Trait Count</label>
+            <select id="salesTraitCountFilter" class="btn ghost" style="font-size:12px;padding:5px 10px" onchange="setSalesTraitCountFilter(this.value)">
+              <option value="">Any</option>
+            </select>
+            <span id="salesTraitCountPill" class="chip" style="display:none;cursor:pointer" onclick="clearSalesTraitCountFilter()" title="Remove this filter">Trait Count: <b id="salesTraitCountPillVal"></b> &nbsp;×</span>
+            <input type="text" id="salesTraitSearch" list="salesTraitSearchOptions" class="input" placeholder="Search trait…" style="font-size:12px;padding:5px 10px;width:160px" oninput="setSalesTraitSearch(this.value)" autocomplete="off">
+            <datalist id="salesTraitSearchOptions"></datalist>
+            <span id="salesFilterNote" style="font-size:11px;color:var(--accent)">⬦ Filtered to selected traits</span>
+            <button type="button" id="salesClearFilterBtn" class="btn ghost" style="display:none;font-size:11px;padding:4px 10px;margin-left:auto" onclick="clearSalesFilters()">✕ Clear filters</button>
+          </div>
+          <div id="salesGrid" style="overflow-x:hidden;padding-right:6px">
+            <div style="color:var(--sub);font-size:12px;padding:10px 0">Loading recent sales…</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn ghost" id="salesLoadMoreBtn" style="display:none;font-size:12px;padding:5px 16px">Load More Sales ↓</button>
+            <button class="btn ghost" id="salesRefreshBtn" style="font-size:11px;padding:4px 10px">↻ Refresh</button>
+            <div style="color:var(--sub);font-size:11px" id="salesHistoryNote">Load More to go further back</div>
+          </div>
+        </div>
+
+        <!-- Mispriced tab -->
+        <div class="top-tab-panel" id="ttab-mispriced">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <button class="mispriced-mode-btn active" data-mode="rarity" onclick="setMispricedMode('rarity')">Best Value</button>
+            <button class="mispriced-mode-btn" data-mode="undervalued" onclick="setMispricedMode('undervalued')">Undervalued</button>
+            <button class="mispriced-mode-btn" data-mode="traits" onclick="setMispricedMode('traits')">Rare Traits</button>
+            <div style="margin-left:auto;display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+              <label style="font-size:10px;color:var(--sub)">Max Ξ</label>
+              <input id="mpMaxPrice" type="number" step="0.001" min="0" placeholder="Any" style="width:58px;font-size:10px;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--chip);color:var(--text)" oninput="applyMispricedFilters()">
+              <label style="font-size:10px;color:var(--sub)">Rank ≤</label>
+              <input id="mpMaxRank" type="number" min="1" placeholder="Any" style="width:58px;font-size:10px;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--chip);color:var(--text)" oninput="applyMispricedFilters()">
+              <select id="mpSort" onchange="applyMispricedFilters()" style="font-size:10px;padding:2px 5px;border-radius:6px;border:1px solid var(--border);background:var(--chip);color:var(--text)">
+                <option value="score">Best Deal</option>
+                <option value="price-asc">Cheapest</option>
+                <option value="rank-asc">Best Rank</option>
+              </select>
+            </div>
+          </div>
+          <div id="mispricedSummaryRow" class="mp-summary-row" style="display:none"></div>
+          <div id="mispricedGrid" style="max-height:360px;overflow:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(120,130,150,.45) transparent">
+            <div style="color:var(--sub);font-size:12px;padding:8px 0">Click this tab to load listings automatically.</div>
+          </div>
+        </div>
+
+        <!-- Trait Pulse tab -- jv: "What traits are actually moving right
+             now?" Ranks trait/value combinations by unusual recent activity
+             (velocity vs. that trait's own baseline, listing depletion,
+             floor movement), not raw sale count. Clicking a card applies
+             that trait as a filter on the main grid, same click-through
+             pattern buildMispricedPanel's own cards already use. -->
+        <div class="top-tab-panel" id="ttab-pulse">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <button class="mispriced-mode-btn active" data-window="1h" onclick="setPulseWindow('1h')">1H</button>
+            <button class="mispriced-mode-btn" data-window="6h" onclick="setPulseWindow('6h')">6H</button>
+            <button class="mispriced-mode-btn" data-window="24h" onclick="setPulseWindow('24h')">24H</button>
+            <button class="mispriced-mode-btn" data-window="7d" onclick="setPulseWindow('7d')">7D</button>
+            <span id="pulseComputedAt" style="margin-left:auto;font-size:10px;color:var(--sub)"></span>
+          </div>
+          <div id="pulseGrid" style="max-height:420px;overflow:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(120,130,150,.45) transparent">
+            <div style="color:var(--sub);font-size:12px;padding:8px 0">Click this tab to load Trait Pulse automatically.</div>
+          </div>
+        </div>
+
+        <!-- Price vs Rank Scatter tab -->
+        <div class="top-tab-panel" id="ttab-scatter">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:11px;color:var(--sub)">Each dot = a live listing. Below the trend line = potentially undervalued. Click any dot to open token.</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="font-size:11px;color:var(--sub)" id="scatterCount">–</span>
+              <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="renderScatter()">↻ Refresh</button>
+            </div>
+          </div>
+          <div id="scatterHost" style="width:100%;height:340px;position:relative">
+            <div style="color:var(--sub);font-size:12px;padding:20px 0">Fetch live listings first, then switch to this tab.</div>
+          </div>
+        </div>
+
+        <!-- Floor Trend tab -->
+        <div class="top-tab-panel" id="ttab-floor">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button class="mispriced-mode-btn active" data-frange="30" onclick="setFloorRange(30)">30d</button>
+              <button class="mispriced-mode-btn" data-frange="90" onclick="setFloorRange(90)">90d</button>
+              <button class="mispriced-mode-btn" data-frange="180" onclick="setFloorRange(180)">180d</button>
+              <button class="mispriced-mode-btn" data-frange="365" onclick="setFloorRange(365)">1y</button>
+              <button class="mispriced-mode-btn" data-frange="9999" onclick="setFloorRange(9999)">All</button>
+              <span id="floorTraitPicker" style="display:inline-flex;align-items:center;margin-left:8px"></span>
+              <select id="floorTraitFilter" hidden aria-hidden="true" onchange="_floorRerenderVisible()" style="font-size:11px;padding:3px 6px;background:var(--chip);border:1px solid var(--chip-b);border-radius:6px;color:var(--text);margin-left:8px">
+                <option value="">All tokens</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="openChartFullscreen('Floor Trend', 'floorFullscreenHost', ()=>renderFloorTrend('floorFullscreenHost'))">⤢ Fullscreen</button>
+              <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="loadFloorTrend(true)">↻ Refresh</button>
+            </div>
+          </div>
+          <div id="floorTraitChips" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 6px"></div>
+          <div id="floorTrendHost" style="width:100%;height:320px;position:relative">
+            <div id="floorTrendInit" style="color:var(--sub);font-size:12px;padding:20px 0">Loading floor trend…</div>
+          </div>
+
+        </div>
+
+        <!-- Sale Chart tab -- jv: "Curious how I can get graphs like this
+             and if it's possible you can build this out?" Reuses the same
+             sales dataset Floor Trend already loads (window._floorEvents)
+             and the same trait-filter chips already used everywhere else
+             in the app (activeTraits) -- whatever traits are picked in the
+             filter drawer get their own colored, connected sales series
+             here. Click any dot to anchor on that token: its own resale
+             history draws as a connected white path, with thin lines
+             fanning from its latest sale out to every other sale sharing
+             the active trait(s), so you can see how one sale compares
+             against the rest at a glance. -->
+        <div class="top-tab-panel" id="ttab-salechart">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <!-- jv: "Can a 24hr and 7d time frame be added to the chart" -->
+              <button class="mispriced-mode-btn" data-scrange="1" onclick="setSaleChartRange(1)">24h</button>
+              <button class="mispriced-mode-btn" data-scrange="7" onclick="setSaleChartRange(7)">7d</button>
+              <button class="mispriced-mode-btn active" data-scrange="30" onclick="setSaleChartRange(30)">30d</button>
+              <button class="mispriced-mode-btn" data-scrange="90" onclick="setSaleChartRange(90)">90d</button>
+              <button class="mispriced-mode-btn" data-scrange="180" onclick="setSaleChartRange(180)">180d</button>
+              <button class="mispriced-mode-btn" data-scrange="365" onclick="setSaleChartRange(365)">1y</button>
+              <button class="mispriced-mode-btn" data-scrange="9999" onclick="setSaleChartRange(9999)">All</button>
+              <!-- jv: "the trait filter drop down and the wallet search should
+                   be moved to the very top beside the time frames on desktop"
+                   -- then "i think i want this on mobile as well." Populated
+                   by renderSaleChart() unconditionally now (both desktop and
+                   mobile); this row already wraps (flex-wrap) if it doesn't
+                   fit on one line at narrower widths. -->
+              <div id="saleChartTopControls" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"></div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="btn ghost" id="saleChartClearAnchor" style="font-size:11px;padding:4px 10px;display:none" onclick="setSaleChartAnchor(null)">✕ Clear selected token</button>
+              <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="openChartFullscreen('Sale Chart', 'chartFullscreenHost', ()=>renderSaleChart('chartFullscreenHost'))" title="Fullscreen (landscape)">⤢ Fullscreen</button>
+              <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="loadFloorTrend(true)">↻ Refresh</button>
+            </div>
+          </div>
+          <div id="saleChartDescription" style="font-size:11px;color:var(--sub);margin-bottom:8px"><span style="color:var(--tc-ffd76a);font-weight:700">●</span> Token's history <span style="color:var(--tc-c9a9ff);font-weight:700">●</span> Wallet buys <span style="color:var(--tc-f87171);font-weight:700">●</span> Wallet sells</div>
+          <div id="saleChartTabControls" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px"></div>
+          <div id="saleChartHost" style="width:100%;height:340px;position:relative;touch-action:pan-x pan-y">
+            <div class="sc-empty-msg" style="color:var(--sub);font-size:12px;padding:20px 0">Loading sale chart…</div>
+          </div>
+        </div>
+
+        <!-- Holders tab -->
+        <div class="top-tab-panel" id="ttab-holders">
+          <div id="holdersStats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px"></div>
+          <!-- jv: holder insights -- "Rank by" pills (see _renderHolderRankBar) -->
+          <div id="holderRankBar" style="display:flex;gap:4px;align-items:center;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-bottom:8px;padding-bottom:1px"></div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <div id="holderLimitBar" style="display:flex;gap:4px;align-items:center"></div>
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="loadHolders(true)">↻ Refresh</button>
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:10px">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                <div style="font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em">Top Holders <span style="text-transform:none;opacity:.7">(live on-chain)</span></div>
+                <div id="holdersListingNote" style="display:none"></div>
+                <div id="holdersTraitFilter" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto">
+                  <span id="holdersTraitChips" style="display:flex;gap:4px;flex-wrap:wrap"></span>
+                  <button id="holdersClearTraitFilter" onclick="clearHolderTraitFilter()" style="display:none;font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,100,100,.3);background:rgba(255,100,100,.08);color:var(--tc-f87171);cursor:pointer">× Clear trait filter</button>
+                </div>
+              </div>
+              <div id="holdersGrid" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;scrollbar-width:thin"></div>
+            </div>
+            <div id="holdersDistHost" style="display:none"></div>
+            <div id="holdersConcentration" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- Wallet Analytics tab -->
+        <div class="top-tab-panel" id="ttab-wallet">
+          <div id="walletAnalyticsHost" class="wallet-analytics">
+            <div class="wallet-empty-state">Connect a wallet to load real wallet analytics from Railway.</div>
+          </div>
+        </div>
+
+        <!-- Burns Analytics tab (OCAS's own burn/rebirth game -- points, leaderboard, survivors) -->
+        <div class="top-tab-panel" id="ttab-burns">
+          <div id="burnsAnalyticsHost" class="burns-analytics">
+            <div class="wallet-empty-state">Burn analytics endpoint not connected yet.</div>
+          </div>
+        </div>
+
+        <!-- Burned Tokens tab (general is_burned flag -- any collection, no game mechanic,
+             just "sent to a known dead address". Shown instead of the tab above for
+             collections without hasBurnMechanic; see applyCollectionFeatureGating(). -->
+        <div class="top-tab-panel" id="ttab-burned">
+          <div id="burnedTokensHost" class="burns-analytics">
+            <div class="wallet-empty-state">Loading burned tokens...</div>
+          </div>
+        </div>
+
+          </div><!-- end c-body-inner -->
+        </div><!-- end c-body -->
+      </div>
+      <!-- ===== END TABBED TOP PANEL ===== -->
+
+<!-- Trait Floor Bar — between analytics and token grid -->
+<div id="traitFloorBar" style="display:none;background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.2);border-radius:8px;padding:8px 14px;margin-bottom:0;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer">
+  <span style="font-size:11px;color:var(--sub)">Trait floor:</span>
+  <span id="traitFloorLabel" style="font-size:11px;color:var(--text);font-weight:600"></span>
+  <span id="traitFloorPrice" style="font-size:14px;font-weight:700;color:#2dd4bf"></span>
+  <span id="traitFloorToken" style="font-size:11px;color:var(--sub)"></span>
+  <span id="traitFloorCount" style="font-size:11px;color:var(--sub);margin-left:auto"></span>
+</div>
+
+<div class="card panel">
+        <div id="connectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
+        <!-- Active filter pills shown above grid -->
+        <div id="activeMobilePills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;min-height:0"></div>
+
+        <div class="matching-panel-head">
+  <div class="matching-panel-right">
+    <button id="btnClear" onclick="clearFilters()" style="background:none;border:1px solid color-mix(in srgb, var(--text) 15%, transparent);color:var(--sub);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'Space Grotesk',sans-serif" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='rgba(255,255,255,.15)'">✕ Clear</button>
+  </div>
+</div>
+        <div class="matching-panel-controls">
+  <div class="matching-panel-actions">
+    <button id="onlyListedPill" onclick="toggleLiveListingsMode()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid color-mix(in srgb, var(--text) 15%, transparent);background:color-mix(in srgb, var(--text) 4%, transparent);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;font-family:'Space Grotesk',sans-serif">
+      <span style="width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0" id="onlyListedDot"></span>
+      Live Listings
+    </button>
+    <input type="checkbox" id="onlyListed" style="display:none">
+    <button id="btnFetch" class="btn">Fetch listings</button>
+    <div class="statusline" id="listingsStatus"></div>
+    <span id="gridMatchCount" class="section" style="opacity:.75"></span>
+  </div>
+
+  <div class="matching-panel-sort">
+
+  <select id="sortMode" class="input" aria-label="Sort" style="width:200px">
+    <option value="id-asc">ID ↑ (default)</option>
+    <option value="rare-first">Rarest → Least</option>
+    <option value="rare-last">Least → Rarest</option>
+    <option value="price-asc">Price ↑ (cheapest first)</option>
+    <option value="price-desc">Price ↓ (most expensive)</option>
+  </select>
+
+<div class="view-switch" id="viewSwitch" style="margin-left:10px">
+  <button type="button" class="viewbtn" data-view="grid2" title="2×2 grid">
+    <svg viewBox="0 0 18 18"><rect x="0.60" y="0.60" width="7.37" height="7.37" rx="1.33"/><rect x="10.03" y="0.60" width="7.37" height="7.37" rx="1.33"/><rect x="0.60" y="10.03" width="7.37" height="7.37" rx="1.33"/><rect x="10.03" y="10.03" width="7.37" height="7.37" rx="1.33"/></svg>
+  </button>
+  <button type="button" class="viewbtn" data-view="standard" title="3×3 grid">
+    <svg viewBox="0 0 18 18"><rect x="0.60" y="0.60" width="4.72" height="4.72" rx="0.85"/><rect x="6.64" y="0.60" width="4.72" height="4.72" rx="0.85"/><rect x="12.68" y="0.60" width="4.72" height="4.72" rx="0.85"/><rect x="0.60" y="6.64" width="4.72" height="4.72" rx="0.85"/><rect x="6.64" y="6.64" width="4.72" height="4.72" rx="0.85"/><rect x="12.68" y="6.64" width="4.72" height="4.72" rx="0.85"/><rect x="0.60" y="12.68" width="4.72" height="4.72" rx="0.85"/><rect x="6.64" y="12.68" width="4.72" height="4.72" rx="0.85"/><rect x="12.68" y="12.68" width="4.72" height="4.72" rx="0.85"/></svg>
+  </button>
+  <button type="button" class="viewbtn" data-view="grid5" title="5×5 grid">
+    <svg viewBox="0 0 18 18"><rect x="0.60" y="0.60" width="2.75" height="2.75" rx="0.49"/><rect x="4.11" y="0.60" width="2.75" height="2.75" rx="0.49"/><rect x="7.63" y="0.60" width="2.75" height="2.75" rx="0.49"/><rect x="11.14" y="0.60" width="2.75" height="2.75" rx="0.49"/><rect x="14.65" y="0.60" width="2.75" height="2.75" rx="0.49"/><rect x="0.60" y="4.11" width="2.75" height="2.75" rx="0.49"/><rect x="4.11" y="4.11" width="2.75" height="2.75" rx="0.49"/><rect x="7.63" y="4.11" width="2.75" height="2.75" rx="0.49"/><rect x="11.14" y="4.11" width="2.75" height="2.75" rx="0.49"/><rect x="14.65" y="4.11" width="2.75" height="2.75" rx="0.49"/><rect x="0.60" y="7.63" width="2.75" height="2.75" rx="0.49"/><rect x="4.11" y="7.63" width="2.75" height="2.75" rx="0.49"/><rect x="7.63" y="7.63" width="2.75" height="2.75" rx="0.49"/><rect x="11.14" y="7.63" width="2.75" height="2.75" rx="0.49"/><rect x="14.65" y="7.63" width="2.75" height="2.75" rx="0.49"/><rect x="0.60" y="11.14" width="2.75" height="2.75" rx="0.49"/><rect x="4.11" y="11.14" width="2.75" height="2.75" rx="0.49"/><rect x="7.63" y="11.14" width="2.75" height="2.75" rx="0.49"/><rect x="11.14" y="11.14" width="2.75" height="2.75" rx="0.49"/><rect x="14.65" y="11.14" width="2.75" height="2.75" rx="0.49"/><rect x="0.60" y="14.65" width="2.75" height="2.75" rx="0.49"/><rect x="4.11" y="14.65" width="2.75" height="2.75" rx="0.49"/><rect x="7.63" y="14.65" width="2.75" height="2.75" rx="0.49"/><rect x="11.14" y="14.65" width="2.75" height="2.75" rx="0.49"/><rect x="14.65" y="14.65" width="2.75" height="2.75" rx="0.49"/></svg>
+  </button>
+  <button type="button" class="viewbtn" data-view="compact" title="8×8 grid">
+    <svg viewBox="0 0 18 18"><rect x="0.60" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="0.60" width="1.69" height="1.69" rx="0.40"/><rect x="0.60" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="2.76" width="1.69" height="1.69" rx="0.40"/><rect x="0.60" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="4.92" width="1.69" height="1.69" rx="0.40"/><rect x="0.60" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="7.08" width="1.69" height="1.69" rx="0.40"/><rect x="0.60" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="9.24" width="1.69" height="1.69" rx="0.40"/><rect x="0.60" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="11.40" width="1.69" height="1.69" rx="0.40"/><rect x="0.60" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="13.55" width="1.69" height="1.69" rx="0.40"/><rect x="0.60" y="15.71" width="1.69" height="1.69" rx="0.40"/><rect x="2.76" y="15.71" width="1.69" height="1.69" rx="0.40"/><rect x="4.92" y="15.71" width="1.69" height="1.69" rx="0.40"/><rect x="7.08" y="15.71" width="1.69" height="1.69" rx="0.40"/><rect x="9.24" y="15.71" width="1.69" height="1.69" rx="0.40"/><rect x="11.40" y="15.71" width="1.69" height="1.69" rx="0.40"/><rect x="13.55" y="15.71" width="1.69" height="1.69" rx="0.40"/><rect x="15.71" y="15.71" width="1.69" height="1.69" rx="0.40"/></svg>
+  </button>
+  <button type="button" class="viewbtn" data-view="list" title="List view">
+    <svg viewBox="0 0 18 18"><rect x="2" y="3" width="14" height="2"/><rect x="2" y="8" width="14" height="2"/><rect x="2" y="13" width="14" height="2"/></svg>
+  </button>
+</div>
+<select id="viewMode" class="input" style="display:none"><option value="grid2">2×2 grid</option><option value="standard">3×3 grid</option><option value="grid5">5×5 grid</option><option value="compact">8×8 grid</option><option value="list">List view</option></select>
+
+    <div class="token-trait-search">
+      <input id="tokenTraitSearch" class="input" type="search" placeholder="Search tokens by traits..." autocomplete="off">
+      <button id="tokenTraitSearchClear" type="button" class="btn ghost" title="Clear token trait search" aria-label="Clear token trait search">×</button>
+      <span id="tokenTraitSearchStatus" class="statusline"></span>
+    </div>
+
+    <div id="desktopJumpRow" class="matching-jump-row">
+      <input id="jump" class="input" type="text" inputmode="numeric" placeholder="Token ID #…">
+      <button id="btnJump" class="btn">Go</button>
+    </div>
+  </div>
+</div>
+
+        <div id="tokenGrid" class="grid" style="max-height:520px;overflow:auto;padding-right:4px"></div>
+<div id="vsTopSpacer" style="display:none"></div>
+<div id="vsBotSpacer" style="display:none"></div>
+      </div>
+
+      <!-- ===== COMPARE + PINNED SIDE BY SIDE ===== -->
+      <div class="side-by-side" id="comparePinnedWrap" style="margin-bottom:10px">
+<div class="c-panel" id="panelCompare">
+  <div class="c-header" onclick="cToggle('panelCompare')">
+    <span class="c-title">Compare A vs B</span>
+    <div class="c-title-actions"><button id="btnSwap" class="btn ghost" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation()">Swap</button><button id="btnClearCompare" class="btn ghost" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation()">Clear</button><span class="c-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  </div>
+  <div class="c-body"><div class="c-body-inner">
+        <p style="color:var(--sub);font-size:12px;margin:0 0 10px">Use A / B or ＋ on any token (hover on desktop, or in its details) to add it here.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="card panel" id="cmpA" style="min-height:60px;padding:10px"></div>
+          <div class="card panel" id="cmpB" style="min-height:60px;padding:10px"></div>
+        </div>
+  </div></div>
+</div>
+<div class="c-panel" id="panelPinned">
+  <div class="c-header" onclick="cToggle('panelPinned')">
+    <span class="c-title">Pinned (up to 6)</span>
+    <div class="c-title-actions"><button id="btnExportPinned" class="btn ghost" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation()">Export</button><button id="btnClearPinned" class="btn ghost" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation()">Clear</button><span class="c-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  </div>
+  <div class="c-body"><div class="c-body-inner">
+        <div id="pinnedGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;max-height:300px;overflow:auto;padding-right:4px"></div>
+  </div></div>
+</div>
+      </div>
+
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FLOATING FILTER TOGGLE ═══ -->
+<div id="floatFilterBtn" title="Open filters">
+  <span class="float-arrow" id="floatArrow">›</span>
+  <span class="float-label">Filters</span>
+</div>
+
+<!-- ═══ MOBILE FILTER DRAWER OVERLAY ═══ -->
+<div id="filterDrawerOverlay"></div>
+
+<!-- ── Mobile bottom toolbar ── -->
+<div id="mobileBottomBar">
+  <button class="mbb-btn" id="mbbFilter" onclick="(document.querySelector('#filtersColumn')?.classList.contains('drawer-open') ? closeMobileFilter() : openMobileFilter())">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+  </button>
+  <button class="mbb-btn mbb-btn-glow" id="mbbGrid" onclick="mobileCycleView()">
+    <svg id="mbbGridIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+  </button>
+  <button class="mbb-btn" id="mbbWallet" onclick="openMobileWalletDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+  </button>
+  <button class="mbb-btn" id="mbbHolder" onclick="openMobileHolderDrawer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.8-4 4.4-6 8-6s6.2 2 8 6"/></svg>
+  </button>
+  <button class="mbb-btn" id="mbbAnalytics" onclick="openMobileAnalytics()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+  </button>
+</div>
+
+<!-- ── Mobile wallet right drawer ── -->
+<!-- Desktop Wallet Drawer — non-modal, stays open while browsing, right side -->
+<div id="desktopWalletDrawer" aria-label="Wallet viewer">
+  <div id="desktopWalletHeader">
+    <span style="font-weight:700;font-size:14px;color:var(--text)">Wallet View</span>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button onclick="clearDesktopWallet()" style="background:none;border:none;color:var(--sub);font-size:11px;font-weight:600;cursor:pointer;padding:0;font-family:'Space Grotesk',sans-serif">Clear</button>
+      <button onclick="toggleWalletDrawer(false)" aria-label="Close wallet drawer" style="background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer;padding:0;line-height:1">×</button>
+    </div>
+  </div>
+  <div id="desktopWalletBody" style="padding:10px 12px;flex:1;overflow-y:auto">
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <input id="desktopWalletInput" class="input" placeholder="ETH address (0x…)" style="flex:1;font-size:11px;font-family:monospace;padding:6px 8px">
+      <button class="btn" id="desktopWalletLookupBtn" style="flex-shrink:0;font-size:11px;padding:6px 10px" onclick="desktopWalletLookup()">Look Up</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <input id="desktopWalletTraitSearch" class="input" placeholder="Filter by trait — e.g. zombie, gold chain…" style="flex:1;font-size:11px;padding:6px 8px" oninput="filterDesktopWalletByTrait()">
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap" id="desktopWalletSortBtns">
+      <button class="mispriced-mode-btn active" data-dwsort="rank" onclick="desktopWalletSort('rank')">Rarest</button>
+      <button class="mispriced-mode-btn" data-dwsort="listed" onclick="desktopWalletSort('listed')">Listed</button>
+      <button class="mispriced-mode-btn" data-dwsort="price-asc" onclick="desktopWalletSort('price-asc')">Price ↑</button>
+      <button class="mispriced-mode-btn" data-dwsort="id" onclick="desktopWalletSort('id')">Token ID</button>
+      <!-- jv: "get the download grid button in line with the history and watch button ... History, Watch, Download" -->
+      <div class="wv-actions"><button class="mispriced-mode-btn" onclick="openWalletDeepDive(document.getElementById('desktopWalletInput').value)">📈 History</button><button class="mispriced-mode-btn" onclick="tvWatchWallet(document.getElementById('desktopWalletInput').value)" title="Get a notification when this wallet buys, sells, mints or moves tokens">🔔 Watch</button><button class="mispriced-mode-btn" onclick="openGridDownloadFromWalletView('desktop')">📥 Download</button></div>
+    </div>
+    <div id="desktopWalletStatus" style="font-size:11px;color:var(--sub);margin-bottom:8px"></div>
+    <div id="desktopWalletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
+    <div id="desktopWalletGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+  </div>
+</div>
+
+<div id="mobileWalletOverlay" onclick="closeMobileWalletDrawer()"></div>
+<div id="mobileWalletDrawer">
+  <div id="mobileWalletHeader">
+    <span style="font-weight:700;font-size:15px;color:var(--text)">Wallet View</span>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button onclick="document.getElementById('mobileWalletInput').value='';document.getElementById('mobileWalletStatus').textContent='';document.getElementById('mobileWalletGrid').innerHTML='';document.getElementById('mobileWalletHolderTags').innerHTML='';window._mobileWalletIds=null;" style="background:none;border:none;color:var(--sub);font-size:12px;font-weight:600;cursor:pointer;padding:0;font-family:'Space Grotesk',sans-serif">Clear</button>
+      <button onclick="closeMobileWalletDrawer()" style="background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer;padding:0;line-height:1">×</button>
+    </div>
+  </div>
+  <div id="mobileWalletBody" style="padding:10px 14px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="mobileWalletInput" class="input" placeholder="ETH address (0x…)" style="flex:1;font-size:12px;font-family:monospace">
+      <button class="btn" onclick="mobileWalletLookup()" style="flex-shrink:0">Look Up</button>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="mispriced-mode-btn active" data-mwsort="rank" onclick="mobileWalletSort('rank')">Rarest</button>
+      <button class="mispriced-mode-btn" data-mwsort="listed" onclick="mobileWalletSort('listed')">Listed</button>
+      <button class="mispriced-mode-btn" data-mwsort="price-asc" onclick="mobileWalletSort('price-asc')">Price ↑</button>
+      <button class="mispriced-mode-btn" data-mwsort="id" onclick="mobileWalletSort('id')">Token ID</button>
+      <!-- jv: "get the download grid button in line with the history and watch button ... History, Watch, Download" -->
+      <div class="wv-actions"><button class="mispriced-mode-btn" onclick="openWalletDeepDive(document.getElementById('mobileWalletInput').value)">📈 History</button><button class="mispriced-mode-btn" onclick="tvWatchWallet(document.getElementById('mobileWalletInput').value)" title="Get a notification when this wallet buys, sells, mints or moves tokens">🔔 Watch</button><button class="mispriced-mode-btn" onclick="openGridDownloadFromWalletView('mobile')">📥 Download</button></div>
+    </div>
+    <div id="mobileWalletStatus" style="font-size:12px;color:var(--sub);margin-bottom:8px"></div>
+    <div id="mobileWalletHolderTags" class="holder-tags" aria-label="Holder tags"></div>
+    <div id="mobileWalletGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+  </div>
+</div>
+
+<!-- ===== Fullscreen landscape chart overlay -- shared by Sale Chart's
+     expand button and the wallet deep-dive view. Two host divs so each
+     chart's Plotly listeners (bound once ever, per that function's own
+     pattern) only ever get bound to a host that one function exclusively
+     owns -- openChartFullscreen() shows/hides whichever host it's asked
+     for. jv: "when clicking full screen just push it straight to a fixed
+     landscape view. Don't go to the screen that says turn your phone."
+     Portrait no longer gates behind a rotate-device prompt -- the whole
+     overlay is CSS-rotated into a simulated landscape layout the instant
+     it opens (see .chart-fullscreen-overlay.open in styles.css) rather
+     than trying to force landscape via the Screen Orientation Lock API,
+     which iOS Safari doesn't support outside an installed PWA at all.
+     jv: "Completely full screen no padding" -- title/close/controls
+     float over the chart itself (position:absolute) instead of taking
+     their own header row, so the chart gets the full viewport height;
+     openChartFullscreen() also requests the real Fullscreen API (hides
+     the browser's own chrome on OSes that support it for the actual
+     no-padding look), falling back to this same CSS overlay look on
+     anything that doesn't. ===== -->
+<div id="chartFullscreenOverlay" class="chart-fullscreen-overlay">
+  <div class="chart-fullscreen-topbar">
+    <button onclick="closeChartFullscreen()" aria-label="Close fullscreen chart" class="chart-fullscreen-close">×</button>
+    <span id="chartFullscreenTitle"></span>
+    <!-- jv: "the trait filter time frame and wallet searched should be
+         shifted to the left starting on the right of 'sale chart'"
+         then "Theres text hidden behind the filters now. It should be
+         moved to the right of the wallet address look up and also the
+         selected trait fills and wallet address pill can be moved
+         there as well." then "The description text should fall
+         directly underneath the filters not to the right of it." The
+         topbar has no explicit width cap, so once the description sat
+         on the same line as everything else with room to grow, it just
+         kept stretching rightward instead of wrapping -- straight into
+         the modebar buttons and the legend (moved to that same top-
+         right corner in the last round). Range/trait/search/match
+         mode/wallet chip/active trait chips (via renderSaleChart())
+         stay together in #chartFullscreenTopControls; the description
+         is back to always starting its own new line below that row,
+         not sharing space with it. -->
+    <div id="chartFullscreenTopControls" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"></div>
+    <span id="chartFullscreenDescription" style="font-size:10px;color:var(--sub);white-space:normal;flex-basis:100%"></span>
+  </div>
+  <div id="chartFullscreenControls" class="chart-fullscreen-controls-row"></div>
+  <div id="chartFullscreenHost" class="chart-fullscreen-host"></div>
+  <div id="walletDeepDiveHost" class="chart-fullscreen-host" style="display:none"></div>
+  <div id="floorFullscreenHost" class="chart-fullscreen-host" style="display:none"></div>
+</div>
+
+<!-- ===== Grid Download modal ===== -->
+<div id="gridDownloadOverlay" onclick="if(event.target===this) closeGridDownloadModal()" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:16px;max-width:420px;width:100%;max-height:85vh;max-height:85dvh;overflow-y:auto;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3 style="font-size:16px;margin:0">Download Grid</h3>
+      <button onclick="closeGridDownloadModal()" style="background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer;line-height:1;padding:0">×</button>
+    </div>
+    <p style="color:var(--sub);font-size:12px;line-height:1.5;margin:0 0 14px">Tap tokens below to select them, then choose a grid size and format.</p>
+
+    <div id="gridDownloadSelectedCount" style="font-size:13px;font-weight:700;margin-bottom:10px">0 selected</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn" onclick="gridDownloadSelectAll()" style="flex:1;font-size:12px;padding:7px">Select All</button>
+      <button class="btn" onclick="gridDownloadClearAll()" style="flex:1;font-size:12px;padding:7px">Clear</button>
+    </div>
+
+    <!-- jv confirmed live: "Tap tokens below to select them" had no
+         tokens actually inside this modal to tap -- the intent had been
+         to let the wallet drawer's own grid show through behind this
+         modal, but the modal's full-viewport darkened overlay
+         (gridDownloadOverlay below) intercepts any tap on that area and
+         closes the modal instead. Self-contained token grid inside the
+         modal itself instead, populated in openGridDownloadModal() by
+         reusing the exact same render functions (_renderMobileWalletGrid /
+         _renderDesktopWalletGrid) the wallet drawer already uses -- their
+         click handlers already check window._gridSelectMode and call
+         toggleGridDownloadSelection() correctly, so this needed no new
+         selection logic, just an actual place for those cards to render
+         that the user can reach. -->
+    <div id="gridDownloadTokenGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:220px;overflow-y:auto;margin-bottom:14px;padding:2px"></div>
+
+    <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Grid size</label>
+    <select id="gridDownloadSize" class="input" style="width:100%;margin-bottom:12px;font-size:13px;padding:8px">
+      <option value="2">2 × 2</option>
+      <option value="3">3 × 3</option>
+      <option value="4" selected>4 × 4</option>
+      <option value="5">5 × 5</option>
+      <option value="6">6 × 6</option>
+      <option value="7">7 × 7</option>
+      <option value="8">8 × 8</option>
+      <option value="10">10 × 10</option>
+    </select>
+
+    <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">File format</label>
+    <select id="gridDownloadFormat" class="input" style="width:100%;margin-bottom:12px;font-size:13px;padding:8px" onchange="gridDownloadOnFormatChange()">
+      <option value="svg">SVG — fully zoomable, no quality limit</option>
+      <option value="png">PNG — high quality image</option>
+      <option value="jpeg">JPEG — smaller file size</option>
+    </select>
+
+    <label id="gridDownloadTransparentRow" style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="gridDownloadTransparent" onchange="gridDownloadOnFormatChange()">
+      No background (on-chain art only — may not apply to every collection)
+    </label>
+
+    <!-- jv: PNG's gap/background fill was hardcoded white -- wants a
+         choice of white or black. Hidden whenever "No background" above
+         is checked (nothing to color -- it's transparent), shown
+         whenever it isn't, including always for JPEG since that format
+         can't be transparent at all. -->
+    <label id="gridDownloadBgColorLabel" style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Background color</label>
+    <select id="gridDownloadBgColor" class="input" style="width:100%;margin-bottom:14px;font-size:13px;padding:8px" onchange="_invalidateGridDownloadPreview()">
+      <option value="#ffffff">White</option>
+      <option value="#000000">Black</option>
+    </select>
+
+    <!-- jv: "for the grid download is it possible to create a small
+         gapping between images" -- shared an example Discord-posted grid
+         with visible spacing between cells. Simple on/off rather than a
+         precise pixel input, matching this modal's existing toggle style
+         (the transparency checkbox right above) rather than adding a
+         fiddlier numeric control for what's meant to be a quick, casual
+         export option. -->
+    <label id="gridDownloadGapRow" style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="gridDownloadGap">
+      Add spacing between images
+    </label>
+
+    <!-- jv: "is there a way to get rounded corners? Kinda like how they
+         are displayed here" (referring to this same modal's own token
+         picker thumbnails, which already have rounded corners via CSS --
+         the exported file didn't). Percentage-of-cellSize, same reasoning
+         as the gap option right above: a fixed pixel radius would look
+         proportionally huge on a small grid and barely visible on a
+         large one. -->
+    <label id="gridDownloadRoundedRow" style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="gridDownloadRounded">
+      Rounded corners
+    </label>
+
+    <!-- jv: "there needs to be a more clear way to know which order you
+         picked the images. Maybe like a number... that displays as you
+         click?" -- toggleGridDownloadSelection (below) stamps a live
+         position badge onto each selected card in the picker grid above;
+         this checkbox only controls whether that same order is honored
+         in the actual output file (unchanged from before). -->
+    <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Order</label>
+    <select id="gridDownloadOrder" class="input" style="width:100%;margin-bottom:14px;font-size:13px;padding:8px">
+      <option value="selected">As selected</option>
+      <option value="id_asc">Token ID — low to high</option>
+      <option value="id_desc">Token ID — high to low</option>
+      <option value="rank_asc">Rarity rank — rarest first</option>
+      <option value="rank_desc">Rarity rank — most common first</option>
+    </select>
+
+    <div id="gridDownloadProgress" style="display:none;font-size:12px;color:var(--sub);margin-bottom:10px"></div>
+
+    <!-- jv: "before the download could there be an option to display a
+         preview?" -- renders the actual composed grid (same resolution/
+         compositing code the real download uses, just displayed instead
+         of saved) so what's shown here is exactly what downloading
+         produces, not a separate approximation that could drift out of
+         sync with it. -->
+    <div id="gridDownloadPreviewWrap" style="display:none;margin-bottom:14px">
+      <div id="gridDownloadPreviewHost" style="width:100%;border-radius:8px;overflow:hidden;background:var(--soft);display:flex;align-items:center;justify-content:center"></div>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="gridDownloadPreviewBtn" onclick="gridDownloadPreview()" style="flex:1;padding:10px;font-weight:700">Preview</button>
+      <button class="btn" id="gridDownloadGoBtn" onclick="gridDownloadGo()" style="flex:1;padding:10px;font-weight:700;background:#2dd4bf;color:#04201c;border:none">Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile connected holder right drawer -->
+<div id="mobileHolderOverlay" onclick="closeMobileHolderDrawer()"></div>
+<div id="mobileHolderDrawer">
+  <div id="mobileHolderHeader">
+    <span style="font-weight:700;font-size:15px;color:var(--text)">Connected Holder</span>
+    <div style="display:flex;gap:12px;align-items:center">
+      <button onclick="if(typeof tvShowDiscordVerifyModal==='function') tvShowDiscordVerifyModal()" style="background:none;border:none;color:var(--tc-1cffaf);font-size:11px;font-weight:700;cursor:pointer;padding:0;font-family:'Space Grotesk',sans-serif;display:flex;align-items:center;gap:4px">🔗 Discord Verify</button>
+      <button onclick="closeMobileHolderDrawer()" style="background:none;border:none;color:var(--sub);font-size:22px;cursor:pointer;padding:0;line-height:1">×</button>
+    </div>
+  </div>
+  <div id="mobileHolderBody" style="padding:10px 14px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <div id="mobileConnectedHolderPanel" class="connected-holder-panel" aria-live="polite"></div>
+    <div id="mobileHolderEmpty" style="font-size:12px;color:var(--sub);line-height:1.4;padding:4px 0">Connect a wallet from the menu to see holder stats and tags here.</div>
+    <div id="mobileWalletAnalyticsHost" class="wallet-analytics" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="studioModal" class="studio-modal" onclick="if(event.target===this) closeTraitViewStudio()">
+  <div class="studio-box">
+    <div class="studio-head">
+      <div>
+        <div class="studio-title">TraitView Studio</div>
+        <div style="font-size:11px;color:var(--sub)">OCAS Share Card Builder</div>
+      </div>
+      <button class="btn ghost" onclick="closeTraitViewStudio()" style="width:34px;height:34px;padding:0;border-radius:999px">×</button>
+    </div>
+    <div class="studio-grid">
+      <div class="studio-controls">
+        <div class="studio-panel">
+          <div class="studio-label">Layout & Style</div>
+          <div class="studio-row">
+            <select id="studioLayout" class="studio-select"><option value="wide">Wide 1200x630</option><option value="square">Square 1:1</option><option value="story">Story 9:16</option></select>
+            <select id="studioPalette" class="studio-select"><option value="default">Default</option><option value="dark">Dark</option><option value="glow">Neon / Glow</option><option value="minimal">Clean / Minimal</option></select>
+          </div>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Background</div>
+          <select id="studioBackground" class="studio-select"><option value="gradient">Current gradient</option><option value="glass">Dark glass</option><option value="token">Token-matched accent</option><option value="solid">Solid dark</option><option value="frosted">Transparent/frosted look</option></select>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Custom Colors</div>
+          <div class="studio-color-grid">
+            <label class="studio-color">Gradient A<input type="color" id="studioColorBgA" value="#08111a"></label>
+            <label class="studio-color">Gradient B<input type="color" id="studioColorBgB" value="#10162a"></label>
+            <label class="studio-color">Solid BG<input type="color" id="studioColorSolid" value="#070b12"></label>
+            <label class="studio-color">Accent glow<input type="color" id="studioColorAccent" value="#1CFFAF"></label>
+            <label class="studio-color">Panel tint<input type="color" id="studioColorPanel" value="#08111a"></label>
+            <label class="studio-color">Text accent<input type="color" id="studioColorTextAccent" value="#67e8f9"></label>
+          </div>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Display</div>
+          <div class="studio-checks" id="studioToggles">
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="tokenId" checked>Token ID</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="collection" checked>Collection</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="rank" checked>Rank</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="traitCount" checked>Trait count</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="topTraits" checked>Top traits</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="tokenTags" checked>Token tags</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="comboInsight" checked>Combo insight</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="owner">Owner</label>
+            <label class="studio-check"><input type="checkbox" data-studio-toggle="holderTags">Holder tags</label>
+          </div>
+        </div>
+        <div class="studio-panel">
+          <div class="studio-label">Traits</div>
+          <select id="studioTraitMode" class="studio-select" style="margin-bottom:8px"><option value="auto">Auto: rarest traits</option><option value="top3">Top 3 rarest</option><option value="top5">Top 5 rarest</option><option value="custom">Custom selected traits</option></select>
+          <div id="studioTraitList" class="studio-trait-list"></div>
+        </div>
+      </div>
+      <div>
+        <div class="studio-preview-wrap"><canvas id="studioPreview" width="1200" height="630"></canvas></div>
+        <div class="studio-actions"><button class="btn ghost" onclick="renderTraitViewStudioPreview()">Refresh Preview</button><button class="btn" id="studioExportBtn" onclick="exportTraitViewStudioPng()">Export PNG</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Mobile analytics bottom sheet ── -->
+<div id="mobileAnalyticsOverlay" onclick="closeMobileAnalytics()"></div>
+<div id="mobileAnalyticsSheet">
+  <div id="mobileAnalyticsDragHandle" onclick="closeMobileAnalytics()"></div>
+  <div id="mobileAnalyticsInner"></div>
+</div>
+
+<!-- ═══ MOBILE MENU ═══ -->
+<div id="mobileMenu">
+  <div id="mobileMenuLinks">
+    <select id="collectionSwitcherMobile" class="mobile-theme-cycle" aria-label="Switch collection" onchange="switchCollection(this.value)" style="font-size:14px;font-weight:600;color:var(--text)">
+    </select>
+    <a class="mobile-menu-link" id="mobileMenuLinkOS" href="https://opensea.io/collection/on-chain-all-stars" target="_blank" rel="noreferrer">
+      <span class="mobile-menu-icon"><img src="https://static.seadn.io/logos/Logomark-Blue.png" width="18" height="18" style="border-radius:4px;vertical-align:middle" alt="OS"></span>
+      <span class="mobile-menu-label">OpenSea</span>
+      <span class="mobile-menu-arrow">↗</span>
+    </a>
+    <a class="mobile-menu-link" id="mobileMenuLinkWeb" href="https://onchainallstars.xyz" target="_blank" rel="noreferrer">
+      <span class="mobile-menu-icon">⌂</span>
+      <span class="mobile-menu-label">Website</span>
+      <span class="mobile-menu-arrow">↗</span>
+    </a>
+    <a class="mobile-menu-link" id="mobileMenuLinkTwitter" href="https://twitter.com/onchainallstars" target="_blank" rel="noreferrer">
+      <span class="mobile-menu-icon">𝕏</span>
+      <span class="mobile-menu-label">Twitter</span>
+      <span class="mobile-menu-arrow">↗</span>
+    </a>
+    <a class="mobile-menu-link" id="mobileMenuLinkEtherscan" href="https://etherscan.io/token/0x078be86f3104a32313a47815792230a3808642cc" target="_blank" rel="noreferrer">
+      <span class="mobile-menu-icon"><svg width="18" height="18" viewBox="0 0 122 122" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="61" cy="61" r="61" fill="#21325B"/><path d="M25.29 57.9139C25.2901 57.2347 25.4244 56.5623 25.6851 55.9352C25.9458 55.308 26.3278 54.7386 26.8092 54.2595C27.2907 53.7804 27.8619 53.4011 28.4903 53.1434C29.1187 52.8858 29.7918 52.7548 30.471 52.7579L39.061 52.7859C40.4305 52.7859 41.744 53.33 42.7124 54.2984C43.6809 55.2669 44.225 56.5803 44.225 57.9499V90.4299C45.192 90.1429 46.434 89.8369 47.793 89.5169C48.737 89.2952 49.5783 88.761 50.1805 88.0009C50.7826 87.2409 51.1102 86.2996 51.11 85.3299V45.0399C51.11 43.6702 51.654 42.3567 52.6224 41.3881C53.5908 40.4195 54.9043 39.8752 56.274 39.8749H64.881C66.2506 39.8752 67.5641 40.4195 68.5325 41.3881C69.5009 42.3567 70.045 43.6702 70.045 45.0399V82.4329C70.045 82.4329 72.2 81.5609 74.299 80.6749C75.0787 80.3452 75.7441 79.7931 76.2122 79.0877C76.6803 78.3822 76.9302 77.5545 76.931 76.7079V32.1299C76.931 30.7605 77.4749 29.4472 78.4431 28.4788C79.4113 27.5103 80.7245 26.9662 82.0939 26.9659H90.701C92.0706 26.9659 93.384 27.51 94.3525 28.4784C95.3209 29.4468 95.865 30.7603 95.865 32.1299V68.8389C103.327 63.4309 110.889 56.9269 116.89 49.1059C117.761 47.9707 118.337 46.6377 118.567 45.2257C118.797 43.8138 118.674 42.3668 118.209 41.0139C115.431 33.0217 111.016 25.6973 105.245 19.5096C99.474 13.3218 92.4749 8.40687 84.6955 5.07934C76.9161 1.75182 68.5277 0.0849617 60.0671 0.185439C51.6065 0.285917 43.2601 2.15152 35.562 5.66286C27.8638 9.17419 20.9834 14.2539 15.3611 20.577C9.73881 26.9001 5.49842 34.3272 2.91131 42.3832C0.324207 50.4391 -0.552649 58.9464 0.336851 67.3607C1.22635 75.775 3.86263 83.911 8.07696 91.2479C8.81111 92.5135 9.89118 93.5434 11.1903 94.2165C12.4894 94.8896 13.9536 95.178 15.411 95.0479C17.039 94.9049 19.066 94.7019 21.476 94.4189C22.5251 94.2998 23.4937 93.7989 24.1972 93.0116C24.9008 92.2244 25.2901 91.2058 25.291 90.1499L25.29 57.9139Z" fill="white"/><path d="M25.1021 110.009C34.1744 116.609 44.8959 120.571 56.0802 121.456C67.2646 122.34 78.4757 120.114 88.4731 115.022C98.4705 109.93 106.864 102.172 112.726 92.6059C118.587 83.0395 121.688 72.0381 121.685 60.8188C121.685 59.4188 121.62 58.0337 121.527 56.6567C99.308 89.7947 58.2831 105.287 25.104 110.004" fill="#8B8B8B"/></svg></span>
+      <span class="mobile-menu-label">Etherscan</span>
+      <span class="mobile-menu-arrow">↗</span>
+    </a>
+    <a class="mobile-menu-link" id="mobileMenuLinkDiscord" href="https://discord.gg/bbxreqTaSM" target="_blank" rel="noreferrer">
+      <span class="mobile-menu-icon"><img src="./assets/discord-symbol-light-blurple.svg" alt="" aria-hidden="true" width="18" height="18"></span>
+      <span class="mobile-menu-label">Discord</span>
+      <span class="mobile-menu-arrow">↗</span>
+    </a>
+  </div>
+  <button type="button" id="mobileWalletConnectBtn" class="mobile-theme-cycle wallet-connect-btn" onclick="handleMobileWalletConnectButton()" aria-label="Connect wallet">
+    <span class="mobile-menu-icon">◇</span>
+    <span class="mobile-menu-label">Connect Wallet</span>
+    <span class="mobile-menu-arrow">read only</span>
+  </button>
+  <div id="mobileJumpSlot"></div>
+  <button type="button" id="mobileFavoritesToggle" class="mobile-theme-cycle" aria-label="Toggle favorites view">
+    <span class="mobile-menu-icon">★</span>
+    <span class="mobile-menu-label">Favorites <span id="mobileFavoritesCount">0</span></span>
+    <span class="mobile-menu-arrow">view</span>
+  </button>
+  <!-- jv: "no way to get down to the bottom of the page where the compare
+       and pinned panels live unless you scroll the whole way" -> opens them
+       in their own slide-up sheet (openComparePinnedSheet in app.js). -->
+  <button type="button" id="mobileComparePinnedBtn" class="mobile-theme-cycle" onclick="openComparePinnedSheet()" aria-label="Open Compare and Pinned">
+    <span class="mobile-menu-icon">⇄</span>
+    <span class="mobile-menu-label">Compare &amp; Pinned <span id="mobileComparePinnedCount"></span></span>
+    <span class="mobile-menu-arrow">open</span>
+  </button>
+  <button type="button" id="mobileInstallAppBtn" class="mobile-theme-cycle" onclick="tvInstallApp()" aria-label="Install the TraitView app">
+    <span class="mobile-menu-icon"><img src="/images/icons/favicon-32.png" width="18" height="18" style="border-radius:4px;vertical-align:middle" alt=""></span>
+    <span class="mobile-menu-label">Install app</span>
+    <span class="mobile-menu-arrow">add</span>
+  </button>
+  <button type="button" id="rankSystemToggleMobile" class="mobile-theme-cycle" onclick="toggleRankSystem()" aria-label="Toggle rank system">
+    <span class="mobile-menu-icon" id="rankSystemIconMobile">◆</span>
+    <span class="mobile-menu-label">Rarity Rank: <span id="rankSystemLabelMobile">OS</span></span>
+    <span class="mobile-menu-arrow" id="rankSystemArrowMobile">tap to switch</span>
+  </button>
+  <div id="mobileMenuThemes">
+    <button type="button" id="mobileThemeButton" class="mobile-theme-cycle" onclick="cycleThemeMobile(event)" aria-label="Cycle theme">
+      <span class="mobile-menu-icon">🎨</span>
+      <span class="mobile-menu-label">Theme: <span id="mobileThemeLabel">Slate</span></span>
+      <span class="mobile-menu-arrow">cycle</span>
+    </button>
+    <button type="button" id="minimalThemeButton" class="mobile-theme-cycle" onclick="cycleMinimalTheme(event)" aria-label="Cycle minimal theme">
+      <span class="mobile-menu-icon">◐</span>
+      <span class="mobile-menu-label">Minimal: <span id="minimalThemeLabel">Off</span></span>
+      <span class="mobile-menu-arrow">cycle</span>
+    </button>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div id="walletLaunchModal" class="wallet-launch-modal" onclick="if(event.target===this) closeWalletLaunchModal()">
+  <div class="wallet-launch-box">
+    <div class="wallet-launch-head">
+      <div class="wallet-launch-title">Connect Wallet</div>
+      <button class="btn ghost" onclick="closeWalletLaunchModal()" style="width:32px;height:32px;padding:0;border-radius:999px">×</button>
+    </div>
+    <p class="wallet-launch-copy">Open TraitView in a mobile wallet browser, then tap Connect again. This stays read-only and never asks for a signature.</p>
+    <div class="wallet-launch-actions" id="walletLaunchActions"></div>
+  </div>
+</div>
+<div id="holderTagPreview" class="holder-tag-preview"></div>
+
+<!-- Modal -->
+<div id="modal" onclick="if(event.target===this) this.style.display='none'">
+  <div class="box" style="max-width:960px">
+    <div class="mhead">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+        <div id="mTitle" class="section" style="font-size:16px"></div>
+        <div id="mPersonalityTags" class="market-tags" aria-label="Market personality tags"></div>
+        <div id="mMetaLine" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="mPrice" style="display:none"></span>
+          <span id="mOwner" style="display:none" title="View wallet">
+            <span style="color:var(--sub);font-size:10px">Owned by</span>
+            <span class="owner-addr" id="mOwnerAddr">…</span>
+            <a id="mOwnerXLink" href="#" target="_blank" rel="noopener" style="display:none;margin-left:3px;color:var(--text);vertical-align:middle" title="View on X" onclick="event.stopPropagation()">
+              <svg viewBox="0 0 24 24" aria-hidden="true" style="width:12px;height:12px;display:block"><path d="M18.9 2H22l-6.77 7.74L23.2 22h-6.25l-4.9-6.84L6.06 22H3l7.24-8.28L.8 2h6.4l4.43 6.2L18.9 2Zm-1.1 18h1.73L6.26 3.9H4.4L17.8 20Z" fill="currentColor"></path></svg>
+            </a>
+          </span>
+          <span class="render-tools-pill" aria-label="Export tools">
+            Export <span>PNG</span>
+          </span>
+        </div>
+        <div id="mBurnHistoryToggle" class="burn-hist-toggle" style="display:none"></div>
+      </div>
+      <div class="modal-actions" style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-top:4px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button type="button" id="mCompareABtn" class="pinbtn" title="Pin to A">A</button>
+          <button type="button" id="mCompareBBtn" class="pinbtn" title="Pin to B">B</button>
+          <button type="button" id="mPinBtn" class="pinbtn" title="Add to pinned">＋</button>
+          <button class="btn ghost" onclick="document.getElementById('modal').style.display='none'" aria-label="Close" title="Close" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border-radius:999px;font-size:0;line-height:1;font-weight:600;background:transparent;position:relative">
+            <span style="font-size:22px;line-height:34px;display:block;transform:translateY(-1px)">×</span>
+          </button>
+        </div>
+        <div class="modal-action-icons" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+          <div class="links" id="mLinks" style="display:flex;gap:8px;flex-wrap:nowrap;align-items:center;justify-content:flex-end"></div>
+          <!-- jv: "add the same alert button in each token modal ... Just the outline of the bell" -->
+          <button type="button" id="mAlertBtn" title="Alert me about this token" aria-label="Alerts for this token" class="favbtn tv-alert-btn" style="width:34px;height:34px;flex:0 0 auto"><svg class="tv-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 3.5.7 5.7 1.6 7.1.4.6 0 1.4-.7 1.4H5.1c-.7 0-1.1-.8-.7-1.4C5.3 14.7 6 12.5 6 9Z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg></button>
+          <button id="mFavoriteBtn" title="Favorite token" class="favbtn" style="width:34px;height:34px;flex:0 0 auto">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17.3l-6.18 3.73 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.76 1.64 7.03z"/></svg>
+          </button>
+          <div id="mDownloadWrap" style="position:relative;flex:0 0 auto">
+            <button id="mDownloadBtn" title="Export" aria-label="Export" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border-radius:999px;border:1px solid color-mix(in srgb, var(--text) 15%, transparent);background:transparent;color:var(--sub);cursor:pointer;flex:0 0 auto">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>
+            </button>
+            <div id="mDownloadMenu" style="display:none;position:absolute;right:0;top:40px;background:var(--card,#1a1a2e);border:1px solid color-mix(in srgb, var(--text) 15%, transparent);border-radius:10px;padding:4px;z-index:9999;min-width:190px;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+              <button id="mDownloadBgBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>Download With BG
+              </button>
+              <button id="mDownloadNoBgBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>Download No BG
+              </button>
+              <button id="mDownloadAnimBtn" class="export-menu-btn" style="display:none">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 12h12"/></svg>Download Animation
+              </button>
+              <div class="share-card-palette-row">
+                <label for="mShareCardPalette">Share Card Style</label>
+                <select id="mShareCardPalette">
+                  <option value="default">Default</option>
+                  <option value="dark">Dark</option>
+                  <option value="glow">Neon / Glow</option>
+                  <option value="minimal">Clean / Minimal</option>
+                </select>
+              </div>
+              <button id="mShareCardBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 10l2-2 2 2 2-3 2 3"/></svg>Share Card PNG
+              </button>
+              <button id="mCustomizeCardBtn" class="export-menu-btn">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h10"/><path d="M4 10l6-6 2 2-6 6H4z"/></svg>Customize Card
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mbody">
+      <div class="tip-img" id="mImg"></div>
+      <div style="flex:1;min-width:0">
+        <div class="modal-tabs" style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap;margin:0 0 12px;border-bottom:1px solid var(--border);padding-bottom:8px">
+          <button type="button" class="modal-tab active" data-tab="traits">Traits</button>
+          <button type="button" class="modal-tab" data-tab="rarity">Rarity</button>
+          <button type="button" class="modal-tab" data-tab="price">History</button>
+          <button type="button" class="modal-tab" data-tab="similar">Similar</button>
+        </div>
+        <!-- Tab: Traits -->
+        <div class="modal-tab-panel active" id="tab-traits">
+          <div class="traits" id="mTraits"></div>
+        </div>
+        <!-- Tab: Rarity Breakdown -->
+        <div class="modal-tab-panel" id="tab-rarity">
+          <div id="mRarityBreakdown"><div class="price-history-empty">Loading rarity data…</div></div>
+        </div>
+        <!-- Tab: Price History -->
+        <div class="modal-tab-panel" id="tab-price">
+          <div id="mPriceHistory"><div class="price-history-empty">Loading price history…</div></div>
+        </div>
+          <!-- Tab: Twins / Similar -->
+          <div class="modal-tab-panel" id="tab-similar">
+            <div id="mSimilarTokens"><div class="price-history-empty">Click "Similar" to find closest visual twins.</div></div>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+<!-- fast bootstrap now handled inside init() -->
+
+
+
+<script src="./js/config.js?v=202609428" defer></script>
+<script src="./js/landingPrefs.js?v=202609428" defer></script>
+<script src="./js/landing.js?v=202609428" defer></script>
+<script src="./js/dataConfig.js?v=202609428" defer></script>
+<script src="./js/formatUtils.js?v=202609428" defer></script>
+<script src="./js/imageMap.js?v=202609428" defer></script>
+<script src="./js/state.js?v=202609428" defer></script>
+<script src="./js/appState.js?v=202609428" defer></script>
+<script src="./js/favorites.js?v=202609428" defer></script>
+<script src="./js/wallet.js?v=202609428" defer></script>
+<script src="./js/api.js?v=202609428" defer></script>
+<script src="./js/rankSort.js?v=202609428" defer></script>
+<script src="./js/rankDisplay.js?v=202609428" defer></script>
+<script src="./js/walletConnect.js?v=202609428" defer></script>
+<script src="./js/walletAnalytics.js?v=202609428" defer></script>
+<script src="./js/mispriced.js?v=202609428" defer></script>
+<script src="./js/traitUtils.js?v=202609428" defer></script>
+<script src="./js/listingMeta.js?v=202609428" defer></script>
+<script src="./js/listCards.js?v=202609428" defer></script>
+<script src="./js/chart.js?v=202609428" defer></script>
+<script src="./js/tooltip.js?v=202609428" defer></script>
+<script src="./js/comboInsights.js?v=202609428" defer></script>
+<script src="./js/burnsAnalytics.js?v=202609428" defer></script>
+<script src="./js/downloadLoader.js?v=202609428" defer></script>
+<script src="./js/gridDownload.js?v=202609428" defer></script>
+<script src="./js/app.js?v=202609428" defer></script>
+<script src="./js/alerts.js?v=202609428" defer></script>
+<script>
+  // Installable app: register the service worker (see sw.js).
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
+  }
+</script>
+</body>
+</html>
+
